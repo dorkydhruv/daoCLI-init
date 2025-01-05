@@ -1,10 +1,13 @@
 # daocli-init
 
 # daoCLI
-## Embedded DAOs for the Modern Web3 Ecosystem
+
+## Programmatic & Embedded DAOs for AI Agents and Modern Web3 Applications
 
 
-daoCLI is a developer-first toolkit for creating and managing embedded DAOs on Solana. Built for developers who need programmatic control and users who want seamless DAO interactions.
+daoCLI is a toolkit built for AI agents to create and manage programmatic & embedded DAOs on Solana. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
+
+**We are like Stripe...we are developer first. Because AI Agents are developer first**.
 
 ## 🌟 Why daoCLI?
 
@@ -14,11 +17,6 @@ CLI-first approach | Stay in your product ecosystem | Direct exposure to DAO per
 Full automation support | Seamless token interactions | Liquid secondary market
 Git & CI/CD integration | No platform switching | Real-time price discovery
 Programmatic control | Integrated trading interface | Transparent mechanics
-
-## Programmatic DAOs for AI Agents and Modern Web3 Applications
-
-
-daoCLI is a toolkit built for AI agents to create and manage programmatic DAOs on Solana. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
 
 ## 🤖 Why AI Agents Need daoCLI
 
