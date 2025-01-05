@@ -1,0 +1,106 @@
+flowchart TB
+    %% Core Components
+    CLI[/"CLI Interface"/]
+    dao["DAO Smart Contract<br>ProgramID: xyz.."]
+    treasury["Treasury Vault<br>- Holds SOL<br>- Executes trades<br>- Signs transactions"]
+    token["DAO Token<br>Supply: 1.1B<br>SPL-Token"]
+    lp["LP Token<br>Staking Token<br>SPL-Token"]
+    
+    %% AI Agent Components
+    subgraph AI_OPS["AI Agent Operations"]
+        direction TB
+        agent["AI Trading Agent<br>Wallet Authority"]
+        strategy["Strategy Engine<br>- Market Analysis<br>- Risk Management<br>- Position Sizing"]
+        executor["Trade Executor<br>- Order Routing<br>- Slippage Check<br>- Gas Optimization"]
+    end
+
+    %% DEX Integration
+    subgraph DEX_OPS["DEX Operations"]
+        direction TB
+        orca["Orca DEX<br>- Main LP Pool<br>- 0.5% Fee Tier"]
+        raydium["Raydium DEX<br>- Arbitrage<br>- Yield Farming"]
+        jupiter["Jupiter Aggregator<br>- Best Route Finding<br>- Price Discovery"]
+        marinade["Marinade Finance<br>- SOL Staking<br>- mSOL Yield"]
+    end
+
+    %% Contract Interactions
+    subgraph CONTRACT_OPS["Contract Operations"]
+        direction TB
+        execute["execute()<br>onlyManager"]
+        trade["trade()<br>checkSlippage"]
+        stake["stake()<br>rewardCalc"]
+        claim["claim()<br>rewardDistribution"]
+    end
+
+    %% User Interface
+    subgraph UI["Embedded Interface"]
+        direction TB
+        trade_ui["Trading Panel<br>- Buy/Sell<br>- Price Charts"]
+        stake_ui["Staking Panel<br>- Stake/Unstake<br>- Rewards"]
+        stats_ui["Analytics<br>- TVL<br>- Volume<br>- APR"]
+    end
+
+    %% Fee Structure
+    subgraph FEES["Fee Distribution"]
+        direction TB
+        trading_fee["Trading Fee<br>0.4%"]
+        staking_fee["LP Staking<br>0.5%"]
+        carry_fee["Manager Carry<br>8%"]
+    end
+
+    %% Core Flow
+    CLI -->|"create-dao"| dao
+    CLI -->|"setup-pool"| orca
+    CLI -->|"generate-site"| UI
+    dao -->|"mint"| token
+    dao -->|"authorize"| treasury
+    treasury -->|"delegate"| agent
+
+    %% AI Agent Flow
+    agent -->|"analyze"| strategy
+    strategy -->|"execute"| executor
+    executor -->|"route trades"| jupiter
+    jupiter -->|"split orders"| DEX_OPS
+    executor -->|"monitor"| treasury
+
+    %% DEX Interactions
+    treasury -->|"approve"| orca
+    treasury -->|"approve"| raydium
+    treasury -->|"approve"| marinade
+    jupiter -->|"route"| orca
+    jupiter -->|"route"| raydium
+
+    %% Contract Operations
+    dao -->|"call"| execute
+    execute -->|"validate"| trade
+    trade -->|"execute"| treasury
+    treasury -->|"interact"| DEX_OPS
+
+    %% Staking Flow
+    orca -->|"mint"| lp
+    lp -->|"reward"| stake
+    stake -->|"distribute"| claim
+
+    %% Fee Flow
+    orca -->|"collect"| trading_fee
+    orca -->|"collect"| staking_fee
+    treasury -->|"collect"| carry_fee
+
+    %% UI Interactions
+    UI -->|"connect"| wallet((Wallet))
+    wallet -->|"sign"| treasury
+    trade_ui -->|"execute"| trade
+    stake_ui -->|"stake/unstake"| stake
+
+    %% Styling
+    classDef primary fill:#0066cc,stroke:#000,stroke-width:2px,color:#fff
+    classDef secondary fill:#00cc66,stroke:#000,stroke-width:2px,color:#fff
+    classDef accent fill:#cc6600,stroke:#000,stroke-width:2px,color:#fff
+    classDef critical fill:#cc0000,stroke:#000,stroke-width:2px,color:#fff
+    classDef interface fill:#6600cc,stroke:#000,stroke-width:2px,color:#fff
+
+    class dao,treasury,token,lp primary
+    class agent,strategy,executor secondary
+    class orca,raydium,jupiter,marinade accent
+    class execute,trade,stake,claim critical
+    class UI,CLI interface
