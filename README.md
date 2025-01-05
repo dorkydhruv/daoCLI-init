@@ -3,8 +3,6 @@
 # daoCLI
 ## Embedded DAOs for the Modern Web3 Ecosystem
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-1.0.0-green.svg)
 
 daoCLI is a developer-first toolkit for creating and managing embedded DAOs on Solana. Built for developers who need programmatic control and users who want seamless DAO interactions.
 
@@ -17,146 +15,208 @@ Full automation support | Seamless token interactions | Liquid secondary market
 Git & CI/CD integration | No platform switching | Real-time price discovery
 Programmatic control | Integrated trading interface | Transparent mechanics
 
-## 🚀 Quick Start
+## Programmatic DAOs for AI Agents and Modern Web3 Applications
 
+
+daoCLI is a toolkit built for AI agents to create and manage programmatic DAOs on Solana. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
+
+## 🤖 Why AI Agents Need daoCLI
+
+Traditional DAOs | daoCLI for AI
+----------------|---------------
+Requires human interfaces | Pure programmatic interaction
+Manual governance through websites | Automated governance through code
+Separate platforms & websites | Embedded directly in applications
+High operational overhead | Minimal computational overhead
+Human-centric UX | API-first design
+
+## 🎯 Core Features for AI Agents
+
+### Programmatic Control
+- **API-First Design**: Every feature accessible through code
+- **Event-Driven Architecture**: React to on-chain events automatically
+- **Automated Decision Making**: Implement algorithmic governance
+- **Batch Operations**: Handle multiple DAOs efficiently
+
+### AI Integration Features
+- **Standardized Interfaces**: Consistent API patterns for easy integration
+- **Deterministic Outcomes**: Predictable results for AI decision making
+- **State Management**: Track DAO state programmatically
+- **Event Subscriptions**: Real-time updates for AI agents
+
+### Treasury Management
+- **Automated Trading**: Algorithmic market making
+- **Smart Rebalancing**: AI-driven portfolio management
+- **Risk Parameters**: Programmable constraints
+- **Performance Monitoring**: Real-time metrics
+
+## 🚀 Quick Start for AI Integration
+
+### Basic Setup
 ```bash
 # Install daoCLI
 npm install -g daocli
 
-# Initialize your DAO
-daocli init
+# Initialize DAO programmatically
+daocli init --agent-key YOUR_AI_AGENT_KEY
 
-# Create DAO and setup liquidity pool
-daocli create-dao --target 1000
-daocli setup-pool --sol 10
+# Create DAO with AI management
+daocli create-dao \
+  --target 1000 \
+  --ai-manager YOUR_AI_MANAGER \
+  --strategy-path ./ai_strategy.json
+
+# Setup automated trading
+daocli setup-trading \
+  --strategy algorithmic \
+  --risk-params ./risk_config.json
 ```
 
-## 🎯 Key Features
+### Detailed CLI Usage
 
-### For Product Teams
-- **Embedded Experience**: Keep users within your ecosystem
-- **Automated Treasury**: Let your application manage funds programmatically
-- **Custom Token Creation**: Launch your own token with one command
-- **Seamless Integration**: Native components for web applications
+1. First, ensure you have a proper configuration in `dao-config.jsonnet`
 
-### For Investors
-- **Real-time Trading**: Immediate liquidity through AMM pools
-- **Price Discovery**: Transparent and market-driven pricing
-- **Portfolio Management**: Track investments without leaving the platform
-- **Direct Exposure**: Invest in DAOs without intermediaries
+2. Initialize the DAO:
+```bash
+./dao-cli.js init -t 1000 -m 0.1 -d 30
+```
+- `-t`: Fundraising target in SOL
+- `-m`: Minimum price in SOL
+- `-d`: Duration in days
 
-### For Developers
-- **CLI-First Workflow**: Everything is scriptable and automatable
-- **GitHub Actions**: Built-in CI/CD support
-- **Developer Tools**: Complete SDK and testing utilities
-- **Flexible Configuration**: Jsonnet-based configuration system
+3. Create the liquidity pool:
+```bash
+./dao-cli.js create-pool -s 100 -t 1000000
+```
+- `-s`: Initial SOL amount
+- `-t`: Initial token amount
+
+4. Stake LP tokens:
+```bash
+./dao-cli.js stake -a 1000
+```
+- `-a`: Amount of LP tokens to stake
+
+Each command can be automated and integrated into AI workflows through the programmatic API.
+
+### Complete CLI Reference
+
+```bash
+# Basic DAO Operations
+daocli create-dao --target 1000 --name "MyDAO"
+daocli setup-pool --sol 10 --tokens 1000000
+daocli deploy --network mainnet
+daocli set-permissions --address YOUR_ADDRESS
+
+# AI Agent Operations
+daocli set-agent --key YOUR_AI_KEY --permissions "TRADE,GOVERN"
+daocli configure-agent --strategy ./strategy.json
+daocli monitor-agent --metrics "performance,risk"
+
+# Advanced Operations
+daocli update-params --config ./new_params.json
+daocli view-analytics --format json
+daocli export-state --output ./state.json
+
+# Management Commands
+daocli list-daos --filter "active"
+daocli show-permissions --dao DAO_ADDRESS
+daocli backup-config --path ./backup
+```
+
+Each command supports both human and programmatic interaction, with AI agents typically using the programmatic API for automation.
 
 ## 💡 Technical Architecture
 
 ### Core Components
-1. **Smart Contracts**
-   - DAO governance
-   - Treasury management
-   - Staking mechanics
-   - AMM implementation
-
-2. **Client SDK**
-   - React components
-   - API interfaces
-   - Event handling
+1. **AI Interface Layer**
+   - Event subscriptions
    - State management
+   - Decision execution
+   - Performance monitoring
 
-3. **CLI Tool**
-   - DAO creation
-   - Pool management
-   - Token operations
-   - Configuration handling
+2. **Smart Contracts**
+   - Programmatic governance
+   - Automated treasury
+   - Trading mechanics
+   - Risk management
 
-## 📊 Pool Mechanics
+3. **API Layer**
+   - RESTful endpoints
+   - WebSocket feeds
+   - State queries
+   - Batch operations
 
-### Liquidity Structure
-- Initial pool: 10% of fundraised SOL
-- 90% allocated to treasury
-- Constant product AMM (x * y = k)
-- 0.4% trading fee
-- 0.5% LP staking rewards
+## 📊 AI Trading Integration
 
-### Trading Features
-- Price slippage protection
-- Real-time price updates
-- Depth chart visualization
-- Order history tracking
+### Automated Markets
+- AI-driven liquidity provision
+- Dynamic fee adjustment
+- Risk-based position sizing
+- Multi-pool optimization
 
-## 🛠 Installation & Setup
+### Performance Metrics
+- Real-time price analysis
+- Volume predictions
+- Risk assessments
+- Portfolio analytics
 
-### Prerequisites
-- Node.js v16+
-- Solana CLI tools
-- Yarn or npm
+## 🛠 Implementation Example
 
-### Basic Setup
-```bash
-# Install globally
-npm install -g daocli
-
-# Initialize in your project
-daocli init
-
-# Configure your DAO
-daocli config set --network mainnet
-```
-
-### GitHub Actions Integration
-```yaml
-name: Deploy DAO
-on:
-  push:
-    branches: [main]
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: daocli/setup@v1
-      - name: Create DAO
-        uses: daocli/create@v1
-        with:
-          token-name: "MyToken"
-          target: 1000
-```
-
-## 💻 Developer Integration
-
-### React Component Integration
+### AI Agent Integration
 ```typescript
-import { DaoTrading } from '@daocli/react'
+import { DaoManager } from '@daocli/ai'
 
-function App() {
-  return (
-    <div>
-      <YourApp />
-      <DaoTrading 
-        theme="dark"
-        showStats={true}
-      />
-    </div>
-  )
+async function setupAIManager() {
+  const manager = new DaoManager({
+    strategy: './ai_strategy.json',
+    riskParams: './risk_config.json',
+    autoRebalance: true
+  })
+
+  // Subscribe to events
+  manager.on('priceChange', async (data) => {
+    await manager.adjustStrategy(data)
+  })
+
+  // Execute trades
+  await manager.executeTradingStrategy()
 }
 ```
 
-### CLI Commands
-```bash
-# Create new DAO
-daocli create-dao --target 1000 --name "MyDAO"
+### Automated Governance
+```typescript
+import { Governance } from '@daocli/governance'
 
-# Setup liquidity pool
-daocli setup-pool --sol 10 --tokens 1000000
+async function setupGovernance() {
+  const governance = new Governance({
+    aiAgent: YOUR_AI_AGENT,
+    quorum: 100_000,
+    executionDelay: 0 // Instant for AI
+  })
 
-# Deploy contracts
-daocli deploy --network mainnet
-
-# Manage permissions
-daocli set-permissions --address YOUR_ADDRESS
+  // Create and execute proposals
+  await governance.createProposal({
+    action: 'adjustFees',
+    params: { newFee: 0.3 }
+  })
+}
 ```
+
+## 🔒 Security
+
+### AI-Specific Security
+- Rate limiting
+- Risk boundaries
+- Emergency shutdown
+- State validation
+
+### Smart Contract Security
+- Formal verification
+- Automated testing
+- Security bounties
+- Regular audits
+
 
 ## 📈 For Investors
 
@@ -187,22 +247,6 @@ daocli set-permissions --address YOUR_ADDRESS
 - Slippage protection
 - Emergency shutdown mechanisms
 
-## 📚 Documentation
-
-- [Getting Started Guide](https://docs.daocli.com/getting-started)
-- [Developer Documentation](https://docs.daocli.com/developers)
-- [API Reference](https://docs.daocli.com/api)
-- [Security Guide](https://docs.daocli.com/security)
-
-## 🤝 Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-## 🌐 Community
-
-- [Discord](https://discord.gg/daocli)
-- [Twitter](https://twitter.com/daocli)
-- [Blog](https://blog.daocli.com)
 
 ## 📋 Roadmap
 
