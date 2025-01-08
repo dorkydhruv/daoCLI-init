@@ -28,6 +28,12 @@ Separate platforms & websites | Embedded directly in applications
 High operational overhead | Minimal computational overhead
 Human-centric UX | API-first design
 
+## OpenAI & Sam Altman thinks exactly like us
+Don't believe me ? This is what OpenAI focuses on.
+* [https://openai.com/index/practices-for-governing-agentic-ai-systems/](https://openai.com/index/practices-for-governing-agentic-ai-systems/)
+* [https://openai.com/index/governance-of-superintelligence/](https://openai.com/index/governance-of-superintelligence/)
+
+
 ## 🎯 Core Features for AI Agents
 
 ### Programmatic Control
