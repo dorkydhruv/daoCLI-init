@@ -26,20 +26,48 @@ const loadDAOConfig = (chain) => {
 };
 
 // Chain-specific client initialization
+// Load contract ABIs
+const loadContractABIs = () => {
+  const abiPath = {
+    solana: './abis/solana/',
+    starknet: './abis/starknet/'
+  };
+  
+  return {
+    solana: {
+      dao: JSON.parse(fs.readFileSync(`${abiPath.solana}dao.json`, 'utf8')),
+      token: JSON.parse(fs.readFileSync(`${abiPath.solana}token.json`, 'utf8')),
+      pool: JSON.parse(fs.readFileSync(`${abiPath.solana}pool.json`, 'utf8'))
+    },
+    starknet: {
+      dao: JSON.parse(fs.readFileSync(`${abiPath.starknet}PartyDAO.json`, 'utf8')),
+      token: JSON.parse(fs.readFileSync(`${abiPath.starknet}ERC20.json`, 'utf8')),
+      pool: JSON.parse(fs.readFileSync(`${abiPath.starknet}JediPool.json`, 'utf8'))
+    }
+  };
+};
+
 const initializeClient = async (chain, config) => {
+  const abis = loadContractABIs();
+  
   switch (chain) {
     case 'solana': {
       const connection = new Connection(config.rpcUrl);
-      return new SolanaDAOClient(connection, config);
+      return new SolanaDAOClient(connection, {
+        ...config,
+        programId: config.programs.dao,
+        abis: abis.solana
+      });
     }
     case 'starknet': {
       const provider = new Provider({ 
         sequencer: { network: config.providerUrl || 'mainnet-alpha' }
       });
       return new StarknetDAOClient({ 
-        daoAddress: config.daoAddress,
+        daoAddress: config.contracts.dao,
         providerUrl: config.providerUrl,
-        deployerAccount: config.deployerAccount 
+        deployerAccount: config.deployerAccount,
+        abis: abis.starknet
       });
     }
     default:
