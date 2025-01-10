@@ -6,7 +6,8 @@ import {
   constants,
   stark,
   uint256,
-  AccountInterface
+  AccountInterface,
+  ContractFactory
 } from 'starknet';
 import { BigNumberish } from 'starknet/dist/utils/number';
 import BN from 'bn.js';
@@ -16,6 +17,11 @@ interface DAOConfig {
   daoAddress: string;
   providerUrl?: string;
   deployerAccount?: AccountInterface;
+  abis: {
+    dao: any;
+    token: any;
+    pool: any;
+  };
 }
 
 interface InitializeParams {
@@ -39,8 +45,9 @@ interface StakingInfo {
 
 export class DAOClient {
   private provider: ProviderInterface;
-  private contract: Contract;
+  private daoContract: Contract;
   private account?: AccountInterface;
+  private abis: DAOConfig['abis'];
 
   constructor(config: DAOConfig) {
     // Initialize provider
@@ -50,9 +57,11 @@ export class DAOClient {
       }
     });
 
-    // Initialize contract
-    this.contract = new Contract(
-      require('./abis/PartyDAO.json'),
+    this.abis = config.abis;
+
+    // Initialize DAO contract
+    this.daoContract = new Contract(
+      this.abis.dao,
       config.daoAddress,
       this.provider
     );
@@ -60,78 +69,71 @@ export class DAOClient {
     // Set deployer account if provided
     if (config.deployerAccount) {
       this.account = config.deployerAccount;
-      this.contract.connect(this.account);
+      this.daoContract.connect(this.account);
     }
   }
 
-  /**
-   * Initialize a new DAO
-   * @param params Initialize parameters
-   * @returns Transaction hash
-   */
-  async initializeDAO(params: InitializeParams): Promise<string> {
+  async deployDAO(params: InitializeParams): Promise<string> {
     if (!this.account) {
       throw new Error('No account connected');
     }
 
-    const {
-      manager,
-      daoToken,
-      fundraiseTarget,
-      minPoolPrice,
-      expiryTimestamp
-    } = params;
-
     try {
-      const tx = await this.contract.constructor(
-        manager,
-        daoToken,
-        uint256.bnToUint256(fundraiseTarget),
-        uint256.bnToUint256(minPoolPrice),
-        expiryTimestamp
-      );
+      // Deploy new DAO contract
+      const contractFactory = new ContractFactory({
+        contract: this.abis.dao,
+        account: this.account
+      });
 
-      await this.provider.waitForTransaction(tx.transaction_hash);
-      return tx.transaction_hash;
+      const deployResponse = await contractFactory.deploy({
+        constructorCalldata: [
+          params.manager,
+          params.daoToken,
+          uint256.bnToUint256(params.fundraiseTarget),
+          uint256.bnToUint256(params.minPoolPrice),
+          params.expiryTimestamp
+        ]
+      });
+
+      await this.provider.waitForTransaction(deployResponse.transaction_hash);
+      return deployResponse.contract_address;
     } catch (error) {
-      console.error('Failed to initialize DAO:', error);
+      console.error('Failed to deploy DAO:', error);
       throw error;
     }
   }
 
   /**
    * Create liquidity pool
-   * @param params Pool creation parameters
-   * @returns Transaction hash
    */
   async createPool(params: PoolParams): Promise<string> {
     if (!this.account) {
       throw new Error('No account connected');
     }
 
-    const { ethAmount, tokenAmount, poolFactory } = params;
-
     try {
-      // First approve tokens to the pool
-      const daoTokenAddress = await this.contract.dao_token();
+      // Get token contract
+      const daoTokenAddress = await this.daoContract.dao_token();
       const daoToken = new Contract(
-        require('./abis/ERC20.json'),
+        this.abis.token,
         daoTokenAddress,
         this.provider
       );
       
       await daoToken.connect(this.account);
+
+      // Approve tokens for pool
       const approveTx = await daoToken.approve(
-        poolFactory,
-        uint256.bnToUint256(tokenAmount)
+        params.poolFactory,
+        uint256.bnToUint256(params.tokenAmount)
       );
       await this.provider.waitForTransaction(approveTx.transaction_hash);
 
       // Create pool
-      const tx = await this.contract.create_pool(
-        uint256.bnToUint256(ethAmount),
-        uint256.bnToUint256(tokenAmount),
-        poolFactory
+      const tx = await this.daoContract.create_pool(
+        uint256.bnToUint256(params.ethAmount),
+        uint256.bnToUint256(params.tokenAmount),
+        params.poolFactory
       );
 
       await this.provider.waitForTransaction(tx.transaction_hash);
@@ -144,8 +146,6 @@ export class DAOClient {
 
   /**
    * Stake LP tokens
-   * @param amount Amount of LP tokens to stake
-   * @returns Transaction hash
    */
   async stakeLPTokens(amount: BigNumberish): Promise<string> {
     if (!this.account) {
@@ -153,23 +153,25 @@ export class DAOClient {
     }
 
     try {
-      // First approve LP tokens
-      const lpTokenAddress = await this.contract.lp_token();
+      // Get LP token contract
+      const lpTokenAddress = await this.daoContract.lp_token();
       const lpToken = new Contract(
-        require('./abis/ERC20.json'),
+        this.abis.token,  // Using ERC20 ABI
         lpTokenAddress,
         this.provider
       );
       
       await lpToken.connect(this.account);
+
+      // Approve LP tokens
       const approveTx = await lpToken.approve(
-        this.contract.address,
+        this.daoContract.address,
         uint256.bnToUint256(amount)
       );
       await this.provider.waitForTransaction(approveTx.transaction_hash);
 
       // Stake tokens
-      const tx = await this.contract.stake_lp(
+      const tx = await this.daoContract.stake_lp(
         uint256.bnToUint256(amount)
       );
 
@@ -183,8 +185,6 @@ export class DAOClient {
 
   /**
    * Unstake LP tokens
-   * @param amount Amount of LP tokens to unstake
-   * @returns Transaction hash
    */
   async unstakeLPTokens(amount: BigNumberish): Promise<string> {
     if (!this.account) {
@@ -192,7 +192,7 @@ export class DAOClient {
     }
 
     try {
-      const tx = await this.contract.unstake_lp(
+      const tx = await this.daoContract.unstake_lp(
         uint256.bnToUint256(amount)
       );
 
@@ -206,7 +206,6 @@ export class DAOClient {
 
   /**
    * Collect accumulated fees
-   * @returns Transaction hash
    */
   async collectFees(): Promise<string> {
     if (!this.account) {
@@ -214,7 +213,7 @@ export class DAOClient {
     }
 
     try {
-      const tx = await this.contract.collect_fees();
+      const tx = await this.daoContract.collect_fees();
       await this.provider.waitForTransaction(tx.transaction_hash);
       return tx.transaction_hash;
     } catch (error) {
@@ -225,12 +224,10 @@ export class DAOClient {
 
   /**
    * Get staking information for an account
-   * @param account Account address
-   * @returns Staking information
    */
   async getStakingInfo(account: string): Promise<StakingInfo> {
     try {
-      const info = await this.contract.staking_accounts(account);
+      const info = await this.daoContract.staking_accounts(account);
       return {
         amount: uint256.uint256ToBN(info.amount),
         rewardDebt: uint256.uint256ToBN(info.reward_debt)
@@ -263,21 +260,21 @@ export class DAOClient {
         isExpired,
         tradingActive
       ] = await Promise.all([
-        this.contract.manager(),
-        this.contract.treasury(),
-        this.contract.dao_token(),
-        this.contract.lp_token(),
-        this.contract.dex_pool(),
-        this.contract.fundraise_target(),
-        this.contract.min_pool_price(),
-        this.contract.expiry_timestamp(),
-        this.contract.total_staked(),
-        this.contract.reward_per_share(),
-        this.contract.trading_fees(),
-        this.contract.staking_rewards(),
-        this.contract.manager_fees(),
-        this.contract.is_expired(),
-        this.contract.trading_active()
+        this.daoContract.manager(),
+        this.daoContract.treasury(),
+        this.daoContract.dao_token(),
+        this.daoContract.lp_token(),
+        this.daoContract.dex_pool(),
+        this.daoContract.fundraise_target(),
+        this.daoContract.min_pool_price(),
+        this.daoContract.expiry_timestamp(),
+        this.daoContract.total_staked(),
+        this.daoContract.reward_per_share(),
+        this.daoContract.trading_fees(),
+        this.daoContract.staking_rewards(),
+        this.daoContract.manager_fees(),
+        this.daoContract.is_expired(),
+        this.daoContract.trading_active()
       ]);
 
       return {
@@ -305,39 +302,9 @@ export class DAOClient {
 
   /**
    * Connect an account to the client
-   * @param account Account to connect
    */
   connect(account: AccountInterface) {
     this.account = account;
-    this.contract.connect(account);
+    this.daoContract.connect(account);
   }
 }
-
-// Helper functions for CLI
-export const initializeDAO = async (
-  client: DAOClient,
-  options: InitializeParams
-): Promise<string> => {
-  return client.initializeDAO(options);
-};
-
-export const createPool = async (
-  client: DAOClient,
-  options: PoolParams
-): Promise<string> => {
-  return client.createPool(options);
-};
-
-export const stakeLPTokens = async (
-  client: DAOClient,
-  amount: BigNumberish
-): Promise<string> => {
-  return client.stakeLPTokens(amount);
-};
-
-export const unstakeLPTokens = async (
-  client: DAOClient,
-  amount: BigNumberish
-): Promise<string> => {
-  return client.unstakeLPTokens(amount);
-};
