@@ -2,24 +2,42 @@
 mod PartyDAO {
     use starknet::get_caller_address;
     use starknet::ContractAddress;
+    use starknet::class_hash::ClassHash;
     use openzeppelin::token::erc20::IERC20;
-    use jediswap::pool::IPool;  // Using JediSwap as the AMM
+    use jediswap::interfaces::pool::IJediPool;
+    use jediswap::interfaces::factory::IJediFactory;
+
+    // Constants
+    const ETH_ADDRESS: felt252 = 0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7;
+    const FEE_TIER_MEDIUM: u32 = 3000; // 0.3%
+    const REWARD_PRECISION: u256 = 1000000; // For handling decimal calculations
 
     // Storage
+    #[storage]
     struct Storage {
+        // Core DAO state
         manager: ContractAddress,
         treasury: ContractAddress,
         dao_token: ContractAddress,
         lp_token: ContractAddress,
         dex_pool: ContractAddress,
+        
+        // Parameters
         fundraise_target: u256,
         min_pool_price: u256,
         expiry_timestamp: u64,
+        
+        // Staking and rewards
+        staking_accounts: LegacyMap::<ContractAddress, StakingInfo>,
         total_staked: u256,
         reward_per_share: u256,
+        
+        // Fee management
         trading_fees: u256,
         staking_rewards: u256,
         manager_fees: u256,
+        
+        // State flags
         is_expired: bool,
         trading_active: bool,
     }
@@ -46,6 +64,16 @@ mod PartyDAO {
     #[event]
     fn Unstaked(staker: ContractAddress, amount: u256, reward: u256) {}
 
+    #[event]
+    fn RewardsClaimed(account: ContractAddress, amount: u256) {}
+
+    #[event]
+    fn FeesCollected(
+        trading_fees: u256,
+        staking_rewards: u256,
+        manager_fees: u256
+    ) {}
+
     // Constructor
     #[constructor]
     fn constructor(
@@ -55,12 +83,21 @@ mod PartyDAO {
         min_pool_price: u256,
         expiry_timestamp: u64,
     ) {
+        // Input validation
+        assert(!manager.is_zero(), 'Invalid manager address');
+        assert(!dao_token.is_zero(), 'Invalid token address');
+        assert(fundraise_target > 0, 'Invalid fundraise target');
+        assert(min_pool_price > 0, 'Invalid min pool price');
+        assert(expiry_timestamp > starknet::get_block_timestamp(), 'Invalid expiry');
+
         // Initialize storage
         self.manager.write(manager);
         self.dao_token.write(dao_token);
         self.fundraise_target.write(fundraise_target);
         self.min_pool_price.write(min_pool_price);
         self.expiry_timestamp.write(expiry_timestamp);
+        
+        // Initialize other state
         self.total_staked.write(0);
         self.reward_per_share.write(0);
         self.trading_fees.write(0);
@@ -69,46 +106,59 @@ mod PartyDAO {
         self.is_expired.write(false);
         self.trading_active.write(false);
 
+        // Create treasury as a contract account
+        let treasury = starknet::deploy_contract(
+            class_hash: ClassHash, // Treasury contract class hash
+            contract_address_salt: 0,
+            calldata: array![manager.into()],
+            deploy_from_zero: false
+        ).unwrap();
+        self.treasury.write(treasury);
+
         // Emit initialization event
-        DAOInitialized(manager, self.treasury.read(), dao_token, fundraise_target);
+        DAOInitialized(manager, treasury, dao_token, fundraise_target);
     }
 
-    // External functions
     #[external]
     fn create_pool(
-        eth_amount: u256,
+        eth_amount: u256,  
         token_amount: u256,
         pool_factory: ContractAddress
     ) {
-        // Only manager can create pool
-        assert(get_caller_address() == self.manager.read(), 'UNAUTHORIZED');
+        // Access control
+        let caller = get_caller_address();
+        assert(caller == self.manager.read(), 'UNAUTHORIZED');
         assert(!self.trading_active.read(), 'ALREADY_ACTIVE');
+
+        // Input validation
+        assert(eth_amount > 0, 'Invalid ETH amount');
+        assert(token_amount > 0, 'Invalid token amount');
+        assert(!pool_factory.is_zero(), 'Invalid factory address');
 
         // Create pool using JediSwap factory
         let pool = IJediFactory::create_pool(
             pool_factory,
             self.dao_token.read(),
-            ETH_ADDRESS,  // Using ETH as the paired token
-            FEE_TIER_MEDIUM  // 0.3% fee tier
+            ETH_ADDRESS,
+            FEE_TIER_MEDIUM
         );
 
-        // Add initial liquidity
+        // Approve tokens for pool
         let eth_token = IERC20::new(ETH_ADDRESS);
         let dao_token = IERC20::new(self.dao_token.read());
 
-        // Approve tokens
         eth_token.approve(pool, eth_amount);
         dao_token.approve(pool, token_amount);
 
-        // Add liquidity
-        let (lp_token_addr, lp_amount) = IPool::add_liquidity(
+        // Add initial liquidity
+        let (lp_token_addr, lp_amount) = IJediPool::add_liquidity(
             pool,
             eth_amount,
             token_amount,
             0,  // Min ETH
             0,  // Min tokens
-            get_caller_address(),
-            block_timestamp() + 1800  // 30 min deadline
+            caller,
+            starknet::get_block_timestamp() + 1800  // 30 min deadline
         );
 
         // Update storage
@@ -124,13 +174,14 @@ mod PartyDAO {
     fn stake_lp(amount: u256) {
         let caller = get_caller_address();
         assert(self.trading_active.read(), 'POOL_NOT_ACTIVE');
+        assert(amount > 0, 'Invalid amount');
 
-        // Update rewards before staking
+        // Update rewards
         self.update_rewards();
 
-        // Transfer LP tokens from user
+        // Transfer LP tokens
         let lp_token = IERC20::new(self.lp_token.read());
-        lp_token.transfer_from(caller, self, amount);
+        lp_token.transfer_from(caller, starknet::get_contract_address(), amount);
 
         // Update staking info
         let mut staking_info = self.staking_accounts.read(caller);
@@ -152,7 +203,7 @@ mod PartyDAO {
         let mut staking_info = self.staking_accounts.read(caller);
         assert(staking_info.amount >= amount, 'INSUFFICIENT_STAKE');
 
-        // Update rewards before unstaking
+        // Update rewards
         self.update_rewards();
 
         // Calculate pending rewards
@@ -175,10 +226,11 @@ mod PartyDAO {
         self.staking_accounts.write(caller, staking_info);
         self.total_staked.write(self.total_staked.read() - amount);
 
-        // Transfer rewards if any
+        // Transfer rewards
         if pending_reward > 0 {
             let reward_token = IERC20::new(self.dao_token.read());
             reward_token.transfer(caller, pending_reward);
+            RewardsClaimed(caller, pending_reward);
         }
 
         // Emit event
@@ -187,7 +239,8 @@ mod PartyDAO {
 
     #[external]
     fn collect_fees() {
-        assert(get_caller_address() == self.manager.read(), 'UNAUTHORIZED');
+        let caller = get_caller_address();
+        assert(caller == self.manager.read(), 'UNAUTHORIZED');
 
         let trading_fees = self.trading_fees.read();
         let staking_rewards = self.staking_rewards.read();
@@ -198,11 +251,14 @@ mod PartyDAO {
         self.staking_rewards.write(0);
         self.manager_fees.write(0);
 
+        // Transfer fees if any
         if trading_fees > 0 {
-            // Transfer fees to manager
             let fee_token = IERC20::new(ETH_ADDRESS);
             fee_token.transfer(self.manager.read(), trading_fees);
         }
+
+        // Emit event
+        FeesCollected(trading_fees, staking_rewards, manager_fees);
     }
 
     // Internal functions
@@ -214,15 +270,18 @@ mod PartyDAO {
         }
 
         let staking_rewards = self.staking_rewards.read();
-        self.reward_per_share.write(
-            self.reward_per_share.read() + (staking_rewards / total_staked)
-        );
-        self.staking_rewards.write(0);
+        if staking_rewards > 0 {
+            let reward_increase = (staking_rewards * REWARD_PRECISION) / total_staked;
+            self.reward_per_share.write(
+                self.reward_per_share.read() + reward_increase
+            );
+            self.staking_rewards.write(0);
+        }
     }
 
     #[internal]
     fn calculate_reward_debt(amount: u256, reward_per_share: u256) -> u256 {
-        amount * reward_per_share
+        (amount * reward_per_share) / REWARD_PRECISION
     }
 
     #[internal]
@@ -231,12 +290,12 @@ mod PartyDAO {
         reward_per_share: u256,
         reward_debt: u256
     ) -> u256 {
-        amount * reward_per_share - reward_debt
+        ((amount * reward_per_share) / REWARD_PRECISION) - reward_debt
     }
 }
 
 // Helper structs
-#[derive(Drop, Serde)]
+#[derive(Drop, Serde, Copy)]
 struct StakingInfo {
     amount: u256,
     reward_debt: u256
