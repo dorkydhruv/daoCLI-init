@@ -1,237 +1,228 @@
 #!/usr/bin/env node
-// Previous imports remain the same, adding these new ones:
+import { program } from 'commander';
+import { Provider, Account } from 'starknet';
+import { Connection, Keypair } from '@solana/web3.js';
+import ora from 'ora';
+import chalk from 'chalk';
 import jsonnet from '@jsonnet/jsonnet';
-import {
-  WhirlpoolContext,
-  buildWhirlpoolClient,
-  ORCA_WHIRLPOOL_PROGRAM_ID,
-  PDAUtil,
-  PoolUtil,
-  PriceMath
-} from '@orca-so/whirlpools-sdk';
-import { Percentage } from '@orca-so/common-sdk';
-import { struct, u8, u16, u64, i64, bool } from '@coral-xyz/borsh';
+import fs from 'fs';
+import { DAOClient as SolanaDAOClient } from './dao-client.js';
+import { DAOClient as StarknetDAOClient } from './dao-starknet-client.ts';
+
+// Chain-specific configurations
+const SUPPORTED_CHAINS = ['solana', 'starknet'];
+const DEFAULT_CHAIN = 'solana';
 
 // Load and parse configuration
-const loadDAOConfig = () => {
+const loadDAOConfig = (chain) => {
   try {
-    const configPath = process.env.DAO_CONFIG_PATH || './dao-config.jsonnet';
+    const configPath = process.env.DAO_CONFIG_PATH || `./dao-config-${chain}.jsonnet`;
     const configText = fs.readFileSync(configPath, 'utf8');
     return JSON.parse(jsonnet.evaluateSnippet('config.jsonnet', configText));
   } catch (error) {
-    console.error(chalk.red('Error loading DAO config:'), error);
+    console.error(chalk.red(`Error loading DAO config for ${chain}:`), error);
     process.exit(1);
   }
 };
 
-const config = loadDAOConfig();
-
-// Instruction layout builders based on config
-const createInstructionLayout = (layout) => {
-  const fields = layout.map(({ name, type }) => [name, type === 'u64' ? u64() : type === 'i64' ? i64() : type === 'u16' ? u16() : type === 'u8' ? u8() : bool()]);
-  return struct(fields);
+// Chain-specific client initialization
+const initializeClient = async (chain, config) => {
+  switch (chain) {
+    case 'solana': {
+      const connection = new Connection(config.rpcUrl);
+      return new SolanaDAOClient(connection, config);
+    }
+    case 'starknet': {
+      const provider = new Provider({ 
+        sequencer: { network: config.providerUrl || 'mainnet-alpha' }
+      });
+      return new StarknetDAOClient({ 
+        daoAddress: config.daoAddress,
+        providerUrl: config.providerUrl,
+        deployerAccount: config.deployerAccount 
+      });
+    }
+    default:
+      throw new Error(`Unsupported chain: ${chain}`);
+  }
 };
 
-const layouts = {
-  initialize: createInstructionLayout(config.instructions.initialize.layout),
-  createPool: createInstructionLayout(config.instructions.createPool.layout),
-  stake: createInstructionLayout(config.instructions.stake.layout),
-};
+// Global options
+program
+  .version('2.0.0')
+  .option('-c, --chain <chain>', 'blockchain to use (solana/starknet)', DEFAULT_CHAIN)
+  .hook('preAction', (thisCommand) => {
+    const chain = thisCommand.opts().chain.toLowerCase();
+    if (!SUPPORTED_CHAINS.includes(chain)) {
+      console.error(chalk.red(`Unsupported chain: ${chain}`));
+      process.exit(1);
+    }
+  });
 
-// Initialize DAO with proper instruction
+// Initialize DAO command
 program
   .command('init')
   .description('Initialize new DAO')
-  .requiredOption('-t, --target <sol>', 'Fundraising target in SOL')
+  .requiredOption('-t, --target <amount>', 'Fundraising target in native token')
   .option('-d, --duration <days>', 'Fundraising duration in days', '7')
-  .option('-m, --min-price <sol>', 'Minimum pool price in SOL')
+  .option('-m, --min-price <amount>', 'Minimum pool price in native token')
   .action(async (options) => {
+    const chain = program.opts().chain;
+    const config = loadDAOConfig(chain);
     const spinner = ora('Initializing DAO...').start();
+
     try {
-      const provider = getAnchorProvider();
-      const fundraiseTarget = new BN(options.target).mul(new BN(1e9));
-      const minPrice = new BN(options.minPrice).mul(new BN(1e9));
-      const expiryDate = new BN(Date.now() + (parseInt(options.duration) * 24 * 60 * 60 * 1000));
-
-      // Create DAO token
-      const daoMint = await createMint(
-        connection,
-        provider.wallet,
-        provider.wallet.publicKey,
-        null,
-        9
-      );
-
-      // Get program addresses
-      const daoState = await getDAOStateAddress(provider.wallet.publicKey);
-      const treasury = await getTreasuryAddress(daoState);
-
-      // Create initialization instruction
-      const initData = {
-        fundraiseTarget,
-        minPrice,
-        expiryDate,
+      const client = await initializeClient(chain, config);
+      const params = {
+        fundraiseTarget: options.target,
+        minPoolPrice: options.minPrice,
+        expiryTimestamp: Date.now() + (parseInt(options.duration) * 24 * 60 * 60 * 1000)
       };
 
-      const initBuffer = Buffer.alloc(1000);
-      layouts.initialize.encode(initData, initBuffer);
-      const instruction = new TransactionInstruction({
-        keys: [
-          { pubkey: provider.wallet.publicKey, isSigner: true, isWritable: false },
-          { pubkey: daoState, isSigner: false, isWritable: true },
-          { pubkey: treasury, isSigner: false, isWritable: true },
-          { pubkey: daoMint, isSigner: false, isWritable: false },
-          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-          { pubkey: SYSVAR_RENT_PUBKEY, isSigner: false, isWritable: false },
-        ],
-        programId: new PublicKey(config.programs.dao),
-        data: Buffer.concat([Buffer.from([config.instructions.initialize.index]), initBuffer.slice(0, layouts.initialize.getSpan())]),
-      });
+      if (chain === 'solana') {
+        // Solana-specific initialization
+        const daoMint = await client.createMint();
+        params.daoToken = daoMint.publicKey.toString();
+      }
 
-      const tx = new Transaction().add(instruction);
-      await provider.sendAndConfirm(tx);
-
-      // Save to config
-      const localConfig = loadConfig();
-      localConfig.daoAddress = daoState.toString();
-      localConfig.daoToken = daoMint.toString();
-      saveConfig(localConfig);
-
+      const result = await client.initializeDAO(params);
+      
       spinner.succeed('DAO initialized successfully!');
-      console.log(chalk.green(`DAO Address: ${daoState}`));
-      console.log(chalk.green(`DAO Token: ${daoMint}`));
-      console.log(chalk.green(`Treasury: ${treasury}`));
+      console.log(chalk.green(`Transaction Hash: ${result}`));
+      
+      // Save to config
+      const localConfig = { ...config };
+      if (chain === 'solana') {
+        localConfig.daoMint = params.daoToken;
+      }
+      fs.writeFileSync(`./dao-config-${chain}.json`, JSON.stringify(localConfig, null, 2));
+      
     } catch (error) {
       spinner.fail('Failed to initialize DAO');
       console.error(chalk.red('Error:'), error);
     }
   });
 
+// Create pool command
 program
   .command('create-pool')
-  .description('Create Orca pool for DAO token')
-  .requiredOption('-s, --sol <amount>', 'Initial SOL amount')
-  .requiredOption('-t, --tokens <amount>', 'Initial token amount')
+  .description('Create liquidity pool')
+  .requiredOption('-n, --native <amount>', 'Initial native token amount')
+  .requiredOption('-t, --tokens <amount>', 'Initial DAO token amount')
   .action(async (options) => {
-    const localConfig = loadConfig();
-    if (!localConfig.daoToken) {
-      console.error(chalk.red('DAO token not found. Please initialize DAO first.'));
-      return;
-    }
+    const chain = program.opts().chain;
+    const config = loadDAOConfig(chain);
+    const spinner = ora('Creating liquidity pool...').start();
 
-    const spinner = ora('Creating Orca pool...').start();
     try {
-      const provider = getAnchorProvider();
-      const ctx = WhirlpoolContext.withProvider(provider, new PublicKey(config.programs.orca));
-      const client = buildWhirlpoolClient(ctx);
-
-      // Calculate amounts
-      const solAmount = new BN(options.sol).mul(new BN(1e9));
-      const tokenAmount = new BN(options.tokens).mul(new BN(1e9));
-
-      // Get token accounts
-      const tokenAAccount = await getAssociatedTokenAddress(
-        new PublicKey(localConfig.daoToken),
-        provider.wallet.publicKey
-      );
-
-      const tokenBAccount = await getAssociatedTokenAddress(
-        new PublicKey('So11111111111111111111111111111111111111112'), // Wrapped SOL
-        provider.wallet.publicKey
-      );
-
-      // Create pool configuration
-      const poolConfig = {
-        tokenMintA: new PublicKey(localConfig.daoToken),
-        tokenMintB: new PublicKey('So11111111111111111111111111111111111111112'),
-        tickSpacing: 64,
-        initialSqrtPrice: PriceMath.priceToSqrtPriceX64(1),
+      const client = await initializeClient(chain, config);
+      
+      const poolParams = {
+        nativeAmount: options.native,
+        tokenAmount: options.tokens,
+        ...(chain === 'starknet' ? { poolFactory: config.poolFactory } : {})
       };
 
-      // Create whirlpool
-      const { poolKey, tx } = await client.createPool(
-        provider.wallet.publicKey,
-        poolConfig,
-        Percentage.fromFraction(40, 10000), // 0.4% fee tier
-      );
-
-      await provider.sendAndConfirm(tx);
-
-      // Initialize pool with liquidity
-      const pool = await client.getPool(poolKey);
-      const position = await pool.openPosition(
-        provider.wallet.publicKey,
-        -1000, // Lower tick index
-        1000,  // Upper tick index
-        tokenAmount,
-        solAmount,
-        Percentage.fromFraction(50, 10000) // 0.5% slippage
-      );
-
-      spinner.succeed('Pool created successfully!');
-      console.log(chalk.green(`Pool Address: ${poolKey}`));
-      console.log(chalk.green(`Position: ${position.positionMint}`));
+      const result = await client.createPool(poolParams);
       
-      // Save pool address
-      localConfig.poolAddress = poolKey.toString();
-      saveConfig(localConfig);
+      spinner.succeed('Pool created successfully!');
+      console.log(chalk.green(`Transaction Hash: ${result}`));
+      
     } catch (error) {
       spinner.fail('Failed to create pool');
       console.error(chalk.red('Error:'), error);
     }
   });
 
+// Stake LP tokens command
 program
   .command('stake')
   .description('Stake LP tokens')
   .requiredOption('-a, --amount <amount>', 'Amount of LP tokens to stake')
   .action(async (options) => {
-    const localConfig = loadConfig();
-    if (!localConfig.poolAddress) {
-      console.error(chalk.red('Pool not found. Please create pool first.'));
-      return;
-    }
-
+    const chain = program.opts().chain;
+    const config = loadDAOConfig(chain);
     const spinner = ora('Staking LP tokens...').start();
+
     try {
-      const provider = getAnchorProvider();
-      const amount = new BN(options.amount).mul(new BN(1e9));
-
-      // Get staking accounts
-      const [stakingAccount] = await PublicKey.findProgramAddress(
-        [Buffer.from('staking'), provider.wallet.publicKey.toBuffer()],
-        new PublicKey(config.programs.staking)
-      );
-
-      // Create stake instruction
-      const stakeData = { amount };
-      const dataBuffer = Buffer.alloc(1000);
-      layouts.stake.encode(stakeData, dataBuffer);
-
-      const instruction = new TransactionInstruction({
-        keys: [
-          { pubkey: provider.wallet.publicKey, isSigner: true, isWritable: false },
-          { pubkey: stakingAccount, isSigner: false, isWritable: true },
-          { pubkey: new PublicKey(localConfig.poolAddress), isSigner: false, isWritable: true },
-          { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        ],
-        programId: new PublicKey(config.programs.staking),
-        data: Buffer.concat([Buffer.from([config.instructions.stake.index]), dataBuffer.slice(0, layouts.stake.getSpan())]),
-      });
-
-      const tx = new Transaction().add(instruction);
-      await provider.sendAndConfirm(tx);
-
+      const client = await initializeClient(chain, config);
+      const result = await client.stakeLPTokens(options.amount);
+      
       spinner.succeed('Successfully staked LP tokens!');
-      console.log(chalk.green(`Amount staked: ${options.amount}`));
-      console.log(chalk.green(`Staking account: ${stakingAccount}`));
+      console.log(chalk.green(`Transaction Hash: ${result}`));
+      
     } catch (error) {
       spinner.fail('Failed to stake LP tokens');
       console.error(chalk.red('Error:'), error);
     }
   });
 
-// Other commands remain the same...
+// Unstake LP tokens command
+program
+  .command('unstake')
+  .description('Unstake LP tokens')
+  .requiredOption('-a, --amount <amount>', 'Amount of LP tokens to unstake')
+  .action(async (options) => {
+    const chain = program.opts().chain;
+    const config = loadDAOConfig(chain);
+    const spinner = ora('Unstaking LP tokens...').start();
+
+    try {
+      const client = await initializeClient(chain, config);
+      const result = await client.unstakeLPTokens(options.amount);
+      
+      spinner.succeed('Successfully unstaked LP tokens!');
+      console.log(chalk.green(`Transaction Hash: ${result}`));
+      
+    } catch (error) {
+      spinner.fail('Failed to unstake LP tokens');
+      console.error(chalk.red('Error:'), error);
+    }
+  });
+
+// Get DAO state command
+program
+  .command('state')
+  .description('Get current DAO state')
+  .action(async () => {
+    const chain = program.opts().chain;
+    const config = loadDAOConfig(chain);
+    const spinner = ora('Fetching DAO state...').start();
+
+    try {
+      const client = await initializeClient(chain, config);
+      const state = await client.getDAOState();
+      
+      spinner.succeed('DAO state retrieved successfully!');
+      console.log(chalk.cyan('Current DAO State:'));
+      console.log(JSON.stringify(state, null, 2));
+      
+    } catch (error) {
+      spinner.fail('Failed to fetch DAO state');
+      console.error(chalk.red('Error:'), error);
+    }
+  });
+
+// Collect fees command
+program
+  .command('collect-fees')
+  .description('Collect accumulated fees')
+  .action(async () => {
+    const chain = program.opts().chain;
+    const config = loadDAOConfig(chain);
+    const spinner = ora('Collecting fees...').start();
+
+    try {
+      const client = await initializeClient(chain, config);
+      const result = await client.collectFees();
+      
+      spinner.succeed('Successfully collected fees!');
+      console.log(chalk.green(`Transaction Hash: ${result}`));
+      
+    } catch (error) {
+      spinner.fail('Failed to collect fees');
+      console.error(chalk.red('Error:'), error);
+    }
+  });
 
 program.parse(process.argv);
