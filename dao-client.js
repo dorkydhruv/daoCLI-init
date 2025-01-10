@@ -1,105 +1,129 @@
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  sendAndConfirmTransaction,
+  TransactionInstruction,
+  Signer
+} from '@solana/web3.js';
+import {
+  Program,
+  AnchorProvider,
+  web3,
+  BN,
+  Address
+} from '@project-serum/anchor';
 import { 
-  Account, 
-  Contract, 
-  Provider, 
-  ProviderInterface,
-  constants,
-  stark,
-  uint256,
-  AccountInterface,
-  ContractFactory
-} from 'starknet';
-import { BigNumberish } from 'starknet/dist/utils/number';
-import BN from 'bn.js';
+  Token,
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID 
+} from '@solana/spl-token';
 
-// Types
-interface DAOConfig {
-  daoAddress: string;
-  providerUrl?: string;
-  deployerAccount?: AccountInterface;
-  abis: {
-    dao: any;
-    token: any;
-    pool: any;
-  };
+// Type definitions
+export interface DAOConfig {
+  programId: string;
+  connection: Connection;
+  wallet?: Signer;
+  opts?: ConfirmOptions;
 }
 
-interface InitializeParams {
-  manager: string;
-  daoToken: string;
-  fundraiseTarget: BigNumberish;
-  minPoolPrice: BigNumberish;
-  expiryTimestamp: number;
+export interface InitializeParams {
+  manager: PublicKey;
+  daoToken: PublicKey;
+  fundraiseTarget: BN;
+  minPoolPrice: BN;
+  expiryTimestamp: BN;
 }
 
-interface PoolParams {
-  ethAmount: BigNumberish;
-  tokenAmount: BigNumberish;
-  poolFactory: string;
+export interface PoolParams {
+  solAmount: BN;
+  tokenAmount: BN;
+  dexProgram: PublicKey;
 }
 
-interface StakingInfo {
-  amount: BigNumberish;
-  rewardDebt: BigNumberish;
+export interface StakingInfo {
+  amount: BN;
+  rewardDebt: BN;
 }
 
-export class DAOClient {
-  private provider: ProviderInterface;
-  private daoContract: Contract;
-  private account?: AccountInterface;
-  private abis: DAOConfig['abis'];
+export interface DAOState {
+  manager: PublicKey;
+  treasury: PublicKey;
+  daoToken: PublicKey;
+  lpToken: PublicKey;
+  dexPool: PublicKey;
+  fundraiseTarget: BN;
+  minPoolPrice: BN;
+  expiryTimestamp: BN;
+  totalStaked: BN;
+  rewardPerShare: BN;
+  tradingFees: BN;
+  stakingRewards: BN;
+  managerFees: BN;
+  isExpired: boolean;
+  tradingActive: boolean;
+}
+
+export class SolanaDAOClient {
+  private connection: Connection;
+  private program: Program;
+  private wallet?: Signer;
+  private programId: PublicKey;
 
   constructor(config: DAOConfig) {
-    // Initialize provider
-    this.provider = new Provider({
-      sequencer: {
-        network: config.providerUrl || constants.NetworkName.SN_GOERLI
-      }
-    });
-
-    this.abis = config.abis;
-
-    // Initialize DAO contract
-    this.daoContract = new Contract(
-      this.abis.dao,
-      config.daoAddress,
-      this.provider
+    this.connection = config.connection;
+    this.wallet = config.wallet;
+    this.programId = new PublicKey(config.programId);
+    
+    // Initialize Anchor provider and program
+    const provider = new AnchorProvider(
+      this.connection,
+      this.wallet as any,
+      config.opts || { commitment: 'confirmed' }
     );
-
-    // Set deployer account if provided
-    if (config.deployerAccount) {
-      this.account = config.deployerAccount;
-      this.daoContract.connect(this.account);
-    }
+    
+    // Load the program
+    this.program = new Program(config.idl, this.programId, provider);
   }
 
-  async deployDAO(params: InitializeParams): Promise<string> {
-    if (!this.account) {
-      throw new Error('No account connected');
-    }
-
+  /**
+   * Initialize a new DAO
+   */
+  async initializeDAO(params: InitializeParams): Promise<string> {
     try {
-      // Deploy new DAO contract
-      const contractFactory = new ContractFactory({
-        contract: this.abis.dao,
-        account: this.account
-      });
+      if (!this.wallet) throw new Error('No wallet connected');
 
-      const deployResponse = await contractFactory.deploy({
-        constructorCalldata: [
-          params.manager,
-          params.daoToken,
-          uint256.bnToUint256(params.fundraiseTarget),
-          uint256.bnToUint256(params.minPoolPrice),
+      // Derive PDA for treasury
+      const [treasury] = await PublicKey.findProgramAddress(
+        [Buffer.from('treasury'), this.wallet.publicKey.toBuffer()],
+        this.programId
+      );
+
+      // Create initialization instruction
+      const tx = await this.program.methods
+        .initialize(
+          params.fundraiseTarget,
+          params.minPoolPrice,
           params.expiryTimestamp
-        ]
-      });
+        )
+        .accounts({
+          daoState: await this.getDaoStatePDA(params.manager),
+          treasury,
+          manager: params.manager,
+          daoToken: params.daoToken,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          rent: web3.SYSVAR_RENT_PUBKEY
+        })
+        .rpc();
 
-      await this.provider.waitForTransaction(deployResponse.transaction_hash);
-      return deployResponse.contract_address;
+      await this.connection.confirmTransaction(tx, 'confirmed');
+      return tx;
     } catch (error) {
-      console.error('Failed to deploy DAO:', error);
-      throw error;
+      console.error('Failed to initialize DAO:', error);
+      throw this.handleError(error);
     }
   }
 
@@ -107,100 +131,131 @@ export class DAOClient {
    * Create liquidity pool
    */
   async createPool(params: PoolParams): Promise<string> {
-    if (!this.account) {
-      throw new Error('No account connected');
-    }
-
     try {
-      // Get token contract
-      const daoTokenAddress = await this.daoContract.dao_token();
-      const daoToken = new Contract(
-        this.abis.token,
-        daoTokenAddress,
-        this.provider
-      );
-      
-      await daoToken.connect(this.account);
+      if (!this.wallet) throw new Error('No wallet connected');
 
-      // Approve tokens for pool
-      const approveTx = await daoToken.approve(
-        params.poolFactory,
-        uint256.bnToUint256(params.tokenAmount)
-      );
-      await this.provider.waitForTransaction(approveTx.transaction_hash);
+      // Get DAO state account
+      const daoState = await this.getDaoStatePDA(this.wallet.publicKey);
+      const daoStateInfo = await this.program.account.daoState.fetch(daoState);
 
-      // Create pool
-      const tx = await this.daoContract.create_pool(
-        uint256.bnToUint256(params.ethAmount),
-        uint256.bnToUint256(params.tokenAmount),
-        params.poolFactory
-      );
+      // Create pool instruction
+      const tx = await this.program.methods
+        .createPool(
+          params.solAmount,
+          params.tokenAmount
+        )
+        .accounts({
+          daoState,
+          manager: this.wallet.publicKey,
+          dexProgram: params.dexProgram,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_PROGRAM_ID,
+        })
+        .rpc();
 
-      await this.provider.waitForTransaction(tx.transaction_hash);
-      return tx.transaction_hash;
+      await this.connection.confirmTransaction(tx, 'confirmed');
+      return tx;
     } catch (error) {
       console.error('Failed to create pool:', error);
-      throw error;
+      throw this.handleError(error);
     }
   }
 
   /**
    * Stake LP tokens
    */
-  async stakeLPTokens(amount: BigNumberish): Promise<string> {
-    if (!this.account) {
-      throw new Error('No account connected');
-    }
-
+  async stakeLPTokens(amount: BN): Promise<string> {
     try {
-      // Get LP token contract
-      const lpTokenAddress = await this.daoContract.lp_token();
-      const lpToken = new Contract(
-        this.abis.token,  // Using ERC20 ABI
-        lpTokenAddress,
-        this.provider
-      );
-      
-      await lpToken.connect(this.account);
+      if (!this.wallet) throw new Error('No wallet connected');
 
-      // Approve LP tokens
-      const approveTx = await lpToken.approve(
-        this.daoContract.address,
-        uint256.bnToUint256(amount)
+      // Get required PDAs and accounts
+      const daoState = await this.getDaoStatePDA(this.wallet.publicKey);
+      const daoStateInfo = await this.program.account.daoState.fetch(daoState);
+      const userLpAccount = await this.findAssociatedTokenAccount(
+        this.wallet.publicKey,
+        daoStateInfo.lpToken
       );
-      await this.provider.waitForTransaction(approveTx.transaction_hash);
-
-      // Stake tokens
-      const tx = await this.daoContract.stake_lp(
-        uint256.bnToUint256(amount)
+      const poolLpAccount = await this.findAssociatedTokenAccount(
+        daoState,
+        daoStateInfo.lpToken
       );
 
-      await this.provider.waitForTransaction(tx.transaction_hash);
-      return tx.transaction_hash;
+      // Create staking instruction
+      const tx = await this.program.methods
+        .stakeLp(amount)
+        .accounts({
+          daoState,
+          stakingAccount: await this.getStakingAccountPDA(this.wallet.publicKey),
+          user: this.wallet.publicKey,
+          userLp: userLpAccount,
+          poolLp: poolLpAccount,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: web3.SYSVAR_RENT_PUBKEY
+        })
+        .rpc();
+
+      await this.connection.confirmTransaction(tx, 'confirmed');
+      return tx;
     } catch (error) {
       console.error('Failed to stake LP tokens:', error);
-      throw error;
+      throw this.handleError(error);
     }
   }
 
   /**
    * Unstake LP tokens
    */
-  async unstakeLPTokens(amount: BigNumberish): Promise<string> {
-    if (!this.account) {
-      throw new Error('No account connected');
-    }
-
+  async unstakeLPTokens(amount: BN): Promise<string> {
     try {
-      const tx = await this.daoContract.unstake_lp(
-        uint256.bnToUint256(amount)
+      if (!this.wallet) throw new Error('No wallet connected');
+
+      // Get required PDAs and accounts
+      const daoState = await this.getDaoStatePDA(this.wallet.publicKey);
+      const daoStateInfo = await this.program.account.daoState.fetch(daoState);
+      const [treasury] = await PublicKey.findProgramAddress(
+        [Buffer.from('treasury'), daoState.toBuffer()],
+        this.programId
       );
 
-      await this.provider.waitForTransaction(tx.transaction_hash);
-      return tx.transaction_hash;
+      const userLpAccount = await this.findAssociatedTokenAccount(
+        this.wallet.publicKey,
+        daoStateInfo.lpToken
+      );
+      const poolLpAccount = await this.findAssociatedTokenAccount(
+        daoState,
+        daoStateInfo.lpToken
+      );
+      const userRewardAccount = await this.findAssociatedTokenAccount(
+        this.wallet.publicKey,
+        daoStateInfo.daoToken
+      );
+      const rewardVault = await this.findAssociatedTokenAccount(
+        treasury,
+        daoStateInfo.daoToken
+      );
+
+      // Create unstaking instruction
+      const tx = await this.program.methods
+        .unstakeLp(amount)
+        .accounts({
+          daoState,
+          stakingAccount: await this.getStakingAccountPDA(this.wallet.publicKey),
+          user: this.wallet.publicKey,
+          userLp: userLpAccount,
+          poolLp: poolLpAccount,
+          rewardVault,
+          userReward: userRewardAccount,
+          treasury,
+          tokenProgram: TOKEN_PROGRAM_ID
+        })
+        .rpc();
+
+      await this.connection.confirmTransaction(tx, 'confirmed');
+      return tx;
     } catch (error) {
       console.error('Failed to unstake LP tokens:', error);
-      throw error;
+      throw this.handleError(error);
     }
   }
 
@@ -208,103 +263,159 @@ export class DAOClient {
    * Collect accumulated fees
    */
   async collectFees(): Promise<string> {
-    if (!this.account) {
-      throw new Error('No account connected');
-    }
-
     try {
-      const tx = await this.daoContract.collect_fees();
-      await this.provider.waitForTransaction(tx.transaction_hash);
-      return tx.transaction_hash;
+      if (!this.wallet) throw new Error('No wallet connected');
+
+      const daoState = await this.getDaoStatePDA(this.wallet.publicKey);
+      const daoStateInfo = await this.program.account.daoState.fetch(daoState);
+      const [treasury] = await PublicKey.findProgramAddress(
+        [Buffer.from('treasury'), daoState.toBuffer()],
+        this.programId
+      );
+
+      const managerTokenAccount = await this.findAssociatedTokenAccount(
+        this.wallet.publicKey,
+        daoStateInfo.daoToken
+      );
+      const feeVault = await this.findAssociatedTokenAccount(
+        treasury,
+        daoStateInfo.daoToken
+      );
+
+      const tx = await this.program.methods
+        .collectFees()
+        .accounts({
+          daoState,
+          manager: this.wallet.publicKey,
+          feeVault,
+          managerToken: managerTokenAccount,
+          treasury,
+          tokenProgram: TOKEN_PROGRAM_ID
+        })
+        .rpc();
+
+      await this.connection.confirmTransaction(tx, 'confirmed');
+      return tx;
     } catch (error) {
       console.error('Failed to collect fees:', error);
-      throw error;
+      throw this.handleError(error);
     }
   }
 
   /**
    * Get staking information for an account
    */
-  async getStakingInfo(account: string): Promise<StakingInfo> {
+  async getStakingInfo(account: PublicKey): Promise<StakingInfo> {
     try {
-      const info = await this.daoContract.staking_accounts(account);
+      const stakingAccount = await this.getStakingAccountPDA(account);
+      const info = await this.program.account.stakingAccount.fetch(stakingAccount);
       return {
-        amount: uint256.uint256ToBN(info.amount),
-        rewardDebt: uint256.uint256ToBN(info.reward_debt)
+        amount: info.amount,
+        rewardDebt: info.rewardDebt
       };
     } catch (error) {
       console.error('Failed to get staking info:', error);
-      throw error;
+      throw this.handleError(error);
     }
   }
 
   /**
-   * Get DAO state
+   * Get current DAO state
    */
-  async getDAOState() {
+  async getDAOState(manager: PublicKey): Promise<DAOState> {
     try {
-      const [
-        manager,
-        treasury,
-        daoToken,
-        lpToken,
-        dexPool,
-        fundraiseTarget,
-        minPoolPrice,
-        expiryTimestamp,
-        totalStaked,
-        rewardPerShare,
-        tradingFees,
-        stakingRewards,
-        managerFees,
-        isExpired,
-        tradingActive
-      ] = await Promise.all([
-        this.daoContract.manager(),
-        this.daoContract.treasury(),
-        this.daoContract.dao_token(),
-        this.daoContract.lp_token(),
-        this.daoContract.dex_pool(),
-        this.daoContract.fundraise_target(),
-        this.daoContract.min_pool_price(),
-        this.daoContract.expiry_timestamp(),
-        this.daoContract.total_staked(),
-        this.daoContract.reward_per_share(),
-        this.daoContract.trading_fees(),
-        this.daoContract.staking_rewards(),
-        this.daoContract.manager_fees(),
-        this.daoContract.is_expired(),
-        this.daoContract.trading_active()
-      ]);
-
+      const daoState = await this.getDaoStatePDA(manager);
+      const state = await this.program.account.daoState.fetch(daoState);
       return {
-        manager,
-        treasury,
-        daoToken,
-        lpToken,
-        dexPool,
-        fundraiseTarget: uint256.uint256ToBN(fundraiseTarget),
-        minPoolPrice: uint256.uint256ToBN(minPoolPrice),
-        expiryTimestamp,
-        totalStaked: uint256.uint256ToBN(totalStaked),
-        rewardPerShare: uint256.uint256ToBN(rewardPerShare),
-        tradingFees: uint256.uint256ToBN(tradingFees),
-        stakingRewards: uint256.uint256ToBN(stakingRewards),
-        managerFees: uint256.uint256ToBN(managerFees),
-        isExpired,
-        tradingActive
+        manager: state.manager,
+        treasury: state.treasury,
+        daoToken: state.daoToken,
+        lpToken: state.lpToken,
+        dexPool: state.dexPool,
+        fundraiseTarget: state.fundraiseTarget,
+        minPoolPrice: state.minPoolPrice,
+        expiryTimestamp: state.expiryTimestamp,
+        totalStaked: state.totalStaked,
+        rewardPerShare: state.rewardPerShare,
+        tradingFees: state.tradingFees,
+        stakingRewards: state.stakingRewards,
+        managerFees: state.managerFees,
+        isExpired: state.isExpired,
+        tradingActive: state.tradingActive
       };
     } catch (error) {
       console.error('Failed to get DAO state:', error);
-      throw error;
+      throw this.handleError(error);
     }
   }
 
   /**
-   * Connect an account to the client
+   * Helper method to find associated token account
    */
-  connect(account: AccountInterface) {
-    this.account = account;
-    this.daoContract.connect(account);
+  private async findAssociatedTokenAccount(
+    owner: PublicKey,
+    mint: PublicKey
+  ): Promise<PublicKey> {
+    return Token.getAssociatedTokenAddress(
+      ASSOCIATED_TOKEN_PROGRAM_ID,
+      TOKEN_PROGRAM_ID,
+      mint,
+      owner
+    );
+  }
+
+  /**
+   * Helper method to derive DAO state PDA
+   */
+  private async getDaoStatePDA(manager: PublicKey): Promise<PublicKey> {
+    const [pda] = await PublicKey.findProgramAddress(
+      [Buffer.from('dao_state'), manager.toBuffer()],
+      this.programId
+    );
+    return pda;
+  }
+
+  /**
+   * Helper method to derive staking account PDA
+   */
+  private async getStakingAccountPDA(user: PublicKey): Promise<PublicKey> {
+    const [pda] = await PublicKey.findProgramAddress(
+      [Buffer.from('staking'), user.toBuffer()],
+      this.programId
+    );
+    return pda;
+  }
+
+  /**
+   * Error handler
+   */
+  private handleError(error: any): Error {
+    if (error.code) {
+      // Handle program specific errors
+      switch (error.code) {
+        case 6000:
+          return new Error('Unauthorized access');
+        case 6001:
+          return new Error('Insufficient stake');
+        case 6002:
+          return new Error('Pool not active');
+        default:
+          return error;
+      }
+    }
+    return error;
+  }
+
+  /**
+   * Connect wallet to client
+   */
+  connect(wallet: Signer) {
+    this.wallet = wallet;
+    const provider = new AnchorProvider(
+      this.connection,
+      wallet as any,
+      { commitment: 'confirmed' }
+    );
+    this.program = new Program(this.program.idl, this.programId, provider);
   }
 }
