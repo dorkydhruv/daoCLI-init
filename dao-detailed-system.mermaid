@@ -1,106 +1,104 @@
 flowchart TB
     %% Core Components
-    CLI[/"CLI Interface"/]
-    dao["DAO Smart Contract<br>ProgramID: xyz.."]
-    treasury["Treasury Vault<br>- Holds SOL<br>- Executes trades<br>- Signs transactions"]
-    token["DAO Token<br>Supply: 1.1B<br>SPL-Token"]
-    lp["LP Token<br>Staking Token<br>SPL-Token"]
+    CLI[/"Multi-chain CLI Interface"/]
     
-    %% AI Agent Components
+    %% Chain-specific Components
+    subgraph SOLANA["Solana Ecosystem"]
+        direction TB
+        sol_dao["Solana DAO Program<br>ProgramID: xyz.."]
+        sol_treasury["Solana Treasury<br>- Holds SOL<br>- SPL Tokens"]
+        sol_token["Solana DAO Token<br>SPL-Token"]
+        sol_lp["Solana LP Token<br>Orca/Raydium"]
+        
+        subgraph SOL_DEX["Solana DEX"]
+            direction TB
+            orca["Orca DEX<br>- Main LP Pool"]
+            raydium["Raydium DEX<br>- Arbitrage"]
+            jupiter["Jupiter Aggregator"]
+        end
+    end
+    
+    subgraph STARKNET["StarkNet Ecosystem"]
+        direction TB
+        stark_dao["StarkNet DAO Contract<br>Cairo Implementation"]
+        stark_treasury["StarkNet Treasury<br>- Holds ETH"]
+        stark_token["StarkNet DAO Token<br>ERC20"]
+        stark_lp["StarkNet LP Token<br>JediSwap"]
+        
+        subgraph STARK_DEX["StarkNet DEX"]
+            direction TB
+            jediswap["JediSwap<br>- Main LP Pool"]
+            alpharoad["Alpha Road<br>- Arbitrage"]
+            avnu["Avnu Aggregator"]
+        end
+    end
+    
+    %% Bridge & Cross-chain
+    subgraph BRIDGE["Cross-chain Bridge"]
+        direction TB
+        wormhole["Wormhole Bridge"]
+        chainlink["Chainlink Oracles"]
+        state_sync["State Sync Layer"]
+    end
+    
+    %% AI Operations
     subgraph AI_OPS["AI Agent Operations"]
         direction TB
-        agent["AI Trading Agent<br>Wallet Authority"]
-        strategy["Strategy Engine<br>- Market Analysis<br>- Risk Management<br>- Position Sizing"]
-        executor["Trade Executor<br>- Order Routing<br>- Slippage Check<br>- Gas Optimization"]
+        agent["Multi-chain AI Agent"]
+        strategy["Cross-chain Strategy"]
+        executor["Chain-specific Executor"]
+        monitor["Multi-chain Monitor"]
     end
-
-    %% DEX Integration
-    subgraph DEX_OPS["DEX Operations"]
+    
+    %% UI Layer
+    subgraph UI["Unified Interface"]
         direction TB
-        orca["Orca DEX<br>- Main LP Pool<br>- 0.5% Fee Tier"]
-        raydium["Raydium DEX<br>- Arbitrage<br>- Yield Farming"]
-        jupiter["Jupiter Aggregator<br>- Best Route Finding<br>- Price Discovery"]
-        marinade["Marinade Finance<br>- SOL Staking<br>- mSOL Yield"]
+        trade_ui["Trading Panel"]
+        stake_ui["Staking Panel"]
+        stats_ui["Cross-chain Analytics"]
     end
 
-    %% Contract Interactions
-    subgraph CONTRACT_OPS["Contract Operations"]
-        direction TB
-        execute["execute()<br>onlyManager"]
-        trade["trade()<br>checkSlippage"]
-        stake["stake()<br>rewardCalc"]
-        claim["claim()<br>rewardDistribution"]
-    end
-
-    %% User Interface
-    subgraph UI["Embedded Interface"]
-        direction TB
-        trade_ui["Trading Panel<br>- Buy/Sell<br>- Price Charts"]
-        stake_ui["Staking Panel<br>- Stake/Unstake<br>- Rewards"]
-        stats_ui["Analytics<br>- TVL<br>- Volume<br>- APR"]
-    end
-
-    %% Fee Structure
-    subgraph FEES["Fee Distribution"]
-        direction TB
-        trading_fee["Trading Fee<br>0.4%"]
-        staking_fee["LP Staking<br>0.5%"]
-        carry_fee["Manager Carry<br>8%"]
-    end
-
-    %% Core Flow
-    CLI -->|"create-dao"| dao
-    CLI -->|"setup-pool"| orca
-    CLI -->|"generate-site"| UI
-    dao -->|"mint"| token
-    dao -->|"authorize"| treasury
-    treasury -->|"delegate"| agent
-
-    %% AI Agent Flow
+    %% Connections
+    CLI -->|"solana commands"| SOLANA
+    CLI -->|"starknet commands"| STARKNET
+    CLI -->|"bridge commands"| BRIDGE
+    
+    %% Solana Flow
+    sol_dao --> sol_treasury
+    sol_treasury --> SOL_DEX
+    orca --> sol_lp
+    raydium --> sol_lp
+    
+    %% StarkNet Flow
+    stark_dao --> stark_treasury
+    stark_treasury --> STARK_DEX
+    jediswap --> stark_lp
+    alpharoad --> stark_lp
+    
+    %% Bridge Flow
+    SOLANA <-->|"assets & state"| wormhole
+    STARKNET <-->|"assets & state"| wormhole
+    chainlink -->|"price feeds"| AI_OPS
+    
+    %% AI Flow
     agent -->|"analyze"| strategy
     strategy -->|"execute"| executor
-    executor -->|"route trades"| jupiter
-    jupiter -->|"split orders"| DEX_OPS
-    executor -->|"monitor"| treasury
+    executor -->|"solana trades"| SOLANA
+    executor -->|"starknet trades"| STARKNET
+    monitor -->|"track"| state_sync
 
-    %% DEX Interactions
-    treasury -->|"approve"| orca
-    treasury -->|"approve"| raydium
-    treasury -->|"approve"| marinade
-    jupiter -->|"route"| orca
-    jupiter -->|"route"| raydium
-
-    %% Contract Operations
-    dao -->|"call"| execute
-    execute -->|"validate"| trade
-    trade -->|"execute"| treasury
-    treasury -->|"interact"| DEX_OPS
-
-    %% Staking Flow
-    orca -->|"mint"| lp
-    lp -->|"reward"| stake
-    stake -->|"distribute"| claim
-
-    %% Fee Flow
-    orca -->|"collect"| trading_fee
-    orca -->|"collect"| staking_fee
-    treasury -->|"collect"| carry_fee
-
-    %% UI Interactions
-    UI -->|"connect"| wallet((Wallet))
-    wallet -->|"sign"| treasury
-    trade_ui -->|"execute"| trade
-    stake_ui -->|"stake/unstake"| stake
-
+    %% UI Flow
+    UI -->|"unified interface"| CLI
+    
     %% Styling
     classDef primary fill:#0066cc,stroke:#000,stroke-width:2px,color:#fff
-    classDef secondary fill:#00cc66,stroke:#000,stroke-width:2px,color:#fff
-    classDef accent fill:#cc6600,stroke:#000,stroke-width:2px,color:#fff
-    classDef critical fill:#cc0000,stroke:#000,stroke-width:2px,color:#fff
-    classDef interface fill:#6600cc,stroke:#000,stroke-width:2px,color:#fff
+    classDef solana fill:#00cc66,stroke:#000,stroke-width:2px,color:#fff
+    classDef starknet fill:#cc6600,stroke:#000,stroke-width:2px,color:#fff
+    classDef bridge fill:#cc0000,stroke:#000,stroke-width:2px,color:#fff
+    classDef ai fill:#6600cc,stroke:#000,stroke-width:2px,color:#fff
 
-    class dao,treasury,token,lp primary
-    class agent,strategy,executor secondary
-    class orca,raydium,jupiter,marinade accent
-    class execute,trade,stake,claim critical
-    class UI,CLI interface
+    class CLI,UI primary
+    class SOLANA,sol_dao,sol_treasury,sol_token,sol_lp solana
+    class STARKNET,stark_dao,stark_treasury,stark_token,stark_lp starknet
+    class BRIDGE,wormhole,chainlink,state_sync bridge
+    class AI_OPS,agent,strategy,executor,monitor ai
