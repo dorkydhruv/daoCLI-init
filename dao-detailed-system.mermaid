@@ -1,104 +1,67 @@
 flowchart TB
-    %% Core Components
-    CLI[/"Multi-chain CLI Interface"/]
-    
-    %% Chain-specific Components
-    subgraph SOLANA["Solana Ecosystem"]
+    subgraph Client["Client Layer"]
+        CLI["CLI Tool"]
+        SDK["TypeScript SDK"]
+        API["Client API"]
+    end
+
+    subgraph Contracts["Smart Contracts"]
         direction TB
-        sol_dao["Solana DAO Program<br>ProgramID: xyz.."]
-        sol_treasury["Solana Treasury<br>- Holds SOL<br>- SPL Tokens"]
-        sol_token["Solana DAO Token<br>SPL-Token"]
-        sol_lp["Solana LP Token<br>Orca/Raydium"]
+        subgraph Solana["Solana Contracts"]
+            SolDAO["DAO Program"]
+            SolPool["Pool Program"]
+            SolToken["Token Program"]
+        end
         
-        subgraph SOL_DEX["Solana DEX"]
-            direction TB
-            orca["Orca DEX<br>- Main LP Pool"]
-            raydium["Raydium DEX<br>- Arbitrage"]
-            jupiter["Jupiter Aggregator"]
+        subgraph StarkNet["StarkNet Contracts"]
+            StarkDAO["DAO Contract"]
+            StarkPool["JediSwap Pool"]
+            StarkToken["ERC20 Token"]
         end
     end
-    
-    subgraph STARKNET["StarkNet Ecosystem"]
-        direction TB
-        stark_dao["StarkNet DAO Contract<br>Cairo Implementation"]
-        stark_treasury["StarkNet Treasury<br>- Holds ETH"]
-        stark_token["StarkNet DAO Token<br>ERC20"]
-        stark_lp["StarkNet LP Token<br>JediSwap"]
-        
-        subgraph STARK_DEX["StarkNet DEX"]
-            direction TB
-            jediswap["JediSwap<br>- Main LP Pool"]
-            alpharoad["Alpha Road<br>- Arbitrage"]
-            avnu["Avnu Aggregator"]
-        end
-    end
-    
-    %% Bridge & Cross-chain
-    subgraph BRIDGE["Cross-chain Bridge"]
-        direction TB
-        wormhole["Wormhole Bridge"]
-        chainlink["Chainlink Oracles"]
-        state_sync["State Sync Layer"]
-    end
-    
-    %% AI Operations
-    subgraph AI_OPS["AI Agent Operations"]
-        direction TB
-        agent["Multi-chain AI Agent"]
-        strategy["Cross-chain Strategy"]
-        executor["Chain-specific Executor"]
-        monitor["Multi-chain Monitor"]
-    end
-    
-    %% UI Layer
-    subgraph UI["Unified Interface"]
-        direction TB
-        trade_ui["Trading Panel"]
-        stake_ui["Staking Panel"]
-        stats_ui["Cross-chain Analytics"]
+
+    subgraph Security["Security Layer"]
+        Auth["Access Control"]
+        Validate["Account Validation"]
+        TimeLock["Time Locks"]
     end
 
-    %% Connections
-    CLI -->|"solana commands"| SOLANA
-    CLI -->|"starknet commands"| STARKNET
-    CLI -->|"bridge commands"| BRIDGE
-    
-    %% Solana Flow
-    sol_dao --> sol_treasury
-    sol_treasury --> SOL_DEX
-    orca --> sol_lp
-    raydium --> sol_lp
-    
-    %% StarkNet Flow
-    stark_dao --> stark_treasury
-    stark_treasury --> STARK_DEX
-    jediswap --> stark_lp
-    alpharoad --> stark_lp
-    
-    %% Bridge Flow
-    SOLANA <-->|"assets & state"| wormhole
-    STARKNET <-->|"assets & state"| wormhole
-    chainlink -->|"price feeds"| AI_OPS
-    
-    %% AI Flow
-    agent -->|"analyze"| strategy
-    strategy -->|"execute"| executor
-    executor -->|"solana trades"| SOLANA
-    executor -->|"starknet trades"| STARKNET
-    monitor -->|"track"| state_sync
+    subgraph Storage["Storage Layer"]
+        StateManager["State Management"]
+        ErrorHandler["Error Handling"]
+        EventEmitter["Event System"]
+    end
 
-    %% UI Flow
-    UI -->|"unified interface"| CLI
+    %% Core flows with fixes
+    CLI --> API
+    SDK --> API
+    API --> Auth
+    Auth --> |"Validate Manager"| SolDAO
+    Auth --> |"Validate Manager"| StarkDAO
     
-    %% Styling
-    classDef primary fill:#0066cc,stroke:#000,stroke-width:2px,color:#fff
-    classDef solana fill:#00cc66,stroke:#000,stroke-width:2px,color:#fff
-    classDef starknet fill:#cc6600,stroke:#000,stroke-width:2px,color:#fff
-    classDef bridge fill:#cc0000,stroke:#000,stroke-width:2px,color:#fff
-    classDef ai fill:#6600cc,stroke:#000,stroke-width:2px,color:#fff
+    %% Solana specific fixes
+    SolDAO --> |"Rent Exempt"| StateManager
+    SolDAO --> |"Program ID Check"| Validate
+    SolPool --> |"Account Validation"| Validate
+    
+    %% StarkNet specific fixes
+    StarkDAO --> |"Contract Declaration"| StateManager
+    StarkPool --> |"Interface Validation"| Validate
+    
+    %% Security enhancements
+    TimeLock --> SolDAO
+    TimeLock --> StarkDAO
+    ErrorHandler --> EventEmitter
+    Validate --> ErrorHandler
+    
+    %% Storage interactions
+    StateManager --> EventEmitter
+    SolDAO --> StateManager
+    StarkDAO --> StateManager
 
-    class CLI,UI primary
-    class SOLANA,sol_dao,sol_treasury,sol_token,sol_lp solana
-    class STARKNET,stark_dao,stark_treasury,stark_token,stark_lp starknet
-    class BRIDGE,wormhole,chainlink,state_sync bridge
-    class AI_OPS,agent,strategy,executor,monitor ai
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
+    classDef highlight fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef warning fill:#fff3e0,stroke:#ff6f00,stroke-width:2px
+    
+    class Auth,Validate,TimeLock highlight
+    class ErrorHandler,EventEmitter warning
