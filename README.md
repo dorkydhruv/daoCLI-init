@@ -1,32 +1,13 @@
 # daocli-init
 
+
 # daoCLI
 
-## Programmatic & Embedded DAOs for AI Agents and Modern Web3 Applications
+## Multi-Chain Programmatic & Embedded DAOs for AI Agents and Modern Web3 Applications
 
-
-daoCLI is a toolkit built for AI agents to create and manage programmatic & embedded DAOs on Solana. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
+daoCLI is a toolkit built for AI agents to create and manage programmatic & embedded DAOs across multiple blockchains. Currently supporting Solana and StarkNet, daoCLI provides a unified interface for cross-chain DAO operations. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
 
 **We are like Stripe...we are developer first. Because AI Agents are developer first**.
-
-## 🌟 Why daoCLI?
-
-For Developers | For Users | For Investors
----------------|-----------|---------------
-CLI-first approach | Stay in your product ecosystem | Direct exposure to DAO performance
-Full automation support | Seamless token interactions | Liquid secondary market
-Git & CI/CD integration | No platform switching | Real-time price discovery
-Programmatic control | Integrated trading interface | Transparent mechanics
-
-## 🤖 Why AI Agents Need daoCLI
-
-Traditional DAOs | daoCLI for AI
-----------------|---------------
-Requires human interfaces | Pure programmatic interaction
-Manual governance through websites | Automated governance through code
-Separate platforms & websites | Embedded directly in applications
-High operational overhead | Minimal computational overhead
-Human-centric UX | API-first design
 
 ## OpenAI & Sam Altman thinks exactly like us
 Don't believe me ? This is what OpenAI focuses on.
@@ -34,103 +15,161 @@ Don't believe me ? This is what OpenAI focuses on.
 * [https://openai.com/index/governance-of-superintelligence/](https://openai.com/index/governance-of-superintelligence/)
 
 
+## 🌟 Why daoCLI?
+
+For Developers | For Users | For Investors
+---------------|-----------|---------------
+Multi-chain support from day one | Chain-agnostic interface | Cross-chain exposure
+CLI-first approach | Stay in your product ecosystem | Multi-chain liquidity
+Full automation support | Seamless token interactions | Real-time price discovery
+Git & CI/CD integration | Integrated trading interface | Transparent mechanics
+Chain-specific optimizations | No platform switching | Cross-chain arbitrage
+
+## 🤖 Why AI Agents Need daoCLI
+
+Traditional DAOs | daoCLI for AI
+----------------|---------------
+Single-chain limitation | Multi-chain orchestration
+Requires human interfaces | Pure programmatic interaction
+Manual governance through websites | Automated cross-chain governance
+Separate platforms & websites | Embedded directly in applications
+High operational overhead | Minimal computational overhead
+Chain-specific implementations | Unified API across chains
+
+
+
 ## 🎯 Core Features for AI Agents
+
+### Multi-Chain Support
+- **Unified API**: Consistent interface across chains
+- **Chain Abstraction**: Chain-agnostic operations
+- **Cross-chain Management**: Manage DAOs across Solana and StarkNet
+- **Chain-specific Optimizations**: Leverage each chain's strengths
 
 ### Programmatic Control
 - **API-First Design**: Every feature accessible through code
-- **Event-Driven Architecture**: React to on-chain events automatically
-- **Automated Decision Making**: Implement algorithmic governance
+- **Event-Driven Architecture**: React to cross-chain events
+- **Automated Decision Making**: Chain-agnostic governance
 - **Batch Operations**: Handle multiple DAOs efficiently
 
 ### AI Integration Features
-- **Standardized Interfaces**: Consistent API patterns for easy integration
-- **Deterministic Outcomes**: Predictable results for AI decision making
-- **State Management**: Track DAO state programmatically
-- **Event Subscriptions**: Real-time updates for AI agents
+- **Cross-chain Analytics**: Unified view across chains
+- **Chain Selection Logic**: AI-driven chain selection
+- **Multi-chain State Management**: Track DAO state across chains
+- **Cross-chain Event Subscriptions**: Real-time updates
 
-### Treasury Management
-- **Automated Trading**: Algorithmic market making
-- **Smart Rebalancing**: AI-driven portfolio management
-- **Risk Parameters**: Programmable constraints
-- **Performance Monitoring**: Real-time metrics
+## 🚀 Quick Start
 
-## 🚀 Quick Start for AI Integration
+### Installation
+```bash
+npm install -g daocli
+```
 
 ### Basic Setup
 ```bash
-# Install daoCLI
-npm install -g daocli
-
-# Initialize DAO programmatically
-daocli init --agent-key YOUR_AI_AGENT_KEY
-
-# Create DAO with AI management
-daocli create-dao \
+# Initialize DAO on Solana
+daocli init --chain solana \
   --target 1000 \
-  --ai-manager YOUR_AI_MANAGER \
-  --strategy-path ./ai_strategy.json
+  --min-price 0.1 \
+  --duration 30
 
-# Setup automated trading
-daocli setup-trading \
-  --strategy algorithmic \
-  --risk-params ./risk_config.json
+# Initialize DAO on StarkNet
+daocli init --chain starknet \
+  --target 1000 \
+  --min-price 0.1 \
+  --duration 30
+
+# Create pool on specific chain
+daocli create-pool --chain solana \
+  --native 100 \
+  --tokens 1000000
+
+# Stake LP tokens
+daocli stake --chain starknet \
+  --amount 1000
 ```
 
-### Detailed CLI Usage
+### Chain Configuration
+Create chain-specific config files:
+- `dao-config-solana.jsonnet` for Solana
+- `dao-config-starknet.jsonnet` for StarkNet
 
-1. First, ensure you have a proper configuration in `dao-config.jsonnet`
+Example configuration:
+```jsonnet
+{
+  // Common configuration
+  "name": "MyDAO",
+  "version": "1.0.0",
 
-2. Initialize the DAO:
-```bash
-./dao-cli.js init -t 1000 -m 0.1 -d 30
+  // Chain-specific configuration
+  "chain": {
+    // Solana specific
+    "solana": {
+      "rpcUrl": "https://api.mainnet-beta.solana.com",
+      "programId": "dao11111111111111111111111111111111111111"
+    },
+    // StarkNet specific
+    "starknet": {
+      "providerUrl": "https://alpha-mainnet.starknet.io",
+      "daoAddress": "0x123..."
+    }
+  }
+}
 ```
-- `-t`: Fundraising target in SOL
-- `-m`: Minimum price in SOL
-- `-d`: Duration in days
-
-3. Create the liquidity pool:
-```bash
-./dao-cli.js create-pool -s 100 -t 1000000
-```
-- `-s`: Initial SOL amount
-- `-t`: Initial token amount
-
-4. Stake LP tokens:
-```bash
-./dao-cli.js stake -a 1000
-```
-- `-a`: Amount of LP tokens to stake
-
-Each command can be automated and integrated into AI workflows through the programmatic API.
 
 ### Complete CLI Reference
 
 ```bash
+# Global Options
+--chain <chain>            # Specify chain (solana/starknet)
+
 # Basic DAO Operations
-daocli create-dao --target 1000 --name "MyDAO"
-daocli setup-pool --sol 10 --tokens 1000000
-daocli deploy --network mainnet
-daocli set-permissions --address YOUR_ADDRESS
+daocli create-dao --chain <chain> --target 1000 --name "MyDAO"
+daocli setup-pool --chain <chain> --native 10 --tokens 1000000
+daocli deploy --chain <chain> --network mainnet
+daocli set-permissions --chain <chain> --address YOUR_ADDRESS
 
 # AI Agent Operations
-daocli set-agent --key YOUR_AI_KEY --permissions "TRADE,GOVERN"
-daocli configure-agent --strategy ./strategy.json
-daocli monitor-agent --metrics "performance,risk"
+daocli set-agent --chain <chain> --key YOUR_AI_KEY --permissions "TRADE,GOVERN"
+daocli configure-agent --chain <chain> --strategy ./strategy.json
+daocli monitor-agent --chain <chain> --metrics "performance,risk"
 
-# Advanced Operations
-daocli update-params --config ./new_params.json
-daocli view-analytics --format json
-daocli export-state --output ./state.json
+# Cross-chain Operations
+daocli bridge-liquidity --from solana --to starknet --amount 1000
+daocli sync-state --chains "solana,starknet"
+daocli monitor-all-chains --metrics "tvl,volume"
 
-# Management Commands
-daocli list-daos --filter "active"
-daocli show-permissions --dao DAO_ADDRESS
-daocli backup-config --path ./backup
+# Chain-specific Commands
+## Solana
+daocli solana:create-token --supply 1000000
+daocli solana:setup-amm --dex orca --fee-tier 0.3
+
+## StarkNet
+daocli starknet:deploy-dao --class-hash 0x123
+daocli starknet:setup-jediswap --pool-fee 0.3
 ```
 
-Each command supports both human and programmatic interaction, with AI agents typically using the programmatic API for automation.
-
 ## 💡 Technical Architecture
+
+### Chain Support Matrix
+Feature | Solana | StarkNet
+--------|---------|----------
+DAO Creation | ✅ | ✅
+AMM Integration | Orca, Raydium | JediSwap
+Staking | Native | Native
+Governance | SPL-Gov | Cairo Native
+Performance | High TPS | Layer 2 Scaling
+
+### Integration Points
+1. **Cross-chain Messaging**
+   - Wormhole integration
+   - State synchronization
+   - Asset bridges
+
+2. **Chain-specific Features**
+   - Solana Program Deployment
+   - StarkNet Contract Declaration
+   - Chain-optimal execution
 
 ### Core Components
 1. **AI Interface Layer**
