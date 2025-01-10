@@ -1,67 +1,90 @@
 flowchart TB
-    subgraph Client["Client Layer"]
-        CLI["CLI Tool"]
-        SDK["TypeScript SDK"]
-        API["Client API"]
+    subgraph User["User Entry Points"]
+        CLI["CLI Interface"]
+        SDK["SDK/API"]
     end
 
-    subgraph Contracts["Smart Contracts"]
-        direction TB
-        subgraph Solana["Solana Contracts"]
-            SolDAO["DAO Program"]
-            SolPool["Pool Program"]
-            SolToken["Token Program"]
+    subgraph DAOCreation["DAO Creation & Setup"]
+        Init["Initialize DAO<br/>Cost: 1000 DCLI<br/>70% Burned, 30% Treasury"]
+        Pool["Create Liquidity Pool<br/>-Solana: Orca/Raydium<br/>-StarkNet: JediSwap"]
+        Token["Token Creation<br/>Total Supply: 1B DCLI<br/>Decimals: 9"]
+    end
+
+    subgraph StakingSystem["Staking Mechanism"]
+        Stake["Stake LP Tokens<br/>Base APY: 5%"]
+        Rewards["Reward Distribution<br/>Dynamic based on TVL"]
+        Unstake["Unstake LP Tokens<br/>14-day lock period"]
+        RewardCalc["Reward Calculation<br/>reward_per_share = staking_rewards/total_staked"]
+    end
+
+    subgraph FeeStructure["Fee Management"]
+        TradingFees["Trading Fees<br/>0.3% per trade"]
+        DevFees["Developer Fees<br/>20% of trading fees"]
+        StakingRewards["Staking Rewards Pool<br/>50% of trading fees"]
+        Treasury["Treasury<br/>30% of trading fees"]
+    end
+
+    subgraph Governance["Governance System"]
+        Voting["Voting Rights<br/>1 DCLI = 1 Vote"]
+        Proposals["Create Proposal<br/>Min Stake: 10,000 DCLI"]
+        TimeLock["TimeLog Execution<br/>48 hour delay"]
+    end
+
+    subgraph SecurityLayer["Security Controls"]
+        Access["Access Control"]
+        Validation["Account Validation"]
+        EmergencyStop["Emergency Stop"]
+        subgraph Limits["Protocol Limits"]
+            MaxWallet["Max Wallet: 5% Supply"]
+            MaxVote["Max Vote Power: 4%"]
+            MinUnstake["Min Unstake: 14 days"]
         end
-        
-        subgraph StarkNet["StarkNet Contracts"]
-            StarkDAO["DAO Contract"]
-            StarkPool["JediSwap Pool"]
-            StarkToken["ERC20 Token"]
-        end
     end
 
-    subgraph Security["Security Layer"]
-        Auth["Access Control"]
-        Validate["Account Validation"]
-        TimeLock["Time Locks"]
-    end
+    %% Token Distribution Flow
+    Token --> |"20% Platform Dev<br/>4yr vest, 1yr cliff"| Init
+    Token --> |"25% Ecosystem<br/>5yr linear"| Pool
+    Token --> |"20% Community<br/>DAO Controlled"| Treasury
+    Token --> |"5% Initial Liquidity<br/>AMM Locked"| Pool
+    Token --> |"15% Team/Advisors<br/>3yr vest, 1yr cliff"| Init
+    Token --> |"10% Investors<br/>2yr vest, 6mo cliff"| Init
+    Token --> |"5% Public Sale"| Pool
 
-    subgraph Storage["Storage Layer"]
-        StateManager["State Management"]
-        ErrorHandler["Error Handling"]
-        EventEmitter["Event System"]
-    end
+    %% Staking Flow
+    Pool --> Stake
+    Stake --> RewardCalc
+    RewardCalc --> Rewards
+    Rewards --> Unstake
+    
+    %% Fee Flow
+    TradingFees --> DevFees
+    TradingFees --> StakingRewards
+    TradingFees --> Treasury
 
-    %% Core flows with fixes
-    CLI --> API
-    SDK --> API
-    API --> Auth
-    Auth --> |"Validate Manager"| SolDAO
-    Auth --> |"Validate Manager"| StarkDAO
+    %% Governance Flow
+    Treasury --> Proposals
+    Proposals --> TimeLock
+    TimeLock --> |"Execute"| DAOCreation
     
-    %% Solana specific fixes
-    SolDAO --> |"Rent Exempt"| StateManager
-    SolDAO --> |"Program ID Check"| Validate
-    SolPool --> |"Account Validation"| Validate
-    
-    %% StarkNet specific fixes
-    StarkDAO --> |"Contract Declaration"| StateManager
-    StarkPool --> |"Interface Validation"| Validate
-    
-    %% Security enhancements
-    TimeLock --> SolDAO
-    TimeLock --> StarkDAO
-    ErrorHandler --> EventEmitter
-    Validate --> ErrorHandler
-    
-    %% Storage interactions
-    StateManager --> EventEmitter
-    SolDAO --> StateManager
-    StarkDAO --> StateManager
+    %% Entry Points
+    CLI --> Access
+    SDK --> Access
+    Access --> DAOCreation
+    Access --> StakingSystem
+    Access --> Governance
+
+    %% Security Checks
+    Validation --> DAOCreation
+    Validation --> StakingSystem
+    Validation --> Governance
+    EmergencyStop --> StakingSystem
+    EmergencyStop --> Governance
 
     classDef default fill:#f9f9f9,stroke:#333,stroke-width:2px
     classDef highlight fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef warning fill:#fff3e0,stroke:#ff6f00,stroke-width:2px
-    
-    class Auth,Validate,TimeLock highlight
-    class ErrorHandler,EventEmitter warning
+    classDef money fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef security fill:#ffebee,stroke:#c62828,stroke-width:2px
+
+    class Token,TradingFees,DevFees,StakingRewards,Treasury money
+    class Access,Validation,EmergencyStop,Limits security
+    class Init,Pool,Stake,Unstake highlight
