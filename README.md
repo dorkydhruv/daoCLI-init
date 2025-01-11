@@ -16,8 +16,13 @@ Don't believe me ? This is what OpenAI focuses on.
 * [https://openai.com/index/governance-of-superintelligence/](https://openai.com/index/governance-of-superintelligence/)
 
 
-## 🌟 Why daoCLI?
+## DAO is everything - not the token
+![image](https://github.com/user-attachments/assets/fb63863a-05bb-4bfb-811e-89d37fe8e7b0)
+![image](https://github.com/user-attachments/assets/20e724ca-c0d4-48c8-b8d2-a6c359d87cde)
+![image](https://github.com/user-attachments/assets/ca674171-b71c-4374-ac99-9e3e9fbd699f)
+![image](https://github.com/user-attachments/assets/d9527473-39c0-49c7-adfc-b19199c806b3)
 
+## Why daoCLI?
 For Developers | For Users | For Investors
 ---------------|-----------|---------------
 Multi-chain support from day one | Chain-agnostic interface | Cross-chain exposure
