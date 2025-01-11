@@ -3,7 +3,8 @@
 
 # daoCLI
 
-## Multi-Chain Programmatic & Embedded DAOs for AI Agents and Modern Web3 Applications
+## Multi-Chain Programmatic & Embedded DAOs for AI Agents and Developers
+### It's like Terraform...but for DAOs!!!
 
 daoCLI is a toolkit built for AI agents to create and manage programmatic & embedded DAOs across multiple blockchains. Currently supporting Solana and StarkNet, daoCLI provides a unified interface for cross-chain DAO operations. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
 
