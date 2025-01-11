@@ -1,6 +1,3 @@
-# daocli-init
-
-
 # daoCLI
 
 ## Multi-Chain Programmatic & Embedded DAOs for AI Agents and Developers
