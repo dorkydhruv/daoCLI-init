@@ -1,4 +1,4 @@
-# daoCLI
+# daoCLI - the value of AI Agents is only made possible by DAOs
 
 ## Multi-Chain Programmatic & Embedded DAOs for AI Agents and Developers
 ### It's like Terraform...but for DAOs!!!
