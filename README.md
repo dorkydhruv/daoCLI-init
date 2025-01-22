@@ -19,8 +19,8 @@ Don't believe me ? This is what OpenAI focuses on.
   <table>
     <tr>
       <td align="center" width="50%">
-        <a href="https://github.com/user-attachments/assets/fb63863a-05bb-4bfb-811e-89d37fe8e7b0">
-          <img src="https://github.com/user-attachments/assets/fb63863a-05bb-4bfb-811e-89d37fe8e7b0" 
+        <a href="https://github.com/user-attachments/assets/f0ca054a-12b9-407e-a1bb-b36a30361695">
+          <img src="https://github.com/user-attachments/assets/f0ca054a-12b9-407e-a1bb-b36a30361695" 
                width="100%" 
                alt="DAO image 1"
                style="transition: transform 0.2s; display: inline-block;"
@@ -29,8 +29,8 @@ Don't believe me ? This is what OpenAI focuses on.
         </a>
       </td>
       <td align="center" width="50%">
-        <a href="https://github.com/user-attachments/assets/20e724ca-c0d4-48c8-b8d2-a6c359d87cde">
-          <img src="https://github.com/user-attachments/assets/20e724ca-c0d4-48c8-b8d2-a6c359d87cde" 
+        <a href="https://github.com/user-attachments/assets/fb63863a-05bb-4bfb-811e-89d37fe8e7b0">
+          <img src="https://github.com/user-attachments/assets/fb63863a-05bb-4bfb-811e-89d37fe8e7b0" 
                width="100%" 
                alt="DAO image 2"
                style="transition: transform 0.2s; display: inline-block;"
@@ -41,8 +41,8 @@ Don't believe me ? This is what OpenAI focuses on.
     </tr>
     <tr>
       <td align="center">
-        <a href="https://github.com/user-attachments/assets/ca674171-b71c-4374-ac99-9e3e9fbd699f">
-          <img src="https://github.com/user-attachments/assets/ca674171-b71c-4374-ac99-9e3e9fbd699f" 
+        <a href="https://github.com/user-attachments/assets/20e724ca-c0d4-48c8-b8d2-a6c359d87cde">
+          <img src="https://github.com/user-attachments/assets/20e724ca-c0d4-48c8-b8d2-a6c359d87cde" 
                width="100%" 
                alt="DAO image 3"
                style="transition: transform 0.2s; display: inline-block;"
@@ -51,10 +51,22 @@ Don't believe me ? This is what OpenAI focuses on.
         </a>
       </td>
       <td align="center">
-        <a href="https://github.com/user-attachments/assets/d9527473-39c0-49c7-adfc-b19199c806b3">
-          <img src="https://github.com/user-attachments/assets/d9527473-39c0-49c7-adfc-b19199c806b3" 
+        <a href="https://github.com/user-attachments/assets/ca674171-b71c-4374-ac99-9e3e9fbd699f">
+          <img src="https://github.com/user-attachments/assets/ca674171-b71c-4374-ac99-9e3e9fbd699f" 
                width="100%" 
                alt="DAO image 4"
+               style="transition: transform 0.2s; display: inline-block;"
+               onmouseover="this.style.transform='scale(1.05)'"
+               onmouseout="this.style.transform='scale(1)'"/>
+        </a>
+      </td>
+    </tr>
+    <tr>
+      <td align="center" colspan="2">
+        <a href="https://github.com/user-attachments/assets/d9527473-39c0-49c7-adfc-b19199c806b3">
+          <img src="https://github.com/user-attachments/assets/d9527473-39c0-49c7-adfc-b19199c806b3" 
+               width="50%" 
+               alt="DAO image 5"
                style="transition: transform 0.2s; display: inline-block;"
                onmouseover="this.style.transform='scale(1.05)'"
                onmouseout="this.style.transform='scale(1)'"/>
