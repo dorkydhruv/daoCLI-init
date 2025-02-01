@@ -65,7 +65,7 @@ class SolanaClient {
   async initializeDAO(target: number, duration: number, minPrice: number): Promise<string> {
     // Replace with real DAO initialization logic.
     console.log(chalk.green(`(Solana) Initializing DAO with target ${target}, duration ${duration} days, minPrice ${minPrice}`));
-    // Return a dummy transaction hash.
+    // Dummy tx hash returned.
     return 'solana_dummy_tx_hash';
   }
 
@@ -179,3 +179,6 @@ program
   });
 
 program.parse(process.argv);
+
+// Export classes and command handlers for testing purposes.
+export { SolanaClient, StarknetClient, handleInit, handleCreatePool };
