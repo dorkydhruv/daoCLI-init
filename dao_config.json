@@ -1,0 +1,21 @@
+{
+    "solana": {
+      "rpcUrl": "https://api.mainnet-beta.solana.com",
+      "programId": "dao11111111111111111111111111111111111111",
+      "fees": {
+        "tradingFee": 0.003,
+        "stakingFee": 0.002,
+        "managerFee": 0.08
+      }
+    },
+    "starknet": {
+      "providerUrl": "https://starknet-mainnet.infura.io/v3/YOUR-PROJECT-ID",
+      "daoAddress": "0x123...abc",
+      "fees": {
+        "tradingFee": 0.003,
+        "stakingFee": 0.002,
+        "managerFee": 0.08
+      }
+    }
+  }
+  

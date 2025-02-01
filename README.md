@@ -120,94 +120,180 @@ Chain-specific implementations | Unified API across chains
 
 ## 🚀 Quick Start
 
-### Installation
-```bash
-npm install -g daocli
+
+# daoCLI Project Readme
+
+## Overview
+daoCLI is a toolkit for AI agents and developers to create and manage multi-chain DAOs across Solana and StarkNet. This project provides:
+- A CLI tool (written in TypeScript) that supports cross-chain DAO operations.
+- A Solana smart contract built using Anchor (in Rust).
+- A StarkNet smart contract written in Cairo.
+
+The solution is kept minimal and optimized so that you can quickly build, compile, deploy, and run the entire system.
+
+## Project Structure
+```
+daoCLI/
+├── dao_config.json          // Unified configuration for both chains
+├── cli.ts                   // CLI tool (TypeScript)
+├── dao_contract.rs          // Solana smart contract (Anchor/Rust)
+└── dao_contract.cairo       // StarkNet smart contract (Cairo)
 ```
 
-### Basic Setup
-```bash
-# Initialize DAO on Solana
-daocli init --chain solana \
-  --target 1000 \
-  --min-price 0.1 \
-  --duration 30
+## Prerequisites
 
-# Initialize DAO on StarkNet
-daocli init --chain starknet \
-  --target 1000 \
-  --min-price 0.1 \
-  --duration 30
+### General
+- **Git** – for version control.
+- **Node.js (v14 or later) and npm/yarn** – for running the CLI tool.
+- **TypeScript & ts-node** – for development and running the CLI.
 
-# Create pool on specific chain
-daocli create-pool --chain solana \
-  --native 100 \
-  --tokens 1000000
+### Solana/Anchor
+- **Rust Toolchain** – install via [rustup](https://rustup.rs/).
+- **Anchor CLI** – install with:
+  ```
+  cargo install --git https://github.com/project-serum/anchor anchor-cli --locked
+  ```
+- **Solana CLI** – install/update with:
+  ```
+  sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
+  ```
+  and configure your wallet using `solana config set --keypair <PATH_TO_KEYPAIR>`.
 
-# Stake LP tokens
-daocli stake --chain starknet \
-  --amount 1000
-```
+### StarkNet/Cairo
+- **Cairo-lang Compiler** – follow the [Cairo Quickstart](https://www.cairo-lang.org/docs/quickstart.html) instructions.
+- **StarkNet CLI** – install via pip:
+  ```
+  pip install starknet-devnet
+  ```
+  (Or use other deployment tools as preferred.)
 
-### Chain Configuration
-Create chain-specific config files:
-- `dao-config-solana.jsonnet` for Solana
-- `dao-config-starknet.jsonnet` for StarkNet
+## Installation
 
-Example configuration:
-```jsonnet
+1. **Clone the repository:**
+   ```
+   git clone https://github.com/yourusername/daoCLI.git
+   cd daoCLI
+   ```
+
+2. **Install Node.js dependencies:**
+   ```
+   npm install
+   ```
+   This installs packages such as `commander`, `ora`, `chalk`, `@solana/web3.js`, and `@project-serum/anchor`.
+
+## Configuration
+
+Edit the `dao_config.json` file to adjust parameters such as RPC URLs, program IDs, and fee settings for both chains.
+
+Example `dao_config.json`:
+```json
 {
-  // Common configuration
-  "name": "MyDAO",
-  "version": "1.0.0",
-
-  // Chain-specific configuration
-  "chain": {
-    // Solana specific
-    "solana": {
-      "rpcUrl": "https://api.mainnet-beta.solana.com",
-      "programId": "dao11111111111111111111111111111111111111"
-    },
-    // StarkNet specific
-    "starknet": {
-      "providerUrl": "https://alpha-mainnet.starknet.io",
-      "daoAddress": "0x123..."
+  "solana": {
+    "rpcUrl": "https://api.mainnet-beta.solana.com",
+    "programId": "dao11111111111111111111111111111111111111",
+    "fees": {
+      "tradingFee": 0.003,
+      "stakingFee": 0.002,
+      "managerFee": 0.08
+    }
+  },
+  "starknet": {
+    "providerUrl": "https://starknet-mainnet.infura.io/v3/YOUR-PROJECT-ID",
+    "daoAddress": "0x123...abc",
+    "fees": {
+      "tradingFee": 0.003,
+      "stakingFee": 0.002,
+      "managerFee": 0.08
     }
   }
 }
 ```
 
-### Complete CLI Reference
+## Building and Deploying
 
-```bash
-# Global Options
---chain <chain>            # Specify chain (solana/starknet)
+### 1. Solana Smart Contract (Anchor)
 
-# Basic DAO Operations
-daocli create-dao --chain <chain> --target 1000 --name "MyDAO"
-daocli setup-pool --chain <chain> --native 10 --tokens 1000000
-daocli deploy --chain <chain> --network mainnet
-daocli set-permissions --chain <chain> --address YOUR_ADDRESS
+#### Build
+- From the project root directory, run:
+  ```
+  anchor build
+  ```
+  This command compiles the Solana program defined in `dao_contract.rs` and generates an IDL and binary artifacts.
 
-# AI Agent Operations
-daocli set-agent --chain <chain> --key YOUR_AI_KEY --permissions "TRADE,GOVERN"
-daocli configure-agent --chain <chain> --strategy ./strategy.json
-daocli monitor-agent --chain <chain> --metrics "performance,risk"
+#### Deploy
+- Ensure your Solana CLI is configured with the correct keypair and network.
+- Deploy the program using:
+  ```
+  anchor deploy
+  ```
+  The program ID should match the one specified in `dao_config.json`.
 
-# Cross-chain Operations
-daocli bridge-liquidity --from solana --to starknet --amount 1000
-daocli sync-state --chains "solana,starknet"
-daocli monitor-all-chains --metrics "tvl,volume"
+### 2. StarkNet Smart Contract (Cairo)
 
-# Chain-specific Commands
-## Solana
-daocli solana:create-token --supply 1000000
-daocli solana:setup-amm --dex orca --fee-tier 0.3
+#### Compile
+- Compile the Cairo contract with:
+  ```
+  starknet-compile dao_contract.cairo --output dao_contract_compiled.json --abi dao_contract_abi.json
+  ```
+  This produces the compiled contract and its ABI.
 
-## StarkNet
-daocli starknet:deploy-dao --class-hash 0x123
-daocli starknet:setup-jediswap --pool-fee 0.3
+#### Deploy
+- Deploy the compiled contract using the StarkNet CLI (adjust the network flag as needed):
+  ```
+  starknet deploy --contract dao_contract_compiled.json --network mainnet
+  ```
+  Note the deployed contract address and update `dao_config.json` if necessary.
+
+### 3. CLI Tool
+
+#### Running the CLI in Development
+- Use `ts-node` to run the CLI directly:
+  ```
+  npx ts-node cli.ts --help
+  ```
+  This will display available commands and options.
+
+#### Compiling the CLI
+- To compile the CLI to JavaScript, run:
+  ```
+  tsc cli.ts
+  ```
+- Then run the generated file with Node.js:
+  ```
+  node cli.js --help
+  ```
+
+## Running the CLI Commands
+
+The CLI supports commands for initializing a DAO and creating a liquidity pool on either Solana or StarkNet.
+
+### Initialize a DAO
+
+To initialize a new DAO:
 ```
+npx ts-node cli.ts init -t 1000 -d 7 -m 0.1 -c solana
+```
+- `-t, --target` specifies the fundraising target.
+- `-d, --duration` is the duration in days.
+- `-m, --min-price` is the minimum pool price.
+- `-c, --chain` selects the blockchain (`solana` or `starknet`).
+
+### Create a Liquidity Pool
+
+To create a liquidity pool:
+```
+npx ts-node cli.ts create-pool -n 50 -t 1000000 -c solana
+```
+- `-n, --native` specifies the amount in native tokens.
+- `-t, --tokens` specifies the amount in DAO tokens.
+- The `-c` option selects the target chain.
+
+## Usage Notes
+
+- **Wallets:** The provided minimal implementations use dummy wallet addresses. In a production environment, integrate real wallet connections.
+- **Error Handling:** This project uses basic logging and dummy implementations. Extend error handling and transaction confirmations as needed.
+- **Chain-Specific Logic:** The Solana client uses Anchor and the StarkNet client uses Cairo; adjust the business logic in the respective classes and contracts for full functionality.
+
 
 ## 💡 Technical Architecture
 
