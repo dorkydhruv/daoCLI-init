@@ -1,14 +1,39 @@
-#!/usr/bin/env node
+#!/usr/bin/env ts-node
 import { program } from 'commander';
-import { Provider, Account, Contract, uint256 } from 'starknet';
-import { Connection, Keypair, PublicKey } from '@solana/web3.js';
+import { Provider } from 'starknet';
+import { Connection, PublicKey } from '@solana/web3.js';
 import ora from 'ora';
 import chalk from 'chalk';
-import { parse } from 'jsonnet';
-import { readFileSync, writeFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import path from 'path';
+// We assume a jsonnet library is available:
+import jsonnet from 'jsonnet';
 
-// Types
+// --- Utility functions ---
+
+// Deep merge two objects.
+function deepMerge(target: any, source: any): any {
+  for (const key in source) {
+    if (source[key] && typeof source[key] === 'object') {
+      target[key] = deepMerge(target[key] || {}, source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+  return target;
+}
+
+// Stub for loading contract ABIs (to be implemented as needed)
+async function loadContractABIs(): Promise<any> {
+  // Example: load from JSON files or other sources
+  return {
+    solana: { /* ... */ },
+    starknet: { /* ... */ },
+  };
+}
+
+// --- Types (for clarity) ---
+
 interface ChainConfig {
   rpcUrl: string;
   programId?: string;
@@ -28,14 +53,13 @@ interface DAOConfig {
   };
 }
 
-// Chain-specific client initialization
+// --- Base Client Classes ---
+
 class BaseClient {
   protected config: ChainConfig;
-  
   constructor(config: ChainConfig) {
     this.config = config;
   }
-
   async validateConfig(): Promise<boolean> {
     if (!this.config.rpcUrl) {
       throw new Error('Missing RPC URL in config');
@@ -46,47 +70,38 @@ class BaseClient {
 
 class SolanaClient extends BaseClient {
   private connection: Connection;
-  
   constructor(config: ChainConfig) {
     super(config);
     this.connection = new Connection(config.rpcUrl, 'confirmed');
   }
-
   async initializeDAO(params: any) {
-    const programId = new PublicKey(this.config.programId!);
-    // Add proper Solana initialization logic
+    // Insert proper Solana DAO initialization logic here.
     return { txId: 'solana_tx_hash' };
   }
-
   async createPool(params: any) {
-    // Add proper Solana pool creation logic
+    // Insert proper Solana liquidity pool creation logic here.
     return { txId: 'solana_pool_tx' };
   }
 }
 
 class StarknetClient extends BaseClient {
   private provider: Provider;
-  private contract?: Contract;
-
   constructor(config: ChainConfig) {
     super(config);
     this.provider = new Provider({ sequencer: { network: config.rpcUrl } });
   }
-
   async initializeDAO(params: any) {
     await this.validateConfig();
-    // Add proper Starknet initialization logic
+    // Insert proper StarkNet DAO initialization logic here.
     return { txId: 'starknet_tx_hash' };
   }
-
   async createPool(params: any) {
-    // Add proper Starknet pool creation logic
+    // Insert proper StarkNet pool creation logic here.
     return { txId: 'starknet_pool_tx' };
   }
 }
 
-// Client factory
-function createClient(chain: string, config: ChainConfig) {
+function createClient(chain: string, config: ChainConfig): SolanaClient | StarknetClient {
   switch (chain.toLowerCase()) {
     case 'solana':
       return new SolanaClient(config);
@@ -97,28 +112,39 @@ function createClient(chain: string, config: ChainConfig) {
   }
 }
 
-// Configuration management
+// --- Configuration Management ---
+
 function loadConfig(chain: string): DAOConfig {
   try {
-    const configPath = process.env.DAO_CONFIG_PATH || 
+    const configPath =
+      process.env.DAO_CONFIG_PATH ||
       path.join(process.cwd(), `dao-config-${chain}.jsonnet`);
     const configText = readFileSync(configPath, 'utf8');
-    return parse(configText);
+    const baseConfig = JSON.parse(jsonnet.evaluateSnippet('config.jsonnet', configText));
+
+    // Load chain-specific override (if exists)
+    const chainConfigPath = path.join(process.cwd(), `dao-config-${chain}.override.jsonnet`);
+    let chainConfig = {};
+    if (existsSync(chainConfigPath)) {
+      const chainConfigText = readFileSync(chainConfigPath, 'utf8');
+      chainConfig = JSON.parse(jsonnet.evaluateSnippet('chain-config.jsonnet', chainConfigText));
+    }
+    return deepMerge(baseConfig, chainConfig);
   } catch (error) {
     console.error(chalk.red(`Error loading config for ${chain}:`), error);
     process.exit(1);
   }
 }
 
-// Command implementation
+// --- Command Implementation ---
+
 async function handleCommand(action: string, options: any) {
   const chain = options.chain || 'solana';
   const config = loadConfig(chain);
   const spinner = ora(`Executing ${action}...`).start();
 
   try {
-    const chainConfig = chain === 'solana' ? 
-      config.chain.solana! : config.chain.starknet!;
+    const chainConfig = chain === 'solana' ? config.chain.solana! : config.chain.starknet!;
     const client = createClient(chain, chainConfig);
 
     let result;
@@ -127,28 +153,30 @@ async function handleCommand(action: string, options: any) {
         result = await client.initializeDAO({
           target: options.target,
           duration: options.duration,
-          minPrice: options.minPrice
+          minPrice: options.minPrice,
         });
         break;
       case 'create-pool':
         result = await client.createPool({
           nativeAmount: options.native,
-          tokenAmount: options.tokens
+          tokenAmount: options.tokens,
         });
         break;
-      // Add other commands as needed
+      // Add additional commands as needed.
+      default:
+        throw new Error(`Unknown action: ${action}`);
     }
-
     spinner.succeed(`${action} completed successfully!`);
     console.log(chalk.green(`Transaction Hash: ${result.txId}`));
-  } catch (error) {
+  } catch (error: any) {
     spinner.fail(`Failed to ${action}`);
     console.error(chalk.red('Error:'), error);
     process.exit(1);
   }
 }
 
-// CLI setup
+// --- CLI Setup ---
+
 program
   .version('2.0.0')
   .option('-c, --chain <chain>', 'blockchain to use (solana/starknet)', 'solana');
@@ -167,7 +195,5 @@ program
   .requiredOption('-n, --native <amount>', 'native token amount')
   .requiredOption('-t, --tokens <amount>', 'DAO token amount')
   .action((options) => handleCommand('create-pool', options));
-
-// Add more commands as needed...
 
 program.parse(process.argv);
