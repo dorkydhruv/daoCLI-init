@@ -3,15 +3,14 @@
 ## Multi-Chain Programmatic & Embedded DAOs for AI Agents and Developers
 ### It's like Terraform...but for DAOs!!!
 
-daoCLI is a toolkit built for AI agents to create and manage programmatic & embedded DAOs across multiple blockchains. Currently supporting Solana and StarkNet, daoCLI provides a unified interface for cross-chain DAO operations. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
+daoCLI is a toolkit built for AI agents to create and manage programmatic & embedded DAOs across multiple blockchains. Currently supporting Solana and StarkNet, daoCLI provides a unified interface for cross-chain DAO operations. Traditional DAOs require human interfaces, separate websites, and manual governance – making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
 
-**We are like Stripe...we are developer first. Because AI Agents are developer first**.
+**We are like Stripe...we are developer first. Because AI Agents are developer first.**
 
 ## OpenAI & Sam Altman thinks exactly like us
-Don't believe me ? This is what OpenAI focuses on.
+Don't believe me? This is what OpenAI focuses on.
 * [https://openai.com/index/practices-for-governing-agentic-ai-systems/](https://openai.com/index/practices-for-governing-agentic-ai-systems/)
 * [https://openai.com/index/governance-of-superintelligence/](https://openai.com/index/governance-of-superintelligence/)
-
 
 ## DAO is everything - not the token
 
@@ -96,30 +95,29 @@ Separate platforms & websites | Embedded directly in applications
 High operational overhead | Minimal computational overhead
 Chain-specific implementations | Unified API across chains
 
-
-
 ## 🎯 Core Features for AI Agents
 
 ### Multi-Chain Support
-- **Unified API**: Consistent interface across chains
-- **Chain Abstraction**: Chain-agnostic operations
-- **Cross-chain Management**: Manage DAOs across Solana and StarkNet
-- **Chain-specific Optimizations**: Leverage each chain's strengths
+- **Unified API**: Consistent interface across chains.
+- **Chain Abstraction**: Chain-agnostic operations.
+- **Cross-chain Management**: Manage DAOs across Solana and StarkNet.
+- **Chain-specific Optimizations**: Leverage each chain's strengths.
 
 ### Programmatic Control
-- **API-First Design**: Every feature accessible through code
-- **Event-Driven Architecture**: React to cross-chain events
-- **Automated Decision Making**: Chain-agnostic governance
-- **Batch Operations**: Handle multiple DAOs efficiently
+- **API-First Design**: Every feature accessible through code.
+- **Event-Driven Architecture**: React to cross-chain events.
+- **Automated Decision Making**: Chain-agnostic governance.
+- **Batch Operations**: Handle multiple DAOs efficiently.
 
 ### AI Integration Features
-- **Cross-chain Analytics**: Unified view across chains
-- **Chain Selection Logic**: AI-driven chain selection
-- **Multi-chain State Management**: Track DAO state across chains
-- **Cross-chain Event Subscriptions**: Real-time updates
+- **Cross-chain Analytics**: Unified view across chains.
+- **Chain Selection Logic**: AI-driven chain selection.
+- **Multi-chain State Management**: Track DAO state across chains.
+- **Cross-chain Event Subscriptions**: Real-time updates.
 
 ## 🚀 Quick Start
 
+---
 
 ## Table of Contents
 
@@ -152,24 +150,31 @@ daoCLI provides a unified interface to:
 
 ## Project Structure
 
-The minimal file structure for the project is as follows:
+The repository is organized as follows:
 
 ```
 daoCLI/
-├── dao_config.json         # Unified configuration for Solana and StarkNet
-├── cli.ts                  # CLI tool (TypeScript) for DAO operations
-├── tests.ts                # Automated tests for CLI functionality
-├── dao_contract.rs         # Solana smart contract (Anchor/Rust)
-└── dao_contract.cairo      # StarkNet smart contract (Cairo)
+├── daocli-philosophy.md         # daoCLI philosophy and whitepaper
+├── dao_config.json              # Unified configuration for Solana and StarkNet
+├── LICENSE                      # License file
+├── dao-detailed-system.mermaid  # Detailed system diagram
+├── README.md                    # This README file
+├── whitepaper-v1.md             # Whitepaper version 1
+├── dao_contract.cairo           # StarkNet smart contract (Cairo)
+├── CLA.md                       # Contributor License Agreement
+├── dao_contract.rs              # Solana smart contract (Anchor/Rust)
+├── cli.ts                       # CLI tool (TypeScript) for DAO operations
+├── known-issues.md              # Known issues and fixes
+└── tests.ts                     # Automated tests for CLI functionality
 ```
 
 ---
 
 ## Prerequisites
 
-Before building and running the project, ensure you have the following installed:
+Before building and running daoCLI, ensure you have installed:
 
-- **Node.js** (v14 or higher) and **npm**
+- **Node.js** (v14 or later) and **npm**
 - **TypeScript** and **ts-node** (for running the CLI)
 - **Anchor CLI** and the **Rust toolchain** (for building Solana smart contracts)
 - **Solana CLI** (for deploying to the Solana network)
@@ -208,59 +213,71 @@ Before building and running the project, ensure you have the following installed
 
 ### CLI Tool (TypeScript)
 
-1. **Compilation (Optional):**
+- **Compilation (Optional):**
 
-   If you prefer to compile the TypeScript code:
-   
-   ```bash
-   tsc cli.ts
-   ```
-   
-   Alternatively, you can run it directly using `ts-node`.
+  If you prefer compiling the TypeScript code, run:
 
-2. **Running the CLI Directly:**
+  ```bash
+  tsc cli.ts
+  ```
 
-   ```bash
-   ts-node cli.ts <command> [options]
-   ```
+  Alternatively, run directly with:
+
+  ```bash
+  ts-node cli.ts <command> [options]
+  ```
+
+- The CLI now supports additional subcommands:
+  - **`init`**: Initialize a new DAO.
+  - **`create-pool`**: Create a liquidity pool.
+  - **`deploy`**: Deploy DAO smart contracts.
+  - **`upgrade`**: Upgrade an existing DAO contract version.
 
 ### Solana Smart Contract (Anchor/Rust)
 
 1. **Build the Contract:**
 
-   Ensure you are in the project directory containing `dao_contract.rs`, then run:
-   
+   Navigate to the directory containing `dao_contract.rs` and run:
+
    ```bash
    anchor build
    ```
-   
-   This will compile the Solana program and generate the IDL and binaries in the `target/` folder.
+
+   This compiles the Solana program and outputs the binaries and IDL in the `target/` folder.
 
 2. **Deploy the Contract:**
 
-   Configure your Solana wallet and network via the Solana CLI and Anchor configuration, then deploy:
-   
+   Configure your Solana wallet and network via the Solana CLI and Anchor configuration, then deploy using:
+
    ```bash
    anchor deploy
    ```
+
+3. **Upgrade Support:**
+
+   The contract now includes a version field and an `upgrade` instruction (callable only by the manager) for seamless migrations.
 
 ### StarkNet Smart Contract (Cairo)
 
 1. **Compile the Contract:**
 
-   Compile the Cairo contract using the StarkNet CLI:
-   
+   Use the StarkNet CLI to compile the Cairo contract:
+
    ```bash
    starknet-compile dao_contract.cairo --output dao_contract_compiled.json --abi dao_contract_abi.json
    ```
 
 2. **Deploy the Contract:**
 
-   Use your preferred method (e.g., `starknet deploy` command) with the compiled JSON and ABI:
-   
+   Deploy the contract using:
+
    ```bash
    starknet deploy --contract dao_contract_compiled.json --account YOUR_ACCOUNT_ADDRESS
    ```
+
+3. **Upgrade Support:**
+
+   The Cairo contract now includes a `version` storage variable (initialized to 1) and an external `upgrade` function.
 
 ---
 
@@ -268,37 +285,61 @@ Before building and running the project, ensure you have the following installed
 
 ### Using the CLI
 
-The CLI tool supports two primary commands: `init` to initialize a DAO and `create-pool` to create a liquidity pool. The chain can be specified using the `-c` or `--chain` option (either `solana` or `starknet`).
+The CLI tool supports these primary commands:
 
-#### Examples:
-
-- **Initialize a DAO on Solana:**
+- **Initialize a DAO:**
 
   ```bash
   ts-node cli.ts init -t 1000 -d 7 -m 0.1 -c solana
   ```
 
-- **Initialize a DAO on StarkNet:**
+  or
 
   ```bash
   ts-node cli.ts init -t 1000 -d 7 -m 0.1 -c starknet
   ```
 
-- **Create a Liquidity Pool on Solana:**
+- **Create a Liquidity Pool:**
 
   ```bash
   ts-node cli.ts create-pool -n 50 -t 1000000 -c solana
   ```
 
-- **Create a Liquidity Pool on StarkNet:**
+  or
 
   ```bash
   ts-node cli.ts create-pool -n 50 -t 1000000 -c starknet
   ```
 
+- **Deploy DAO Smart Contracts:**
+
+  ```bash
+  ts-node cli.ts deploy -c solana
+  ```
+
+  or
+
+  ```bash
+  ts-node cli.ts deploy -c starknet
+  ```
+
+- **Upgrade an Existing DAO:**
+
+  ```bash
+  ts-node cli.ts upgrade -v 2 -c solana
+  ```
+
+  or
+
+  ```bash
+  ts-node cli.ts upgrade -v 2 -c starknet
+  ```
+
+Each command prints a dummy transaction hash to simulate the process. Replace the dummy implementations with real calls (using Anchor CLI, StarkNet CLI, etc.) when integrating into production.
+
 ### Running Tests
 
-Automated tests are written using Mocha and Chai. To run the tests:
+Automated tests use Mocha and Chai. To run tests:
 
 1. **Install Mocha & Chai:**
 
@@ -318,426 +359,47 @@ Automated tests are written using Mocha and Chai. To run the tests:
 
 ### Solana Deployment
 
-- Use the Anchor CLI (`anchor deploy`) after building the smart contract.
-- Update the `dao_config.json` with the deployed program ID.
-- Interact with the deployed contract using the CLI tool.
+- **Contract Deployment:**
+  - Use `anchor build` and `anchor deploy` to compile and deploy your Solana contracts.
+  - Update `dao_config.json` with the deployed program ID.
+
+- **Integration:**
+  - Interact with the deployed contracts via the CLI tool.
+  - Utilize solana-web3.js and Anchor’s IDL for programmatic interactions.
 
 ### StarkNet Deployment
 
-- Compile the Cairo contract and deploy it using the StarkNet CLI.
-- Update the `dao_config.json` with the deployed contract address.
-- The CLI tool will interact with the StarkNet contract using the provided configuration.
+- **Contract Deployment:**
+  - Use `starknet-compile` and `starknet deploy` for the Cairo contracts.
+  - Update `dao_config.json` with the deployed contract address.
+
+- **Integration:**
+  - The CLI interacts with StarkNet contracts using the provided configuration.
+  - Use starknet.js or similar libraries for further interactions.
 
 ---
 
 ## Additional Information
 
 - **Configuration:**  
-  The `dao_config.json` file holds configuration settings for both Solana and StarkNet. Adjust RPC URLs, program IDs, and fee settings as needed.
+  The `dao_config.json` file holds configuration settings for both Solana and StarkNet (RPC URLs, contract addresses, fee settings). Adjust these values as needed.
 
-- **Extensibility:**  
-  This project is designed to be modular. You can extend the CLI tool and smart contracts with additional features (e.g., staking, governance flows, liquidity management) as your use case evolves.
+- **Modularity:**  
+  The system is built with a modular architecture. You can enable or disable modules (token, liquidity, governance, treasury, upgrade) via configuration or CLI flags.
 
-- **Further Reading:**  
-  - [Anchor Documentation](https://project-serum.github.io/anchor/)
-  - [Cairo Language Documentation](https://www.cairo-lang.org/docs/)
-  - [Solana Web3.js API](https://solana-labs.github.io/solana-web3.js/)
-  - [StarkNet Documentation](https://www.starknet.io/)
+- **Upgrade Path:**  
+  Deployed contracts include a version field and support upgrade instructions. Use the CLI `upgrade` command to migrate to new contract versions.
 
-## How to Copy & Use This README
+- **Embeddability:**  
+  DAO contracts are designed to be callable from web apps or other integrations, with a unified API across chains.
 
-To copy the raw markdown, simply select the text within the code block and paste it into your own README file.
-
-Happy building and deploying daoCLI!
-
-## 💡 Technical Architecture
-
-### Chain Support Matrix
-Feature | Solana | StarkNet
---------|---------|----------
-DAO Creation | ✅ | ✅
-AMM Integration | Orca, Raydium | JediSwap
-Staking | Native | Native
-Governance | SPL-Gov | Cairo Native
-Performance | High TPS | Layer 2 Scaling
-
-### Integration Points
-1. **Cross-chain Messaging**
-   - Wormhole integration
-   - State synchronization
-   - Asset bridges
-
-2. **Chain-specific Features**
-   - Solana Program Deployment
-   - StarkNet Contract Declaration
-   - Chain-optimal execution
-
-### Core Components
-1. **AI Interface Layer**
-   - Event subscriptions
-   - State management
-   - Decision execution
-   - Performance monitoring
-
-2. **Smart Contracts**
-   - Programmatic governance
-   - Automated treasury
-   - Trading mechanics
-   - Risk management
-
-3. **API Layer**
-   - RESTful endpoints
-   - WebSocket feeds
-   - State queries
-   - Batch operations
-
-## 📊 AI Trading Integration
-
-### Automated Markets
-- AI-driven liquidity provision
-- Dynamic fee adjustment
-- Risk-based position sizing
-- Multi-pool optimization
-
-### Performance Metrics
-- Real-time price analysis
-- Volume predictions
-- Risk assessments
-- Portfolio analytics
-
-## 🛠 Implementation Example
-
-### AI Agent Integration
-```typescript
-import { DaoManager } from '@daocli/ai'
-
-async function setupAIManager() {
-  const manager = new DaoManager({
-    strategy: './ai_strategy.json',
-    riskParams: './risk_config.json',
-    autoRebalance: true
-  })
-
-  // Subscribe to events
-  manager.on('priceChange', async (data) => {
-    await manager.adjustStrategy(data)
-  })
-
-  // Execute trades
-  await manager.executeTradingStrategy()
-}
-```
-
-### Automated Governance
-```typescript
-import { Governance } from '@daocli/governance'
-
-async function setupGovernance() {
-  const governance = new Governance({
-    aiAgent: YOUR_AI_AGENT,
-    quorum: 100_000,
-    executionDelay: 0 // Instant for AI
-  })
-
-  // Create and execute proposals
-  await governance.createProposal({
-    action: 'adjustFees',
-    params: { newFee: 0.3 }
-  })
-}
-```
-
-## 🔒 Security
-
-### AI-Specific Security
-- Rate limiting
-- Risk boundaries
-- Emergency shutdown
-- State validation
-
-### Smart Contract Security
-- Formal verification
-- Automated testing
-- Security bounties
-- Regular audits
-
-
-## 📈 For Investors
-
-### Investment Benefits
-- Direct exposure to DAO performance
-- Liquid secondary market
-- Real-time price discovery
-- Transparent mechanics
-- No lockup periods
-
-### Trading Features
-- Price charts and market depth
-- Portfolio tracking
-- Order history
-- Performance analytics
-
-## 🔒 Security
-
-### Smart Contract Security
-- Audited by leading firms
-- Open-source contracts
-- Bug bounty program
-- Regular security updates
-
-### Best Practices
-- Multi-sig treasury
-- Time-locked operations
-- Slippage protection
-- Emergency shutdown mechanisms
-
-
-## 📋 Roadmap
-
-### Phase 1 (Current)
-- [x] Core DAO functionality
-- [x] AMM implementation
-- [x] Basic trading interface
-- [x] CLI tools
-
-### Phase 2 (Q2 2024)
-- [ ] Advanced governance features
-- [ ] Multi-chain support
-- [ ] Enhanced analytics
-- [ ] Mobile SDK
-
-### Phase 3 (Q3 2024)
-- [ ] AI integration
-- [ ] Advanced trading features
-- [ ] Cross-chain operations
-- [ ] DAO templates
-
-# daoCLI (DCLI) Token Economics
-## Platform Token for the daoCLI Ecosystem
-
-## Overview
-DCLI is the native utility and governance token for the daoCLI platform, designed to align incentives between developers, AI agents, and DAO creators while ensuring sustainable platform growth.
-
-## Token Details
-- **Name**: daoCLI CLI Token
-- **Symbol**: DCLI
-- **Blockchain**: Solana
-- **Token Standard**: SPL
-- **Total Supply**: 1,000,000,000 (1 billion) DCLI
-- **Decimal Places**: 9
-
-## Token Distribution
-
-### Initial Token Allocation
-Total Supply: 1,000,000,000 DCLI
-
-| Category | Allocation | Tokens | Vesting |
-|----------|------------|---------|---------|
-| Platform Development | 20% | 200M | 4-year linear vesting, 1-year cliff |
-| Ecosystem Growth | 25% | 250M | 5-year linear release |
-| Community Treasury | 20% | 200M | Community-controlled |
-| Initial Liquidity | 5% | 50M | Locked in AMM pools |
-| Team & Advisors | 15% | 150M | 3-year linear vesting, 1-year cliff |
-| Early Investors | 10% | 100M | 2-year linear vesting, 6-month cliff |
-| Public Sale | 5% | 50M | Immediate circulation |
-
-### Vesting Schedule Details
-
-#### Platform Development (20%)
-- 1-year cliff
-- 4-year linear vesting
-- Quarterly unlocks after cliff
-- Used for core platform development, security audits, and infrastructure
-
-#### Ecosystem Growth (25%)
-- 5-year linear release
-- Monthly unlocks
-- Allocation breakdown:
-  - Developer Incentives: 40%
-  - AI Agent Integration Grants: 30%
-  - Hackathons & Bounties: 20%
-  - Educational Content: 10%
-
-#### Community Treasury (20%)
-- Controlled by DAO governance
-- Initial unlock: 10%
-- Remaining 90% unlocked over 3 years
-- Used for:
-  - Protocol improvements
-  - Community initiatives
-  - Grants
-  - Bug bounties
-
-#### Initial Liquidity (5%)
-- Permanently locked in AMM pools
-- Distribution:
-  - Orca: 40%
-  - Raydium: 40%
-  - Jupiter: 20%
-
-#### Team & Advisors (15%)
-- 1-year cliff
-- 3-year linear vesting
-- Monthly unlocks after cliff
-- Smart contract enforced vesting
-
-#### Early Investors (10%)
-- 6-month cliff
-- 2-year linear vesting
-- Monthly unlocks after cliff
-
-#### Public Sale (5%)
-- Immediate circulation
-- Fair launch auction mechanism
-- Price discovery through Orca Whirlpools
-
-## Token Utility
-
-### 1. Platform Access
-- DCLI staking required for:
-  - Premium features access
-  - Advanced analytics
-  - Priority support
-  - Custom deployment options
-
-### 2. Fee Structure
-| Action | Fee (DCLI) | Distribution |
-|--------|------------|--------------|
-| DAO Creation | 1,000 DCLI | 70% burned, 30% treasury |
-| Template Usage | 100 DCLI | 50% template creator, 50% treasury |
-| Premium Features | 500 DCLI/month | 80% burned, 20% treasury |
-| Custom Domain | 200 DCLI/month | 100% burned |
-
-### 3. Staking Tiers
-| Tier | DCLI Required | Benefits |
-|------|---------------|-----------|
-| Basic | 1,000 | Access to basic templates |
-| Pro | 5,000 | Custom branding, priority support |
-| Enterprise | 25,000 | White-label solution, dedicated support |
-| Network | 100,000 | Revenue sharing, governance weight 2x |
-
-### 4. Governance
-- Voting weight: 1 DCLI = 1 vote
-- Proposal creation: 10,000 DCLI minimum stake
-- Voting period: 5 days
-- Quorum requirement: 10% of circulating supply
-- Time-lock for major upgrades: 48 hours
-
-## Deflationary Mechanisms
-
-### 1. Fee Burning
-- 70% of all platform fees burned
-- Estimated quarterly burn rate: 0.5-1% of circulating supply
-- Dynamic burning based on platform usage
-
-### 2. Buy-Back Program
-- 10% of platform revenue allocated to buy-back
-- Automated execution through smart contracts
-- Purchased tokens split:
-  - 80% burned
-  - 20% to community treasury
-
-### 3. Staking Rewards
-- Base APY: 5%
-- Bonus APY for long-term staking:
-  - 6 months: +2%
-  - 1 year: +5%
-  - 2 years: +8%
-- Maximum combined APY: 15%
-
-## Treasury Management
-
-### Revenue Streams
-1. Platform fees (30%)
-2. Template marketplace fees (5%)
-3. Premium subscriptions (40%)
-4. Enterprise licenses (25%)
-
-### Treasury Allocation
-- Development: 40%
-- Marketing & Growth: 20%
-- Security: 15%
-- Community Rewards: 15%
-- Reserve: 10%
-
-## Economic Sustainability
-
-### Supply Control
-- All platform fees paid in DCLI
-- Regular token burns from fee collection
-- Long-term staking incentives
-- Governance-controlled inflation rate (max 2% annually)
-
-### Demand Drivers
-1. Required for platform usage
-2. Staking rewards
-3. Governance rights
-4. Revenue sharing for high-tier stakers
-5. Access to premium features
-
-## Risk Mitigation
-
-### Concentration Limits
-- Maximum wallet holding: 5% of total supply
-- Maximum voting power: 4% per address
-- Minimum 14-day unstaking period
-
-### Security Measures
-- Multi-sig treasury management
-- Time-locked governance actions
-- Regular security audits
-- Bug bounty program
-
-## Ecosystem Development
-
-### Developer Incentives
-- Grant program: 50M DCLI allocated
-- Hackathon prizes: 25M DCLI allocated
-- Integration bounties: 25M DCLI allocated
-
-### Partnership Allocations
-- Strategic partners: 50M DCLI reserved
-- Integration partners: 25M DCLI reserved
-- Marketing initiatives: 25M DCLI reserved
-
-## Future Considerations
-
-### Governance Evolution
-- Transition to full DAO governance over 2 years
-- Introduction of delegated voting
-- Specialized governance committees
-- Cross-chain governance capabilities
-
-### Technical Upgrades
-- Cross-chain bridge support
-- Layer 2 scaling solutions
-- Advanced staking mechanisms
-- Automated market makers optimization
-
-## Success Metrics
-
-### Key Performance Indicators
-1. Monthly Active DAOs
-2. Total Value Locked (TVL)
-3. Daily Active Users
-4. Token Velocity
-5. Governance Participation Rate
-
-### Growth Targets
-Year 1:
-- 1,000 DAOs created
-- $100M TVL
-- 50,000 active users
-
-Year 3:
-- 10,000 DAOs created
-- $1B TVL
-- 500,000 active users
+- **Further Documentation:**  
+  For more details on usage, refer to the included whitepaper and technical documentation files (e.g., `daocli-philosophy.md`, `dao-detailed-system.mermaid`).
 
 ---
 
-Note: This tokenomics model is designed to be sustainable and value-accruing while prioritizing long-term platform growth and community involvement. All parameters are subject to adjustment through governance proposals.
+## License
 
----
+This project is licensed under the GNU Affero General Public License version 3 (AGPL-3.0) with a CLA. See the [LICENSE](./LICENSE) file for details.
+```
 
-Built with ❤️ by the daoCLI team
