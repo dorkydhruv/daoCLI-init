@@ -27,6 +27,10 @@ end
 func trading_active() -> felt:
 end
 
+@storage_var
+func version() -> felt:
+end
+
 @constructor
 func constructor{
         syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
@@ -36,7 +40,7 @@ func constructor{
         fundraise_target_: felt,
         min_pool_price_: felt,
         expiry_timestamp_: felt
-    ):
+    ) -> ():
     # Basic validations.
     assert manager_ != 0, 'Invalid manager'
     assert dao_token_ != 0, 'Invalid dao_token'
@@ -50,6 +54,7 @@ func constructor{
     min_pool_price.write(min_pool_price_)
     expiry_timestamp.write(expiry_timestamp_)
     trading_active.write(0)
+    version.write(1)  # Set initial version to 1
     return ()
 end
 
@@ -64,5 +69,17 @@ func create_pool{
     assert sol_amount > 0, 'Invalid sol amount'
     assert token_amount > 0, 'Invalid token amount'
     trading_active.write(1)
+    return ()
+end
+
+@external
+func upgrade{
+        syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr
+    }(new_version: felt) -> ():
+    # Only the manager can upgrade the contract.
+    let caller = get_caller_address()
+    let mgr = manager.read()
+    assert caller == mgr, 'UNAUTHORIZED'
+    version.write(new_version)
     return ()
 end

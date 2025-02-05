@@ -21,6 +21,16 @@ describe("SolanaClient", () => {
     const tx = await solClient.createPool(50, 1000000);
     expect(tx).to.equal("solana_pool_tx_hash");
   });
+  
+  it("should deploy DAO and return dummy deploy tx hash", async () => {
+    const tx = await solClient.deployDAO();
+    expect(tx).to.equal("solana_deploy_tx_hash");
+  });
+  
+  it("should upgrade DAO and return dummy upgrade tx hash", async () => {
+    const tx = await solClient.upgradeDAO(2);
+    expect(tx).to.equal("solana_upgrade_tx_hash");
+  });
 });
 
 describe("StarknetClient", () => {
@@ -37,5 +47,15 @@ describe("StarknetClient", () => {
   it("should create pool and return dummy tx hash", async () => {
     const tx = await starkClient.createPool(50, 1000000);
     expect(tx).to.equal("starknet_pool_tx_hash");
+  });
+  
+  it("should deploy DAO and return dummy deploy tx hash", async () => {
+    const tx = await starkClient.deployDAO();
+    expect(tx).to.equal("starknet_deploy_tx_hash");
+  });
+  
+  it("should upgrade DAO and return dummy upgrade tx hash", async () => {
+    const tx = await starkClient.upgradeDAO(2);
+    expect(tx).to.equal("starknet_upgrade_tx_hash");
   });
 });

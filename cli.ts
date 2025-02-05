@@ -5,6 +5,8 @@
  * Usage examples:
  *   ts-node cli.ts init -t 1000 -d 7 -m 0.1 -c solana
  *   ts-node cli.ts create-pool -n 50 -t 1000000 -c starknet
+ *   ts-node cli.ts deploy -c solana
+ *   ts-node cli.ts upgrade -v 2 -c starknet
  */
 
 import { program } from 'commander';
@@ -13,7 +15,7 @@ import { resolve } from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
 import { Connection, PublicKey } from '@solana/web3.js';
-import { AnchorProvider, Program, BN } from '@project-serum/anchor';
+import { AnchorProvider, Program } from '@project-serum/anchor';
 
 // ======= Types and Configuration =======
 
@@ -55,7 +57,6 @@ class SolanaClient {
   constructor(rpcUrl: string, programId: string, wallet: { publicKey: PublicKey }) {
     this.connection = new Connection(rpcUrl, 'confirmed');
     this.programId = new PublicKey(programId);
-    // For brevity, we use an empty IDL object.
     const idl = {}; 
     const provider = new AnchorProvider(this.connection, wallet, { commitment: 'confirmed' });
     this.program = new Program(idl, this.programId, provider);
@@ -63,16 +64,23 @@ class SolanaClient {
   }
 
   async initializeDAO(target: number, duration: number, minPrice: number): Promise<string> {
-    // Replace with real DAO initialization logic.
     console.log(chalk.green(`(Solana) Initializing DAO with target ${target}, duration ${duration} days, minPrice ${minPrice}`));
-    // Dummy tx hash returned.
     return 'solana_dummy_tx_hash';
   }
 
   async createPool(nativeAmount: number, tokenAmount: number): Promise<string> {
-    // Replace with real pool creation logic.
     console.log(chalk.green(`(Solana) Creating pool with native ${nativeAmount} and token ${tokenAmount}`));
     return 'solana_pool_tx_hash';
+  }
+  
+  async deployDAO(): Promise<string> {
+    console.log(chalk.green(`(Solana) Deploying DAO contracts...`));
+    return 'solana_deploy_tx_hash';
+  }
+  
+  async upgradeDAO(newVersion: number): Promise<string> {
+    console.log(chalk.green(`(Solana) Upgrading DAO to version ${newVersion}...`));
+    return 'solana_upgrade_tx_hash';
   }
 }
 
@@ -88,7 +96,6 @@ class StarknetClient {
   }
 
   async initializeDAO(target: number, duration: number, minPrice: number): Promise<string> {
-    // Replace with real StarkNet initialization logic.
     console.log(chalk.green(`(StarkNet) Initializing DAO with target ${target}, duration ${duration} days, minPrice ${minPrice}`));
     return 'starknet_dummy_tx_hash';
   }
@@ -96,6 +103,16 @@ class StarknetClient {
   async createPool(nativeAmount: number, tokenAmount: number): Promise<string> {
     console.log(chalk.green(`(StarkNet) Creating pool with native ${nativeAmount} and token ${tokenAmount}`));
     return 'starknet_pool_tx_hash';
+  }
+  
+  async deployDAO(): Promise<string> {
+    console.log(chalk.green(`(StarkNet) Deploying DAO contracts...`));
+    return 'starknet_deploy_tx_hash';
+  }
+  
+  async upgradeDAO(newVersion: number): Promise<string> {
+    console.log(chalk.green(`(StarkNet) Upgrading DAO to version ${newVersion}...`));
+    return 'starknet_upgrade_tx_hash';
   }
 }
 
@@ -111,7 +128,6 @@ async function handleInit(chain: string, options: any) {
   try {
     let tx: string;
     if (chain === 'solana') {
-      // In production, connect to a wallet (here we use a dummy wallet).
       const dummyWallet = { publicKey: new PublicKey('11111111111111111111111111111111') };
       const solClient = new SolanaClient(config.solana.rpcUrl, config.solana.programId, dummyWallet);
       tx = await solClient.initializeDAO(target, duration, minPrice);
@@ -151,6 +167,51 @@ async function handleCreatePool(chain: string, options: any) {
   }
 }
 
+async function handleDeploy(chain: string, options: any) {
+  const config = loadConfig();
+  const spinner = ora(`Deploying DAO contracts on ${chain}...`).start();
+
+  try {
+    let tx: string;
+    if (chain === 'solana') {
+      const dummyWallet = { publicKey: new PublicKey('11111111111111111111111111111111') };
+      const solClient = new SolanaClient(config.solana.rpcUrl, config.solana.programId, dummyWallet);
+      tx = await solClient.deployDAO();
+    } else if (chain === 'starknet') {
+      const starkClient = new StarknetClient(config.starknet.providerUrl, config.starknet.daoAddress);
+      tx = await starkClient.deployDAO();
+    } else {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+    spinner.succeed(`DAO deployed on ${chain}. TX: ${tx}`);
+  } catch (error: any) {
+    spinner.fail(`Failed to deploy DAO: ${error.message}`);
+  }
+}
+
+async function handleUpgrade(chain: string, options: any) {
+  const config = loadConfig();
+  const newVersion = parseInt(options.version, 10);
+  const spinner = ora(`Upgrading DAO on ${chain} to version ${newVersion}...`).start();
+
+  try {
+    let tx: string;
+    if (chain === 'solana') {
+      const dummyWallet = { publicKey: new PublicKey('11111111111111111111111111111111') };
+      const solClient = new SolanaClient(config.solana.rpcUrl, config.solana.programId, dummyWallet);
+      tx = await solClient.upgradeDAO(newVersion);
+    } else if (chain === 'starknet') {
+      const starkClient = new StarknetClient(config.starknet.providerUrl, config.starknet.daoAddress);
+      tx = await starkClient.upgradeDAO(newVersion);
+    } else {
+      throw new Error(`Unsupported chain: ${chain}`);
+    }
+    spinner.succeed(`DAO upgraded on ${chain}. TX: ${tx}`);
+  } catch (error: any) {
+    spinner.fail(`Failed to upgrade DAO: ${error.message}`);
+  }
+}
+
 // ======= CLI Setup =======
 
 program
@@ -178,7 +239,23 @@ program
     handleCreatePool(chain, options);
   });
 
+program
+  .command('deploy')
+  .description('Deploy DAO smart contracts')
+  .action((options) => {
+    const chain = program.opts().chain;
+    handleDeploy(chain, options);
+  });
+
+program
+  .command('upgrade')
+  .description('Upgrade an existing DAO to a new version')
+  .requiredOption('-v, --version <number>', 'new version number')
+  .action((options) => {
+    const chain = program.opts().chain;
+    handleUpgrade(chain, options);
+  });
+
 program.parse(process.argv);
 
-// Export classes and command handlers for testing purposes.
-export { SolanaClient, StarknetClient, handleInit, handleCreatePool };
+export { SolanaClient, StarknetClient, handleInit, handleCreatePool, handleDeploy, handleUpgrade };

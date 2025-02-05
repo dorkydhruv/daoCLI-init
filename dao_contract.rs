@@ -25,6 +25,7 @@ pub mod dao_contract {
         dao.expiry_timestamp = expiry_timestamp;
         dao.trading_active = false;
         dao.total_staked = 0;
+        dao.version = 1; // initialize version to 1
         Ok(())
     }
 
@@ -48,6 +49,13 @@ pub mod dao_contract {
         let staking = &mut ctx.accounts.staking_account;
         require!(staking.amount >= amount, DaoError::InsufficientStake);
         staking.amount = staking.amount.checked_sub(amount).unwrap();
+        Ok(())
+    }
+    
+    pub fn upgrade(ctx: Context<Upgrade>, new_version: u8) -> Result<()> {
+        let dao = &mut ctx.accounts.dao_state;
+        require!(ctx.accounts.manager.key() == dao.manager, DaoError::Unauthorized);
+        dao.version = new_version;
         Ok(())
     }
 }
@@ -102,6 +110,14 @@ pub struct UnstakeLP<'info> {
     pub user: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct Upgrade<'info> {
+    #[account(mut, has_one = manager)]
+    pub dao_state: Account<'info, DAOState>,
+    #[account(mut)]
+    pub manager: Signer<'info>,
+}
+
 #[account]
 pub struct DAOState {
     pub manager: Pubkey,
@@ -111,10 +127,11 @@ pub struct DAOState {
     pub expiry_timestamp: i64,
     pub total_staked: u64,
     pub trading_active: bool,
+    pub version: u8, // New field for versioning
 }
 
 impl DAOState {
-    pub const SIZE: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1;
+    pub const SIZE: usize = 32 + 32 + 8 + 8 + 8 + 8 + 1 + 1; // Added 1 byte for version
 }
 
 #[account]
@@ -138,4 +155,6 @@ pub enum DaoError {
     PoolAlreadyActive,
     #[msg("Insufficient stake")]
     InsufficientStake,
+    #[msg("Unauthorized")]
+    Unauthorized,
 }
