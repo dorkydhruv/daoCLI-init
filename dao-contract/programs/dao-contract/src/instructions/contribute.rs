@@ -38,7 +38,6 @@ pub struct Contribute<'info> {
 
 impl<'info> Contribute<'info> {
     pub fn transfer_funds(&mut self, amount: u64) -> Result<()> {
-        // Transfer tokens from contributor to proposal
         let cpi_program = self.token_program.to_account_info();
         let cpi_accounts = TransferChecked {
             authority: self.contributor.to_account_info(),
@@ -47,7 +46,8 @@ impl<'info> Contribute<'info> {
             mint: self.token.to_account_info(),
         };
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        transfer_checked(cpi_ctx, amount, self.token.decimals)
+        transfer_checked(cpi_ctx, amount, self.token.decimals)?;
+        Ok(())
     }
     pub fn update_state(&mut self, amount: u64) -> Result<()> {
         self.proposal.amount_raised += amount;

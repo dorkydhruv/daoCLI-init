@@ -39,21 +39,34 @@ pub struct ExecuteProposal<'info> {
 
 impl<'info> ExecuteProposal<'info> {
     pub fn execute(&mut self) -> Result<()> {
-        let proposal = &self.proposal;
+        let proposal = &mut self.proposal;
         require!(proposal.amount_raised >= proposal.target_amount, DaoError::TargetNotReached);
         require!(!proposal.executed, DaoError::AlreadyExecuted);
         require!(self.signer.key.eq(&proposal.owner), DaoError::Unauthorized);
         let cpi_accounts = TransferChecked {
-            authority: self.proposal.to_account_info(),
             from: self.proposal_token_account.to_account_info(),
-            mint: self.token.to_account_info(),
             to: self.target_token_account.to_account_info(),
+            authority: proposal.to_account_info(),
+            mint: self.token.to_account_info(),
         };
-        let signer_seeds: &[&[&[u8]]] = &[
-            &[b"proposal", &proposal.id.to_le_bytes(), proposal.owner.as_ref(), &[proposal.bump]],
+
+        let seeds = &[
+            b"proposal",
+            &proposal.id.to_le_bytes(),
+            proposal.owner.as_ref(),
+            &[proposal.bump],
         ];
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
-        transfer_checked(cpi_ctx, proposal.amount_raised, self.token.decimals)
+        let signer_seeds = &[&seeds[..]];
+
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            cpi_accounts,
+            signer_seeds
+        );
+        transfer_checked(cpi_ctx, proposal.amount_raised, self.token.decimals)?;
+        proposal.executed = true;
+
+        msg!("Proposal executed successfully!");
+        Ok(())
     }
 }
