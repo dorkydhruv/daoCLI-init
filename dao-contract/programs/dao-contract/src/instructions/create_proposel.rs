@@ -7,7 +7,7 @@ use anchor_spl::{
 use crate::state::Proposal;
 
 #[derive(Accounts)]
-#[instruction(proposal_id:u64)]
+#[instruction(proposal_id:String)]
 pub struct CreateProposel<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -15,7 +15,7 @@ pub struct CreateProposel<'info> {
         init,
         payer = payer,
         space = 8 + Proposal::INIT_SPACE,
-        seeds = [b"proposal", proposal_id.to_le_bytes().as_ref(), payer.key().as_ref()],
+        seeds = [b"proposal", proposal_id.as_bytes().as_ref(), payer.key().as_ref()],
         bump
     )]
     pub proposal: Account<'info, Proposal>,
@@ -35,7 +35,7 @@ pub struct CreateProposel<'info> {
 impl<'info> CreateProposel<'info> {
     pub fn create_proposal(
         &mut self,
-        proposal_id: u64,
+        proposal_id: String,
         description: String,
         target_amount: u64,
         target_account: Pubkey,

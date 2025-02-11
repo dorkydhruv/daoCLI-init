@@ -1,7 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import {
-  createAccount,
   createMint,
   mintTo,
   TOKEN_PROGRAM_ID,
@@ -61,7 +60,7 @@ describe("dao-contract", async () => {
   const school = anchor.web3.Keypair.generate();
 
   const proposalData = {
-    proposalId: new anchor.BN(1),
+    proposalId: "randomuuid",
     description: "Let's build a new school",
     targetAmount: new anchor.BN(2 * Math.pow(10, 6)),
     targetAccount: school.publicKey,
@@ -70,8 +69,7 @@ describe("dao-contract", async () => {
     anchor.web3.PublicKey.findProgramAddressSync(
       [
         Buffer.from("proposal"),
-        // Updated to use an 8-byte little-endian representation
-        Buffer.from(proposalData.proposalId.toArray("le", 8)),
+        Buffer.from(proposalData.proposalId),
         wallet.publicKey.toBuffer(),
       ],
       program.programId

@@ -15,7 +15,7 @@ pub struct Contribute<'info> {
     pub contributor: Signer<'info>,
     #[account(
         mut,
-        seeds=[b"proposal",proposal.id.to_le_bytes().as_ref(),proposal.owner.as_ref()],
+        seeds=[b"proposal",proposal.id.as_bytes().as_ref(),proposal.owner.as_ref()],
         bump=proposal.bump,
     )]
     pub proposal: Account<'info, Proposal>,

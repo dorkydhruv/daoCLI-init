@@ -2,7 +2,8 @@ use anchor_lang::prelude::*;
 #[account]
 #[derive(InitSpace)]
 pub struct Proposal {
-    pub id: u64,
+    #[max_len(32)]
+    pub id: String,
     #[max_len(32)]
     pub description: String,
     pub target_amount: u64,

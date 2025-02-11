@@ -1,0 +1,9 @@
+{
+  "defaultNetwork": "devnet",
+  "keypairPaths": {
+    "devnet": "secret-key",
+    "testnet": "...",
+    "mainnet": "..."
+  },
+  "recentTransactions": []
+}

@@ -1,9 +1,16 @@
-## To-do
+## Simplistic DAO proposal contract
 
-- Simplistic Terminal application that allows dao creation using a cli tool (in TS)
+dao-contract
 
-### Current functionalities
+- ✔ creates an SPL token (945ms)
 
-- Create Proposal (for ex: Charity funds for Cancer, etc.)
-- Contribute (as the namse suggests contribute to it)
-- Execute Proposal (the lamports strored gets transfered to target Account)
+- ✔ creates a DAO proposal (422ms)
+
+- ✔ contributes to a DAO proposal (393ms)
+
+- ✔ executes a DAO proposal once target amount is reached (818ms)
+
+### DAO Cli
+
+✅ Create Proposal
+

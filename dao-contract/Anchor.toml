@@ -7,6 +7,12 @@ skip-lint = false
 [programs.localnet]
 dao_contract = "4ME7WnEPrZT6DtTva6c56z3nRewkZQLqRyJtM43T1KEE"
 
+[programs.devnet]
+dao_contract = "4ME7WnEPrZT6DtTva6c56z3nRewkZQLqRyJtM43T1KEE"
+
+[programs.mainnet]
+dao_contract = "4ME7WnEPrZT6DtTva6c56z3nRewkZQLqRyJtM43T1KEE"
+
 [registry]
 url = "https://api.apr.dev"
 

@@ -27,7 +27,7 @@ pub struct ExecuteProposal<'info> {
     pub proposal_token_account: InterfaceAccount<'info, TokenAccount>,
     #[account(
         mut,
-        seeds=[b"proposal",proposal.id.to_le_bytes().as_ref(),proposal.owner.as_ref()],
+        seeds=[b"proposal",proposal.id.as_bytes().as_ref(),proposal.owner.as_ref()],
         bump=proposal.bump,
     )]
     pub proposal: Account<'info, Proposal>,
@@ -52,7 +52,7 @@ impl<'info> ExecuteProposal<'info> {
 
         let seeds = &[
             b"proposal",
-            &proposal.id.to_le_bytes(),
+            proposal.id.as_bytes().as_ref(),
             proposal.owner.as_ref(),
             &[proposal.bump],
         ];

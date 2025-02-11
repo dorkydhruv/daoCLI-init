@@ -14,7 +14,7 @@ pub mod dao_contract {
     // Creates a proposal with a given id, description and target amount
     pub fn create_proposal(
         ctx: Context<CreateProposel>,
-        proposal_id: u64,
+        proposal_id: String,
         description: String,
         target_amount: u64,
         target_account: Pubkey
