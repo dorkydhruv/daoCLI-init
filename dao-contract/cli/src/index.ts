@@ -5,6 +5,8 @@ import { BN } from "bn.js";
 import { Proposal } from "./types/proposal";
 import { createProposal } from "./actions/create-proposal";
 import { AgentManager } from "./lib/agent";
+import { executeProposal } from "./actions/execute-proposal";
+import { contribute } from "./actions/contribute";
 
 /*
  * The `program` object is the main entry point for the commander library.
@@ -62,5 +64,17 @@ program
       console.log(`Error: ${err}`);
     }
   });
+
+program
+  .command("contribute <proposalId> <amount>")
+  .action(async (proposalId, amount) => {
+    console.log(`Contribute ${amount} to proposal with ID ${proposalId}`);
+    contribute(new PublicKey(proposalId), parseInt(amount));
+  });
+
+program.command("execute-proposal <proposalId>").action(async (proposalId) => {
+  console.log(`Executing proposal with ID ${proposalId}`);
+  executeProposal(new PublicKey(proposalId));
+});
 
 program.parse();

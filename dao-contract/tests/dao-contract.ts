@@ -132,7 +132,6 @@ describe("dao-contract", async () => {
           proposalTokenAccount: proposalTokenAccount.address,
         })
         .rpc();
-
       const proposalBalance = await connection.getTokenAccountBalance(
         proposalTokenAccount.address
       );
