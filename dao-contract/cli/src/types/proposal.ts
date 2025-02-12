@@ -3,7 +3,7 @@ import BN from "bn.js";
 export interface Proposal {
   proposalId: string;
   description: string;
-  targetAmount: BN;
+  targetAmount: number;
   targetAccount: PublicKey;
   mint: PublicKey;
 }

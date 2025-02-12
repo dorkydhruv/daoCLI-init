@@ -41,11 +41,10 @@ program
   )
   .requiredOption("-m, --mint <mint>", "mint of the token accepted")
   .action(async (options) => {
-    // proposal id
     const proposalId = uuid().substring(0, 8);
     try {
       const targetAccount = new PublicKey(options.targetAccount);
-      const targetAmount = new BN(parseInt(options.targetAmount));
+      const targetAmount = parseInt(options.targetAmount);
       const mint = new PublicKey(options.mint);
       console.log(
         `Creating proposal with ID ${proposalId.toString()} and description ${
