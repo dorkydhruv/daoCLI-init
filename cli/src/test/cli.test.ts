@@ -1,9 +1,16 @@
 import { spawnSync } from "child_process";
 import { expect } from "chai";
 import path from "path";
+import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { AgentManager } from "../lib/agent";
 import { randomUUID } from "crypto";
+import {
+  createAssociatedTokenAccount,
+  createMint,
+  mintTo,
+  TOKEN_PROGRAM_ID,
+} from "@solana/spl-token";
 
 // Declare an array to store command outputs
 const results: string[] = [];
@@ -14,10 +21,11 @@ describe("CLI Integration Tests (using devnet)", function () {
   const walletPublicKey = agent.wallet.publicKey;
 
   const dummyTargetAccount = "4tMN5HYmfpsAFgcxG2Ng14pfJwoy8f4Kz2V6n8tgPyim";
-  const dummyMint = "5ZitPreB9gJqZqhKrDTcBstUcA7rHth1VFiBcAYeFK7q";
+  let dummyMint: PublicKey;
   const description = "Devnet CLI Test Proposal";
   const amount = "1";
   const dummyId = randomUUID().substring(0, 8);
+  const mintKeypair = anchor.web3.Keypair.generate();
 
   const [dummyProposalAccount, _] = PublicKey.findProgramAddressSync(
     [
@@ -38,6 +46,39 @@ describe("CLI Integration Tests (using devnet)", function () {
     results.forEach((output, index) => {
       console.log(`Output ${index + 1}:\n${output}\n`);
     });
+  });
+
+  it("creates a SPL token", async () => {
+    const mintAmount = 20 * Math.pow(10, 6);
+    dummyMint = await createMint(
+      agent.program.provider.connection,
+      agent.wallet.payer,
+      agent.wallet.publicKey,
+      null,
+      6,
+      mintKeypair,
+      undefined,
+      TOKEN_PROGRAM_ID
+    );
+    const tokenAccount = await createAssociatedTokenAccount(
+      agent.program.provider.connection,
+      agent.wallet.payer,
+      dummyMint,
+      agent.wallet.publicKey
+    );
+    await mintTo(
+      agent.program.provider.connection,
+      agent.wallet.payer,
+      dummyMint,
+      tokenAccount,
+      agent.wallet.publicKey,
+      mintAmount
+    );
+    const balance =
+      await agent.program.provider.connection.getTokenAccountBalance(
+        tokenAccount
+      );
+    expect(balance.value.amount.toString()).to.equal(mintAmount.toString());
   });
 
   it("should switch to devnet", () => {
@@ -64,7 +105,7 @@ describe("CLI Integration Tests (using devnet)", function () {
         "-t",
         dummyTargetAccount,
         "-m",
-        dummyMint,
+        dummyMint.toBase58(),
         "-d",
         description,
       ],
