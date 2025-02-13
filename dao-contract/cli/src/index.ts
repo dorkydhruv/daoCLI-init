@@ -1,7 +1,6 @@
 import { program } from "commander";
 import { PublicKey } from "@solana/web3.js";
 import { uuid } from "uuidv4";
-import { BN } from "bn.js";
 import { Proposal } from "./types/proposal";
 import { createProposal } from "./actions/create-proposal";
 import { AgentManager } from "./lib/agent";
@@ -24,7 +23,7 @@ program
 // create-proposal needs (proposalId, description, targetAmount, targetAccount)
 // a uuid maybe a good choice for proposalId but in integer form
 program
-  .command("create-proposal")
+  .command("create")
   .description("Creates a DAO proposal (for crowd funding)")
   .option(
     "-d, --description <description>",
@@ -71,7 +70,7 @@ program
     contribute(new PublicKey(proposalId), parseInt(amount));
   });
 
-program.command("execute-proposal <proposalId>").action(async (proposalId) => {
+program.command("execute <proposalId>").action(async (proposalId) => {
   console.log(`Executing proposal with ID ${proposalId}`);
   executeProposal(new PublicKey(proposalId));
 });

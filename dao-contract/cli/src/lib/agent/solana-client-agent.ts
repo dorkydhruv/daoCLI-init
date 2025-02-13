@@ -3,6 +3,7 @@ import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import IDL from "../../../dao_contract.json";
 import { readFileSync } from "fs";
 import { DaoContract } from "../../types/dao_contract";
+import { resolve } from "path";
 export { SolanaClientAgent };
 class SolanaClientAgent {
   private provider: AnchorProvider;
@@ -37,7 +38,9 @@ class SolanaClientAgent {
   }
 
   private loadKeypair(path: string): Keypair {
-    const secretKeyArray = JSON.parse(path);
+    const walletPath = resolve(process.cwd(), path);
+    const content = readFileSync(walletPath, "utf-8");
+    const secretKeyArray = JSON.parse(content);
     if (!Array.isArray(secretKeyArray) || secretKeyArray.length !== 64) {
       throw new Error("Invalid secret key");
     }

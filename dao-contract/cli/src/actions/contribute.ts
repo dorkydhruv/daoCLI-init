@@ -44,18 +44,6 @@ export async function contribute(proposalAccount: PublicKey, amount: number) {
         proposalTokenAccount: proposalTokenAccount.address,
       })
       .rpc();
-
-    // TEST
-    // const accountDataa = await agent.program.account.proposal.fetch(
-    //   proposalAccount
-    // );
-    // const proposalBalance =
-    //   await agent.program.provider.connection.getTokenAccountBalance(
-    //     proposalTokenAccount.address
-    //   );
-    // console.log(
-    //   `test : ${accountDataa.amountRaised} - ${proposalBalance.value.amount} / ${accountData.targetAmount}`
-    // );
     console.log(
       `Contributed ${amount} (${mint.address}) to proposal ${proposalAccount}`
     );
