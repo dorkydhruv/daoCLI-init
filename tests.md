@@ -1,8 +1,6 @@
 ## DAO contract test
 
-
 ```
-cd dao-contract
 anchor test
 ```
 
@@ -15,17 +13,21 @@ dao-contract
 - ✔ contributes to a DAO proposal (393ms)
 - ✔ executes a DAO proposal once target amount is reached (818ms)
 ```
+
 ## DAO CLI tests
 
 ```
-cd dao-contract/cli
+cd cli
 ```
+
 #### Add devent-keypair.json here or change the path in dao-config.json
+
 ```
 yarn build && yarn test
 ```
 
 Output
+
 ```
 CLI Integration Tests (using devnet)
 - ✔ should switch to devnet (198ms)

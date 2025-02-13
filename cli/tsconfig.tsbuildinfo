@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/actions/contribute.ts","./src/actions/create-proposal.ts","./src/actions/execute-proposal.ts","./src/lib/load-config.ts","./src/lib/agent/index.ts","./src/lib/agent/solana-client-agent.ts","./src/test/cli.test.ts","./src/types/dao_contract.ts","./src/types/daoconfig.ts","./src/types/proposal.ts"],"version":"5.7.3"}

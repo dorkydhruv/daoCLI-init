@@ -4,6 +4,5 @@
     "devnet": "devnet-keypair.json",
     "testnet": "testnet-keypair.json",
     "mainnet": "devnet-keypair.json"
-  },
-  "recentTransactions": []
+  }
 }
