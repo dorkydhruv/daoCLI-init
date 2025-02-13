@@ -1,11 +1,11 @@
 import { program } from "commander";
 import { PublicKey } from "@solana/web3.js";
-import { uuid } from "uuidv4";
 import { Proposal } from "./types/proposal";
 import { createProposal } from "./actions/create-proposal";
 import { AgentManager } from "./lib/agent";
 import { executeProposal } from "./actions/execute-proposal";
 import { contribute } from "./actions/contribute";
+import { randomUUID } from "crypto";
 
 /*
  * The `program` object is the main entry point for the commander library.
@@ -26,6 +26,11 @@ program
   .command("create")
   .description("Creates a DAO proposal (for crowd funding)")
   .option(
+    "-i, --proposalId <proposalId>",
+    "proposal unique identifier",
+    randomUUID().substring(0, 8)
+  )
+  .option(
     "-d, --description <description>",
     "description of the proposal",
     "A crowd funding proposal"
@@ -40,7 +45,7 @@ program
   )
   .requiredOption("-m, --mint <mint>", "mint of the token accepted")
   .action(async (options) => {
-    const proposalId = uuid().substring(0, 8);
+    const proposalId = options.proposalId;
     try {
       const targetAccount = new PublicKey(options.targetAccount);
       const targetAmount = parseInt(options.targetAmount);
@@ -64,15 +69,15 @@ program
   });
 
 program
-  .command("contribute <proposalId> <amount>")
-  .action(async (proposalId, amount) => {
-    console.log(`Contribute ${amount} to proposal with ID ${proposalId}`);
-    contribute(new PublicKey(proposalId), parseInt(amount));
+  .command("contribute <proposalAccount> <amount>")
+  .action(async (proposalAccount, amount) => {
+    console.log(`Contributing ${amount} to proposal ${proposalAccount}....`);
+    contribute(new PublicKey(proposalAccount), parseInt(amount));
   });
 
-program.command("execute <proposalId>").action(async (proposalId) => {
-  console.log(`Executing proposal with ID ${proposalId}`);
-  executeProposal(new PublicKey(proposalId));
+program.command("execute <proposalAccount>").action(async (proposalAccount) => {
+  console.log(`Executing proposal with ${proposalAccount}...`);
+  executeProposal(new PublicKey(proposalAccount));
 });
 
 program.parse();

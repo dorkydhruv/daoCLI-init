@@ -41,7 +41,7 @@ export async function executeProposal(proposalAccount: PublicKey) {
         signer: agent.wallet.publicKey,
       })
       .rpc();
-    console.log(`Proposal executed with publickey ${proposalAccount}`);
+    console.log(`Proposal ${proposalAccount} executed successfully`);
     console.log(
       `Transaction hash: https://explorer.solana.com/tx/${tx}?cluster=${agent.network}`
     );

@@ -1,12 +1,35 @@
 import { spawnSync } from "child_process";
 import { expect } from "chai";
 import path from "path";
+import { PublicKey } from "@solana/web3.js";
+import { AgentManager } from "../lib/agent";
+import { randomUUID } from "crypto";
 
 // Declare an array to store command outputs
 const results: string[] = [];
 
 describe("CLI Integration Tests (using devnet)", function () {
+  // Get the default public key from your wallet configuration
+  const agent = AgentManager.getInstance();
+  const walletPublicKey = agent.wallet.publicKey;
+
+  const dummyTargetAccount = "4tMN5HYmfpsAFgcxG2Ng14pfJwoy8f4Kz2V6n8tgPyim";
+  const dummyMint = "5ZitPreB9gJqZqhKrDTcBstUcA7rHth1VFiBcAYeFK7q";
+  const description = "Devnet CLI Test Proposal";
+  const amount = "1";
+  const dummyId = randomUUID().substring(0, 8);
+
+  const [dummyProposalAccount, _] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("proposal"),
+      Buffer.from(dummyId),
+      new PublicKey(walletPublicKey).toBuffer(),
+    ],
+    new PublicKey("4ME7WnEPrZT6DtTva6c56z3nRewkZQLqRyJtM43T1KEE")
+  );
   this.timeout(15000);
+
+  // maybe switch to ts-node here?
   // Resolve the CLI entry file (adjust if necessary)
   const cliPath = path.resolve(__dirname, "../../dist/index.js");
 
@@ -25,22 +48,19 @@ describe("CLI Integration Tests (using devnet)", function () {
     const stdout = result.stdout || "";
     expect(stdout).to.be.a("string");
     expect(stdout).to.contain("Switched to network devnet");
-    // Store output
     results.push(stdout);
   });
 
   it("should create a proposal on devnet", async () => {
-    // Provide dummy addresses that work on devnet
-    const dummyTargetAccount = "4tMN5HYmfpsAFgcxG2Ng14pfJwoy8f4Kz2V6n8tgPyim";
-    const dummyMint = "5ZitPreB9gJqZqhKrDTcBstUcA7rHth1VFiBcAYeFK7q";
-    const description = "Devnet CLI Test Proposal";
     const createResult = spawnSync(
       "node",
       [
         cliPath,
         "create",
+        "-i",
+        dummyId,
         "-a",
-        "1",
+        amount,
         "-t",
         dummyTargetAccount,
         "-m",
@@ -50,45 +70,48 @@ describe("CLI Integration Tests (using devnet)", function () {
       ],
       { encoding: "utf-8" }
     );
-    // Check that the CLI printed messages indicating proposal creation.
-    expect(createResult.stdout).to.contain("Creating proposal with ID");
-    expect(createResult.stdout).to.contain(description);
+    // checks if the proposal was created successfully
+    expect(createResult.stdout).to.contain(
+      `Creating proposal with ID ${dummyId.toString()} and description ${description} for target amount ${amount} to target account ${dummyTargetAccount.toString()}`
+    );
+    expect(createResult.stdout).to.contain(
+      `Proposal created with publickey ${dummyProposalAccount.toBase58()}`
+    );
     expect(createResult.stdout).to.contain("Transaction hash:");
-    // Store output
     results.push(createResult.stdout);
   });
 
   it("should contribute to a proposal on devnet", () => {
-    // For CLI testing, pass a dummy proposal ID that the CLI would echo back.
-    // In a real setup, the proposal should be created first.
-    const dummyProposalId = "7VkoPJ2dJE3Axz63zarRQSamqB1cMRcTYBvEco7bHp7R";
-    const contributionAmount = "1";
-
     const contributeResult = spawnSync(
       "node",
-      [cliPath, "contribute", dummyProposalId, contributionAmount],
+      [cliPath, "contribute", dummyProposalAccount.toBase58(), amount],
       { encoding: "utf-8" }
     );
+
+    // checks if the contribution was successful
     expect(contributeResult.stdout).to.contain(
-      `Contribute ${contributionAmount} to proposal with ID ${dummyProposalId}`
+      `Contributing ${amount} to proposal ${dummyProposalAccount.toBase58()}....`
     );
-    // Store output
+    expect(contributeResult.stdout).to.contain(
+      `Contributed ${amount} (${dummyMint}) to proposal ${dummyProposalAccount.toBase58()}`
+    );
+    expect(contributeResult.stdout).to.contain("Transaction hash:");
     results.push(contributeResult.stdout);
   });
 
   it("should execute a proposal on devnet", () => {
-    // For CLI testing, use a dummy proposal ID.
-    const dummyProposalId = "7VkoPJ2dJE3Axz63zarRQSamqB1cMRcTYBvEco7bHp7R";
     const executeResult = spawnSync(
       "node",
-      [cliPath, "execute", dummyProposalId],
+      [cliPath, "execute", dummyProposalAccount.toBase58()],
       { encoding: "utf-8" }
     );
-
     expect(executeResult.stdout).to.contain(
-      `Executing proposal with ID ${dummyProposalId}`
+      `Executing proposal with ${dummyProposalAccount.toBase58()}...`
     );
-    // Store output
+    expect(executeResult.stdout).to.contain(
+      `Proposal ${dummyProposalAccount.toBase58()} executed successfully`
+    );
+    expect(executeResult.stdout).to.contain("Transaction hash:");
     results.push(executeResult.stdout);
   });
 });
