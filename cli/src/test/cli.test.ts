@@ -14,11 +14,6 @@ import {
 } from "@solana/spl-token";
 import { SolanaClientAgent } from "../lib/agent/solana-client-agent";
 
-// Utility delay function
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 // Declare an array to store command outputs
 const results: string[] = [];
 let agent: SolanaClientAgent;
@@ -36,7 +31,7 @@ const mintKeypair = anchor.web3.Keypair.generate();
 const cliPath = path.resolve(__dirname, "../../dist/index.js");
 
 describe("CLI Integration Tests (using devnet)", function () {
-  this.timeout(30000); // Increase timeout to allow delays
+  this.timeout(15000);
 
   before(async () => {
     agent = await AgentManager.getTestInstance();
@@ -120,14 +115,23 @@ describe("CLI Integration Tests (using devnet)", function () {
       ],
       { encoding: "utf-8" }
     );
-    results.push(createResult.stdout);
-    // Wait additional time for the transaction to be finalized.
-    await sleep(10000);
+    console.log(createResult.stdout);
+    /*
+    // Uncomment the following lines if you want to check the output
+    expect(createResult.stdout).to.contain(
+      `Creating proposal with ID ${dummyId} and description ${description} for target amount ${amount} to target account ${dummyTargetAccount.publicKey.toBase58()}`
+    );
+    expect(createResult.stdout).to.contain(
+      `Proposal created with publickey ${dummyProposalAccount.toBase58()}`
+    );
+    expect(createResult.stdout).to.contain("Transaction hash:");
+    */
     const accountInfo = await agent.program.account.proposal.fetch(
       dummyProposalAccount
     );
     expect(accountInfo.id).to.equal(dummyId);
     expect(accountInfo.description).to.equal(description);
+    results.push(createResult.stdout);
   });
 
   it("should contribute to a proposal on devnet", async () => {
@@ -136,9 +140,7 @@ describe("CLI Integration Tests (using devnet)", function () {
       [cliPath, "contribute", dummyProposalAccount.toBase58(), amount],
       { encoding: "utf-8" }
     );
-    results.push(contributeResult.stdout);
-    // Allow time for the contribution transaction to complete.
-    await sleep(10000);
+    console.log(contributeResult.stdout);
     const targetTokenAccount = await getOrCreateAssociatedTokenAccount(
       agent.program.provider.connection,
       agent.wallet.payer,
@@ -149,9 +151,21 @@ describe("CLI Integration Tests (using devnet)", function () {
       await agent.program.provider.connection.getTokenAccountBalance(
         targetTokenAccount.address
       );
+
     expect(
       (Number(targetTokenAccountBalance.value.amount) / 10 ** 6).toString()
     ).to.equal(amount);
+    /*
+    // Uncomment the following lines if you want to check the output
+    expect(contributeResult.stdout).to.contain(
+      `Contributing ${amount} to proposal ${dummyProposalAccount.toBase58()}....`
+    );
+    expect(contributeResult.stdout).to.contain(
+      `Contributed ${amount} (${dummyMint}) to proposal ${dummyProposalAccount.toBase58()}`
+    );
+    expect(contributeResult.stdout).to.contain("Transaction hash:");
+    */
+    results.push(contributeResult.stdout);
   });
 
   it("should execute a proposal on devnet", async () => {
@@ -160,9 +174,17 @@ describe("CLI Integration Tests (using devnet)", function () {
       [cliPath, "execute", dummyProposalAccount.toBase58()],
       { encoding: "utf-8" }
     );
-    results.push(executeResult.stdout);
-    // Wait for execution transaction finalization.
-    await sleep(10000);
+    console.log(executeResult.stdout);
+    /*
+    // Uncomment the following lines if you want to check the output
+    expect(executeResult.stdout).to.contain(
+      `Executing proposal with ${dummyProposalAccount.toBase58()}...`
+    );
+    expect(executeResult.stdout).to.contain(
+      `Proposal ${dummyProposalAccount.toBase58()} executed successfully`
+    );
+    expect(executeResult.stdout).to.contain("Transaction hash:");
+    */
     const targetTokenAccount = await getOrCreateAssociatedTokenAccount(
       agent.program.provider.connection,
       agent.wallet.payer,
@@ -173,8 +195,10 @@ describe("CLI Integration Tests (using devnet)", function () {
       await agent.program.provider.connection.getTokenAccountBalance(
         targetTokenAccount.address
       );
+
     expect(
       (Number(targetTokenAccountBalance.value.amount) / 10 ** 6).toString()
     ).to.equal(amount);
+    results.push(executeResult.stdout);
   });
 });
