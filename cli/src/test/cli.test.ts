@@ -115,6 +115,7 @@ describe("CLI Integration Tests (using devnet)", function () {
       ],
       { encoding: "utf-8" }
     );
+    console.log(createResult.stdout);
     /*
     // Uncomment the following lines if you want to check the output
     expect(createResult.stdout).to.contain(
@@ -139,6 +140,7 @@ describe("CLI Integration Tests (using devnet)", function () {
       [cliPath, "contribute", dummyProposalAccount.toBase58(), amount],
       { encoding: "utf-8" }
     );
+    console.log(contributeResult.stdout);
     const targetTokenAccount = await getOrCreateAssociatedTokenAccount(
       agent.program.provider.connection,
       agent.wallet.payer,
@@ -172,6 +174,7 @@ describe("CLI Integration Tests (using devnet)", function () {
       [cliPath, "execute", dummyProposalAccount.toBase58()],
       { encoding: "utf-8" }
     );
+    console.log(executeResult.stdout);
     /*
     // Uncomment the following lines if you want to check the output
     expect(executeResult.stdout).to.contain(
