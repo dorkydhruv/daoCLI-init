@@ -165,8 +165,10 @@ describe("CLI Integration Tests (using devnet)", function () {
       await agent.program.provider.connection.getTokenAccountBalance(
         targetTokenAccount.address
       );
-      
-    expect(targetTokenAccountBalance.value.amount.toString()).to.equal(amount);
+
+    expect(
+      (Number(targetTokenAccountBalance.value.amount) / 10 ** 6).toString()
+    ).to.equal(amount);
     results.push(executeResult.stdout);
   });
 });
