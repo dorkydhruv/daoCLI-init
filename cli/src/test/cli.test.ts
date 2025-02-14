@@ -115,7 +115,6 @@ describe("CLI Integration Tests (using devnet)", function () {
       ],
       { encoding: "utf-8" }
     );
-    console.log(createResult.stdout);
     /*
     // Uncomment the following lines if you want to check the output
     expect(createResult.stdout).to.contain(
@@ -140,21 +139,20 @@ describe("CLI Integration Tests (using devnet)", function () {
       [cliPath, "contribute", dummyProposalAccount.toBase58(), amount],
       { encoding: "utf-8" }
     );
-    console.log(contributeResult.stdout);
-    const targetTokenAccount = await getOrCreateAssociatedTokenAccount(
+    const proposalTokenAccount = await getOrCreateAssociatedTokenAccount(
       agent.program.provider.connection,
       agent.wallet.payer,
       dummyMint,
-      dummyTargetAccount.publicKey
+      dummyProposalAccount,
+      true
     );
-    const targetTokenAccountBalance =
+    const proposalTokenAccountBalance =
       await agent.program.provider.connection.getTokenAccountBalance(
-        targetTokenAccount.address
+        proposalTokenAccount.address
       );
-
     expect(
-      (Number(targetTokenAccountBalance.value.amount) / 10 ** 6).toString()
-    ).to.equal(amount);
+      (Number(proposalTokenAccountBalance.value.amount) / 10 ** 6).toString()
+    ).to.equal("1");
     /*
     // Uncomment the following lines if you want to check the output
     expect(contributeResult.stdout).to.contain(
@@ -174,7 +172,6 @@ describe("CLI Integration Tests (using devnet)", function () {
       [cliPath, "execute", dummyProposalAccount.toBase58()],
       { encoding: "utf-8" }
     );
-    console.log(executeResult.stdout);
     /*
     // Uncomment the following lines if you want to check the output
     expect(executeResult.stdout).to.contain(
