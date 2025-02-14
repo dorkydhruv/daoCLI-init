@@ -16,13 +16,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "16"
+          node-version: "18"
 
       - name: Install dependencies
         run: npm install
-
-      - name: Update devnet keypair
-        run: node ./scripts/update_devnet_keypair.js
 
       - name: Run tests
         run: npm cli test

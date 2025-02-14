@@ -42,10 +42,7 @@ class AgentManager {
     // Update keypair file so spawnSync uses the new signer
     const config = loadConfig();
     console.log(`Switching to ${network}`);
-    const keypairPath = resolve(
-      `${process.cwd()}/cli`,
-      config.keypairPaths[network]
-    );
+    const keypairPath = resolve(process.cwd(), config.keypairPaths[network]);
     console.log(`Writing keypair to ${keypairPath}`);
     writeFileSync(
       keypairPath,
