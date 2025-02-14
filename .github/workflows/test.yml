@@ -2,7 +2,7 @@ name: Test and Update Keypair
 
 on:
   push:
-    branches: [main]
+    branches: [strk2]
   pull_request:
 
 jobs:
