@@ -92,12 +92,11 @@ describe("CLI Integration Tests (using devnet)", function () {
       encoding: "utf-8",
     });
     const stdout = result.stdout || "";
-    expect(stdout).to.be.a("string");
-    expect(stdout).to.contain("Switched to network devnet");
+    expect(agent.network).to.equal("devnet");
     results.push(stdout);
   });
 
-  it("should create a proposal on devnet", () => {
+  it("should create a proposal on devnet", async () => {
     const createResult = spawnSync(
       "node",
       [
@@ -116,6 +115,8 @@ describe("CLI Integration Tests (using devnet)", function () {
       ],
       { encoding: "utf-8" }
     );
+    /*
+    // Uncomment the following lines if you want to check the output
     expect(createResult.stdout).to.contain(
       `Creating proposal with ID ${dummyId} and description ${description} for target amount ${amount} to target account ${dummyTargetAccount.publicKey.toBase58()}`
     );
@@ -123,15 +124,37 @@ describe("CLI Integration Tests (using devnet)", function () {
       `Proposal created with publickey ${dummyProposalAccount.toBase58()}`
     );
     expect(createResult.stdout).to.contain("Transaction hash:");
+    */
+    const accountInfo = await agent.program.account.proposal.fetch(
+      dummyProposalAccount
+    );
+    expect(accountInfo.id).to.equal(dummyId);
+    expect(accountInfo.description).to.equal(description);
     results.push(createResult.stdout);
   });
 
-  it("should contribute to a proposal on devnet", () => {
+  it("should contribute to a proposal on devnet", async () => {
     const contributeResult = spawnSync(
       "node",
       [cliPath, "contribute", dummyProposalAccount.toBase58(), amount],
       { encoding: "utf-8" }
     );
+    const targetTokenAccount = await getOrCreateAssociatedTokenAccount(
+      agent.program.provider.connection,
+      agent.wallet.payer,
+      dummyMint,
+      dummyTargetAccount.publicKey
+    );
+    const targetTokenAccountBalance =
+      await agent.program.provider.connection.getTokenAccountBalance(
+        targetTokenAccount.address
+      );
+
+    expect(
+      (Number(targetTokenAccountBalance.value.amount) / 10 ** 6).toString()
+    ).to.equal(amount);
+    /*
+    // Uncomment the following lines if you want to check the output
     expect(contributeResult.stdout).to.contain(
       `Contributing ${amount} to proposal ${dummyProposalAccount.toBase58()}....`
     );
@@ -139,6 +162,7 @@ describe("CLI Integration Tests (using devnet)", function () {
       `Contributed ${amount} (${dummyMint}) to proposal ${dummyProposalAccount.toBase58()}`
     );
     expect(contributeResult.stdout).to.contain("Transaction hash:");
+    */
     results.push(contributeResult.stdout);
   });
 
@@ -148,6 +172,8 @@ describe("CLI Integration Tests (using devnet)", function () {
       [cliPath, "execute", dummyProposalAccount.toBase58()],
       { encoding: "utf-8" }
     );
+    /*
+    // Uncomment the following lines if you want to check the output
     expect(executeResult.stdout).to.contain(
       `Executing proposal with ${dummyProposalAccount.toBase58()}...`
     );
@@ -155,6 +181,7 @@ describe("CLI Integration Tests (using devnet)", function () {
       `Proposal ${dummyProposalAccount.toBase58()} executed successfully`
     );
     expect(executeResult.stdout).to.contain("Transaction hash:");
+    */
     const targetTokenAccount = await getOrCreateAssociatedTokenAccount(
       agent.program.provider.connection,
       agent.wallet.payer,

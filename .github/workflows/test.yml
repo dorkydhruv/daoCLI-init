@@ -1,4 +1,4 @@
-name: Test and Update Keypair
+name: Test daoCLI
 
 on:
   push:
