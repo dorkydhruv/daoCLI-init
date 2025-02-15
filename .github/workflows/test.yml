@@ -28,9 +28,9 @@ jobs:
           # echo $SOLANA_WALLET > /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
-          solana-test-validator --reset &
-          sleep 5
-          solana config set --url http://127.0.0.1:8999
+          # solana-test-validator --reset &
+          # sleep 5
+          solana config set --url http://api.devnet.solana.com
           solana airdrop 10
           solana balance
           solana config get
