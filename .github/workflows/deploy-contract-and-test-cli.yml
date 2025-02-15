@@ -35,30 +35,28 @@ jobs:
 
       - name: Setup Solana Localnet and run tests
         run: |
-          # Create keypair before building
+          # Build the contract
+          anchor build  
+
+          # Create default keypair first
           mkdir -p /home/runner/.config/solana
           solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-          solana config set --keypair /home/runner/.config/solana/id.json
 
-          # Start localnet
+          # Start a localnet
           solana-test-validator --reset --quiet &
           VALIDATOR_PID=$!
 
-          # Wait for validator
+          # Give the localnet some time to boot
           sleep 5
-          solana config set --url http://localhost:8899
-          solana airdrop 10
-          solana balance
+          solana config set --url localhost
+          solana airdrop 100
 
-          # Build and deploy with same keypair
-          anchor build
-          solana program deploy \
-            --program-id $(solana address -k target/deploy/dao_contract-keypair.json) \
-            target/deploy/dao_contract.so
+          # Build and deploy the contract
+          anchor deploy --provider.cluster localnet
 
           # Run tests
           npm install
           anchor test --skip-local-validator --provider.cluster localnet
 
-          # Cleanup
+          # Stop the localnet
           kill $VALIDATOR_PID
