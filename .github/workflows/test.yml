@@ -18,28 +18,25 @@ jobs:
         with:
           node-version: "18"
 
-      - name: Set up Solana CLI
+      - name: Set up Solana CLI and Wallet
+        env:
+          SOLANA_WALLET: ${{ secrets.SOLANA_WALLET }}
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build project
-        run: npm run cli build
-
-      - name: Setup Solana Wallet
-        env:
-          SOLANA_WALLET: ${{ secrets.SOLANA_WALLET }}
-        run: |
           pwd
           echo $SOLANA_WALLET > ./cli/devnet-keypair.json
           solana config set --url https://api.devnet.solana.com
           solana config set --keypair ./cli/devnet-keypair.json
           solana airdrop 2
           solana balance
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run cli build
 
       - name: Run tests
         run: npm run cli test
