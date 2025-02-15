@@ -31,8 +31,11 @@ jobs:
         run: npm run cli build
 
       - name: Setup Solana Wallet
+        env:
+          SOLANA_WALLET: ${{ secrets.SOLANA_WALLET }}
         run: |
-          solana-keygen new --outfile ./cli/devnet-keypair.json
+          pwd
+          echo $SOLANA_WALLET > ./cli/devnet-keypair.json
           solana config set --url https://api.devnet.solana.com
           solana config set --keypair ./cli/devnet-keypair.json
           solana airdrop 2
