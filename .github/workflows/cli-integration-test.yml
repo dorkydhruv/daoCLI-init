@@ -2,7 +2,7 @@ name: Test daoCLI
 
 on:
   push:
-    branches: [strk2]
+    branches: [ci-cd-fix]
   pull_request:
 
 jobs:

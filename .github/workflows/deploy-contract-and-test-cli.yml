@@ -2,7 +2,7 @@ name: Deploy contract on Localnet
 
 on:
   push:
-    branches: [main]
+    branches: [ci-cd-fix]
 
 jobs:
   build-and-deploy:
@@ -32,28 +32,28 @@ jobs:
           solana --version
           anchor --version
           solana config get
+
+      - name: Setup Solana Localnet and run tests
+        run: |
+          # Start a localnet
+          solana-test-validator --reset --quiet &
+          VALIDATOR_PID=$!
+
+          # Give the localnet some time to boot
+          sleep 5
+          solana config set --url localhost
           solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
-
-      - name: Start localnet
-        run: |
-          solana-test-validator --reset &
-          sleep 5
-          solana config set --url http://127.0.0.1:8999
           solana airdrop 10
           solana balance
 
-      - name: Deploy contract
-        run: |
+          # Build and deploy the contract
           anchor build
-          anchor deploy
+          anchor deploy --provider.cluster localnet
 
-      - name: Run tests
-        run: |
+          # Run tests
           npm install
-          anchor test
+          anchor test --skip-local-validator --provider.cluster localnet
 
-      - name: Build and test project
-        run: |
-          npm run cli build
-          npm run cli test
+          # Stop the localnet
+          kill $VALIDATOR_PID
