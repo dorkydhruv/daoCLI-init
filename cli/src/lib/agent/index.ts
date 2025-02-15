@@ -36,7 +36,7 @@ class AgentManager {
     // Request airdrop
     const airdropSig = await connection.requestAirdrop(
       testKeypair.publicKey,
-      5 * LAMPORTS_PER_SOL
+      3 * LAMPORTS_PER_SOL
     );
     await connection.confirmTransaction(airdropSig);
     // Update keypair file so spawnSync uses the new signer

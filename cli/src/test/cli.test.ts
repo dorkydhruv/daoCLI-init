@@ -55,7 +55,7 @@ describe("CLI Integration Tests (using devnet)", function () {
   });
 
   it("creates a SPL token", async () => {
-    const mintAmount = 20 * Math.pow(10, 6);
+    const mintAmount = 5 * Math.pow(10, 6);
     dummyMint = await createMint(
       agent.program.provider.connection,
       agent.wallet.payer,
