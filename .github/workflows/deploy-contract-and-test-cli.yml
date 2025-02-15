@@ -53,7 +53,7 @@ jobs:
 
           # Build and deploy the contract
           anchor deploy --provider.cluster localnet
-
+          anchor keys sync --provider.cluster localnet
           # Run tests
           npm install
           anchor test --skip-local-validator --provider.cluster localnet
