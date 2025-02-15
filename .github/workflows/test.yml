@@ -18,22 +18,20 @@ jobs:
         with:
           node-version: "18"
 
-      # - name: Set up Solana CLI and Wallet
-      #   env:
-      #     SOLANA_WALLET: ${{ secrets.SOLANA_WALLET }}
-      #   run: |
-      #     sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
-      #     export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-      #     solana --version
-      #     # echo $SOLANA_WALLET > /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
-      #     solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
-      #     solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
-      #     # solana-test-validator --reset &
-      #     # sleep 5
-      #     solana config set --url http://api.devnet.solana.com
-      #     # solana airdrop 5
-      #     solana balance
-      #     solana config get
+      - name: Set up Solana CLI and Wallet
+        env:
+          SOLANA_WALLET: ${{ secrets.SOLANA_WALLET }}
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          solana --version
+          # echo $SOLANA_WALLET > /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          solana config set --url http://api.devnet.solana.com
+          solana airdrop 5
+          solana balance
+          solana config get
 
       - name: Install dependencies
         run: npm install
