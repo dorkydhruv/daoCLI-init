@@ -34,7 +34,7 @@ describe("CLI Integration Tests (using devnet)", function () {
   this.timeout(15000);
 
   before(async () => {
-    agent = AgentManager.getInstance();
+    agent = await AgentManager.getTestInstance();
     dummyTargetAccount = Keypair.generate();
     dummyId = randomUUID().substring(0, 8);
     [dummyProposalAccount] = PublicKey.findProgramAddressSync(

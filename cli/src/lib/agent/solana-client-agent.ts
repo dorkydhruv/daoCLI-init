@@ -13,13 +13,13 @@ class SolanaClientAgent {
 
   constructor(
     network: "devnet" | "testnet" | "mainnet",
-    keypairPath: string
-    // testKeypair?: Keypair
+    keypairPath: string,
+    testKeypair?: Keypair
   ) {
     this.network = network;
     const { rpcUrl } = this.getNetworkConfig(network);
-    // const keypair = testKeypair ?? this.loadKeypair(keypairPath);
-    const keypair = this.loadKeypair(keypairPath);
+    const keypair = testKeypair ?? this.loadKeypair(keypairPath);
+    // const keypair = this.loadKeypair(keypairPath);
     const connection = new Connection(rpcUrl, "confirmed");
     const wallet = new Wallet(keypair);
     this.wallet = wallet;
