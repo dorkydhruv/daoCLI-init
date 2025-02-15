@@ -27,8 +27,7 @@ jobs:
           solana --version
           echo $SOLANA_WALLET > /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana config set --url https://api.devnet.solana.com
-          solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
-          solana airdrop 2
+          solana airdrop 2 /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana balance
           solana config get
 
