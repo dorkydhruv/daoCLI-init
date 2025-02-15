@@ -37,11 +37,11 @@ jobs:
         run: |
           # Build the contract
           anchor build  
-          
+
           # Create default keypair first
           mkdir -p /home/runner/.config/solana
           solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
-          
+
           # Create test keypair
           solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
@@ -52,10 +52,10 @@ jobs:
           # Give the localnet some time to boot
           sleep 5
           solana config set --url localhost
-          solana airdrop 10
+          solana airdrop 100
 
           # Build and deploy the contract
-          anchor deploy --provider.cluster localnet
+          solana program deploy /home/runner/work/daoCLI-init/daoCLI-init/target/deploy/dao_contract.so
 
           # Run tests
           npm install
