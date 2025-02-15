@@ -35,6 +35,17 @@ describe("CLI Integration Tests (using devnet)", function () {
 
   before(async () => {
     agent = await AgentManager.getTestInstance();
+    console.log(`Using keypair: ${agent.wallet.publicKey.toBase58()}`);
+    console.log(`Network: ${agent.network}`);
+    console.log(`Program ID: ${agent.program.programId.toBase58()}`);
+    console.log(
+      `Balance: ${
+        (await agent.program.provider.connection.getBalance(
+          agent.wallet.publicKey
+        )) /
+        10 ** 9
+      } SOL`
+    );
     dummyTargetAccount = Keypair.generate();
     dummyId = randomUUID().substring(0, 8);
     [dummyProposalAccount] = PublicKey.findProgramAddressSync(

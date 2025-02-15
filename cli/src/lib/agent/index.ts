@@ -38,8 +38,8 @@ class AgentManager {
       testKeypair.publicKey,
       2 * LAMPORTS_PER_SOL
     );
-    console.log(`Success! Check out your TX here: 
-      https://explorer.solana.com/tx/${txhash}?cluster=devnet`);
+    await connection.confirmTransaction(txhash);
+    console.log(`Success! Check out your TX here:  https://explorer.solana.com/tx/${txhash}?cluster=devnet`);
     // Update keypair file so spawnSync uses the new signer
     const config = loadConfig();
     console.log(`Switching to ${network}`);
