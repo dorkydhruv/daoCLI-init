@@ -26,11 +26,12 @@ jobs:
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
           pwd
-          echo $SOLANA_WALLET > ./cli/devnet-keypair.json
+          solana-keygen new --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana config set --url https://api.devnet.solana.com
-          solana config set --keypair ./cli/devnet-keypair.json
+          solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana airdrop 2
           solana balance
+          solana config get
 
       - name: Install dependencies
         run: npm install
