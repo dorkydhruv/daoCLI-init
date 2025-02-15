@@ -25,8 +25,7 @@ jobs:
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
-          pwd
-          solana-keygen new --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          echo $SOLANA_WALLET > /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana config set --url https://api.devnet.solana.com
           solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana airdrop 2
