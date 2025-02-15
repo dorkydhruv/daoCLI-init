@@ -1,0 +1,51 @@
+name: Deploy contract on Localnet
+
+on:
+  push:
+    branches: [strk2]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install Solana CLI and Anchor
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libudev-dev llvm libclang-dev protobuf-compiler libssl-dev
+          curl --proto '=https' --tlsv1.2 -sSfL https://raw.githubusercontent.com/solana-developers/solana-install/main/install.sh | bash
+          solana --version
+          solana config get
+          solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+
+      - name: Start localnet
+        run: |
+          solana-test-validator --reset &
+          sleep 5
+          solana config set --url http://127.0.0.1:8999
+          solana airdrop 10
+          solana balance
+
+      - name: Deploy contract
+        run: |
+          anchor build
+          anchor deploy
+
+      - name: Run tests
+        run: |
+          anchor test
+
+      - name: Build and test project
+        run: |
+          npm install
+          npm run cli build
+          npm run cli test
