@@ -26,7 +26,7 @@ jobs:
           export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
           # echo $SOLANA_WALLET > /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
-          solana-keygen new --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana config set --url https://api.devnet.solana.com
           solana airdrop 2 /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
           solana balance
