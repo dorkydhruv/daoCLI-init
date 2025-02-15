@@ -20,8 +20,8 @@ jobs:
 
       - name: Set up Solana CLI
         run: |
-          sh -c "$(curl -sSfL https://release.solana.com/v1.8.10/install)"
-          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
 
       - name: Install dependencies
