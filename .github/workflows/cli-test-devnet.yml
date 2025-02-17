@@ -1,0 +1,40 @@
+name: Test daoCLI
+
+on:
+  push:
+    branches: [devnet-test]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build project
+        run: npm run cli build
+
+      - name: Airdrop solana and check test
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          solana --version
+          solana-keygen new --no-bip39-passphrase --outfile /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          solana config set --keypair /home/runner/work/daoCLI-init/daoCLI-init/cli/devnet-keypair.json
+          solana config set --url devnet
+          solana airdrop 4
+          solana balance
+          solana config get
+
+          # Run tests
+          npm run cli test:dev
