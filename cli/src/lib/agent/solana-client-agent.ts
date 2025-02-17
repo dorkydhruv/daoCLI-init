@@ -41,7 +41,7 @@ class SolanaClientAgent {
         rpcUrl: "https://api.mainnet-beta.solana.com",
       },
       localnet: {
-        rpcUrl: "http://localhost:8899",
+        rpcUrl: "http://127.0.0.1:8899",
       },
     };
     return networks[network];
