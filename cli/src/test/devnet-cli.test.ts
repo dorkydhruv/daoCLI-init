@@ -34,7 +34,7 @@ describe("CLI Integration Tests (using devnet)", function () {
   this.timeout(15000);
 
   before(async () => {
-    agent = await AgentManager.getTestInstance();
+    agent = AgentManager.switchNetwork("devnet");
     console.log(`Using keypair: ${agent.wallet.publicKey.toBase58()}`);
     console.log(`Network: ${agent.network}`);
     console.log(`Program ID: ${agent.program.programId.toBase58()}`);
