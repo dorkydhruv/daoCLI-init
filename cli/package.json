@@ -1,0 +1,13 @@
+{
+  "name": "cli",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -b",
+    "dev": "yarn build && node dist/index.js",
+    "test:dev": "mocha -r ts-node/register src/test/devnet-cli.test.ts",
+    "test:ci": "mocha -r ts-node/register src/test/ci-cli.test.ts"
+  }
+}
