@@ -1,5 +1,5 @@
-import { AnchorProvider, Idl, Program, Wallet } from "@coral-xyz/anchor";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { AnchorProvider, Program, Wallet } from "@coral-xyz/anchor";
+import { Connection, Keypair } from "@solana/web3.js";
 import IDL from "../../../dao_contract.json";
 import { readFileSync } from "fs";
 import { DaoContract } from "../../types/dao_contract";

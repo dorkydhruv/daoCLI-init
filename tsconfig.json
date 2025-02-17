@@ -1,18 +1,11 @@
 {
   "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
     "types": ["mocha", "chai"],
     "typeRoots": ["./node_modules/@types"],
-    "lib": ["es2020", "dom"],
+    "lib": ["es2015"],
     "module": "commonjs",
-    "target": "es2020",
-    "esModuleInterop": true,
-    "strict": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "target": "es6",
+    "esModuleInterop": true
   },
-  "references": [{ "path": "./cli" }],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "cli"]
 }

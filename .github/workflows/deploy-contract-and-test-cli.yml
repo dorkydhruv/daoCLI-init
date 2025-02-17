@@ -60,6 +60,7 @@ jobs:
 
           # Move IDL file to cli directory
           cp target/idl/dao_contract.json ./cli/
+          cp target/types/dao_contract.ts ./cli/src/types/
 
           # Create a new keypair for the CLI
           solana-keygen new --no-bip39-passphrase -o ./cli/localnet-keypair.json
