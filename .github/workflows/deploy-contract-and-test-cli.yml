@@ -59,7 +59,7 @@ jobs:
           anchor test --skip-local-validator --provider.cluster localnet
 
           # Move IDL file to cli directory
-          cp target/idl/dao.json ./cli/
+          cp target/idl/dao_contract.json ./cli/
 
           # Create a new keypair for the CLI
           solana-keygen new --no-bip39-passphrase -o ./cli/localnet-keypair.json
