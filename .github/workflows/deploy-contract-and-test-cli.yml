@@ -36,7 +36,7 @@ jobs:
       - name: Setup Solana Localnet and run tests
         run: |
           # Build the contract
-          anchor build  
+          anchor build --provider.cluster localnet
 
           # Create default keypair first
           mkdir -p /home/runner/.config/solana
@@ -57,6 +57,20 @@ jobs:
           # Run tests
           npm install
           anchor test --skip-local-validator --provider.cluster localnet
+
+          # Move IDL file to cli directory
+          cp target/idl/dao.json ./cli/
+
+          # Create a new keypair for the CLI
+          solana-keygen new --no-bip39-passphrase -o ./cli/localnet-keypair.json
+          solana airdrop 100 ./cli/localnet-keypair.json
+
+          # Install CLI dependencies
+          npm install
+          npm run cli build
+
+          # Run the CLI tests
+          npm run cli test:ci
 
           # Stop the localnet
           kill $VALIDATOR_PID

@@ -1,8 +1,9 @@
 {
-  "defaultNetwork": "devnet",
+  "defaultNetwork": "localnet",
   "keypairPaths": {
     "devnet": "devnet-keypair.json",
     "testnet": "testnet-keypair.json",
-    "mainnet": "devnet-keypair.json"
+    "mainnet": "devnet-keypair.json",
+    "localnet": "localnet-keypair.json"
   }
 }

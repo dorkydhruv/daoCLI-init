@@ -7,6 +7,7 @@
   "scripts": {
     "build": "tsc -b",
     "dev": "yarn build && node dist/index.js",
-    "test": "mocha -r ts-node/register src/test/**/*.test.ts"
+    "test": "mocha -r ts-node/register src/test/cli.test.ts",
+    "test:ci": "mocha -r ts-node/register src/test/ci-cli.test.ts"
   }
 }

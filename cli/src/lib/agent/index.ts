@@ -4,6 +4,8 @@ import { Connection, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { writeFileSync } from "fs";
 import { resolve } from "path";
 
+type Network = "devnet" | "testnet" | "mainnet" | "localnet";
+
 class AgentManager {
   private static instance: SolanaClientAgent;
 
@@ -11,21 +13,29 @@ class AgentManager {
     if (!AgentManager.instance) {
       const config = loadConfig();
       AgentManager.instance = new SolanaClientAgent(
-        config.defaultNetwork as "devnet" | "testnet" | "mainnet",
-        config.keypairPaths[
-          config.defaultNetwork as "devnet" | "testnet" | "mainnet"
-        ]
+        config.defaultNetwork as Network,
+        config.keypairPaths[config.defaultNetwork as Network]
       );
     }
     return AgentManager.instance;
   }
 
-  static switchNetwork(network: string) {
+  static switchNetwork(network: Network) {
     const config = loadConfig();
-    AgentManager.instance = new SolanaClientAgent(
-      network as "devnet" | "testnet" | "mainnet",
-      config.keypairPaths[network as "devnet" | "testnet" | "mainnet"]
+    if (!config.keypairPaths[network]) {
+      throw new Error(`No keypair path configured for network: ${network}`);
+    }
+    config.defaultNetwork = network;
+    writeFileSync(
+      resolve(process.cwd(), "dao-config.json"),
+      JSON.stringify(config, null, 2)
     );
+    AgentManager.instance = new SolanaClientAgent(
+      network,
+      config.keypairPaths[network]
+    );
+    console.log(`Successfully switched to ${network}`);
+    return AgentManager.instance;
   }
 
   static async getTestInstance(): Promise<SolanaClientAgent> {
@@ -39,7 +49,9 @@ class AgentManager {
       2 * LAMPORTS_PER_SOL
     );
     await connection.confirmTransaction(txhash);
-    console.log(`Success! Check out your TX here:  https://explorer.solana.com/tx/${txhash}?cluster=devnet`);
+    console.log(
+      `Success! Check out your TX here:  https://explorer.solana.com/tx/${txhash}?cluster=devnet`
+    );
     // Update keypair file so spawnSync uses the new signer
     const config = loadConfig();
     console.log(`Switching to ${network}`);

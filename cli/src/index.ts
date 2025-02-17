@@ -14,10 +14,22 @@ import { randomUUID } from "crypto";
 
 program
   .command("set-network <network>")
-  .description("Switch active network")
+  .description("Switch active network (devnet, testnet, mainnet, or localnet)")
   .action((network) => {
-    AgentManager.switchNetwork(network);
-    console.log(`Switched to network ${network}`);
+    const validNetworks = ["devnet", "testnet", "mainnet", "localnet"];
+    if (!validNetworks.includes(network)) {
+      console.error(
+        `Invalid network. Must be one of: ${validNetworks.join(", ")}`
+      );
+      return;
+    }
+    try {
+      AgentManager.switchNetwork(
+        network as "devnet" | "testnet" | "mainnet" | "localnet"
+      );
+    } catch (error) {
+      console.error(`Failed to switch network: ${error}`);
+    }
   });
 
 // create-proposal needs (proposalId, description, targetAmount, targetAccount)

@@ -4,5 +4,6 @@ export interface DAOConfig {
     devnet: string;
     testnet: string;
     mainnet: string;
+    localnet: string;
   };
 }

@@ -12,7 +12,7 @@ class SolanaClientAgent {
   public network: string;
 
   constructor(
-    network: "devnet" | "testnet" | "mainnet",
+    network: "devnet" | "testnet" | "mainnet" | "localnet",
     keypairPath: string,
     testKeypair?: Keypair
   ) {
@@ -27,7 +27,9 @@ class SolanaClientAgent {
     this.program = new Program<DaoContract>(IDL as DaoContract, this.provider);
   }
 
-  private getNetworkConfig(network: "devnet" | "testnet" | "mainnet") {
+  private getNetworkConfig(
+    network: "devnet" | "testnet" | "mainnet" | "localnet"
+  ) {
     const networks = {
       devnet: {
         rpcUrl: "https://api.devnet.solana.com",
@@ -37,6 +39,9 @@ class SolanaClientAgent {
       },
       mainnet: {
         rpcUrl: "https://api.mainnet-beta.solana.com",
+      },
+      localnet: {
+        rpcUrl: "http://localhost:8899",
       },
     };
     return networks[network];
