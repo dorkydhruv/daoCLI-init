@@ -5,13 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-dao_contract = "4ME7WnEPrZT6DtTva6c56z3nRewkZQLqRyJtM43T1KEE"
-
-[programs.devnet]
-dao_contract = "4ME7WnEPrZT6DtTva6c56z3nRewkZQLqRyJtM43T1KEE"
-
-[programs.mainnet]
-dao_contract = "4ME7WnEPrZT6DtTva6c56z3nRewkZQLqRyJtM43T1KEE"
+multisig_dao = "4RYGFX9e2hZZqWMXUCQTK45Hb7drhc7cUPhvgPtNkNDk"
 
 [registry]
 url = "https://api.apr.dev"
@@ -22,3 +16,9 @@ wallet = "~/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+
+[test.validator]
+url = "https://api.mainnet-beta.solana.com"
+
+[[test.validator.clone]]
+address = "GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw"

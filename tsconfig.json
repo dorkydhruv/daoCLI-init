@@ -6,6 +6,5 @@
     "module": "commonjs",
     "target": "es6",
     "esModuleInterop": true
-  },
-  "exclude": ["node_modules", "cli"]
+  }
 }
