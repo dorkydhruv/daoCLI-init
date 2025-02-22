@@ -10,8 +10,10 @@ pub const REALMS_ID: Pubkey = pubkey!("GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPC
 pub struct CreateDao<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
+    #[account(mut)]
     pub mint: Account<'info, Mint>,
     /// CHECK: Optional council mint account
+    #[account(mut)]
     pub council_mint: Option<Account<'info, Mint>>,
     /// CHECK: CPI Account
     #[account(mut)]
