@@ -6,6 +6,7 @@ mod state;
 mod error;
 mod args;
 use crate::instructions::*;
+use crate::error::Errors;
 #[program]
 pub mod multisig_dao {
     use anchor_spl::token::mint_to;
@@ -26,6 +27,15 @@ pub mod multisig_dao {
         quorum: u8,
         vote_duration: u32
     ) -> Result<()> {
+        // Validate inputs
+        require!(!name.is_empty(), Errors::EmptyName);
+        require!(name.len() <= 32, Errors::NameTooLong);
+        require!(supply > 0, Errors::InvalidSupply);
+        require!(min_vote_to_govern > 0, Errors::InvalidMinVoteWeight);
+        require!(quorum > 0 && quorum <= 100, Errors::InvalidQuorum);
+        require!(vote_duration > 0, Errors::InvalidVoteDuration);
+
+        // Execute instruction
         ctx.accounts.create_dao(name, min_vote_to_govern, is_council)?;
         ctx.accounts.create_governance(vote_duration, quorum, min_vote_to_govern)?;
         ctx.accounts.create_native_treasury()?;

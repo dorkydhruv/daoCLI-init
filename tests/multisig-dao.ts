@@ -82,11 +82,11 @@ describe("multisig-dao", () => {
     realmProgram
   );
 
-  // const vaultTokenAccount = getAssociatedTokenAddressSync(
-  //   mintKeypair.publicKey,
-  //   vault,
-  //   true
-  // );
+  const vaultTokenAccount = getAssociatedTokenAddressSync(
+    mintKeypair.publicKey,
+    vault,
+    true
+  );
   let daoTokenAccount: anchor.web3.PublicKey;
   anchor.setProvider(provider);
 
@@ -117,29 +117,214 @@ describe("multisig-dao", () => {
     const tx = await program.methods.initialize().rpc();
   });
 
-  it("Creates a DAO", async () => {
-    const tx = await program.methods
-      .createDao(daoName, new BN(100), new BN(1), false, 5, 30 * 60 * 60)
-      .accountsPartial({
-        mint: mintKeypair.publicKey,
-        councilMint: null,
-        communityTokenHolding,
-        realmAccount,
-        realmConfig,
-        realmProgram,
-        councilTokenHolding: null,
-        governance,
-        governedAccount,
-        nativeTreasury,
-        daoTokenAccount,
-        signer: wallet.publicKey,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: anchor.web3.SystemProgram.programId,
-        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-      })
-      .rpc();
+  describe("create-dao", () => {
+    it("fails with empty name", async () => {
+      try {
+        await program.methods
+          .createDao("", new BN(100), new BN(1), false, 5, 30 * 60 * 60)
+          .accountsPartial({
+            mint: mintKeypair.publicKey,
+            councilMint: null,
+            communityTokenHolding,
+            realmAccount,
+            realmConfig,
+            realmProgram,
+            councilTokenHolding: null,
+            governance,
+            governedAccount,
+            nativeTreasury,
+            daoTokenAccount,
+            signer: wallet.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .rpc();
+        assert.fail("should have failed with empty name");
+      } catch (err) {
+        assert.include(err.message, "DAO name cannot be empty");
+      }
+    });
 
-    console.log("Your transaction signature", tx);
+    it("fails with too long name", async () => {
+      const longName = "a".repeat(33);
+      try {
+        await program.methods
+          .createDao(longName, new BN(100), new BN(1), false, 5, 30 * 60 * 60)
+          .accountsPartial({
+            mint: mintKeypair.publicKey,
+            councilMint: null,
+            communityTokenHolding,
+            realmAccount,
+            realmConfig,
+            realmProgram,
+            councilTokenHolding: null,
+            governance,
+            governedAccount,
+            nativeTreasury,
+            daoTokenAccount,
+            signer: wallet.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .rpc();
+        assert.fail("should have failed with long name");
+      } catch (err) {
+        assert.include(err.message, "DAO name too long");
+      }
+    });
+
+    it("fails with zero supply", async () => {
+      try {
+        await program.methods
+          .createDao(daoName, new BN(0), new BN(1), false, 5, 30 * 60 * 60)
+          .accountsPartial({
+            mint: mintKeypair.publicKey,
+            councilMint: null,
+            communityTokenHolding,
+            realmAccount,
+            realmConfig,
+            realmProgram,
+            councilTokenHolding: null,
+            governance,
+            governedAccount,
+            nativeTreasury,
+            daoTokenAccount,
+            signer: wallet.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .rpc();
+        assert.fail("should have failed with zero supply");
+      } catch (err) {
+        assert.include(err.message, "Supply must be greater than zero");
+      }
+    });
+
+    it("fails with invalid quorum", async () => {
+      try {
+        await program.methods
+          .createDao(daoName, new BN(100), new BN(1), false, 101, 30 * 60 * 60)
+          .accountsPartial({
+            mint: mintKeypair.publicKey,
+            councilMint: null,
+            communityTokenHolding,
+            realmAccount,
+            realmConfig,
+            realmProgram,
+            councilTokenHolding: null,
+            governance,
+            governedAccount,
+            nativeTreasury,
+            daoTokenAccount,
+            signer: wallet.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .rpc();
+        assert.fail("should have failed with invalid quorum");
+      } catch (err) {
+        assert.include(
+          err.message,
+          "quorum should be in the range of 1 and 100"
+        );
+      }
+    });
+
+    it("fails with zero vote duration", async () => {
+      try {
+        await program.methods
+          .createDao(daoName, new BN(100), new BN(1), false, 5, 0)
+          .accountsPartial({
+            mint: mintKeypair.publicKey,
+            councilMint: null,
+            communityTokenHolding,
+            realmAccount,
+            realmConfig,
+            realmProgram,
+            councilTokenHolding: null,
+            governance,
+            governedAccount,
+            nativeTreasury,
+            daoTokenAccount,
+            signer: wallet.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            systemProgram: anchor.web3.SystemProgram.programId,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .rpc();
+        assert.fail("should have failed with zero vote duration");
+      } catch (err) {
+        assert.include(err.message, "Vote duration must be greater than zero");
+      }
+    });
+
+    it("successfully creates a DAO", async () => {
+      const supply = new BN(100);
+      const minVoteToGovern = new BN(1);
+      const quorum = 5;
+      const voteDuration = 30 * 60 * 60; // 30 hours
+
+      const tx = await program.methods
+        .createDao(
+          daoName,
+          supply,
+          minVoteToGovern,
+          false,
+          quorum,
+          voteDuration
+        )
+        .accountsPartial({
+          mint: mintKeypair.publicKey,
+          councilMint: null,
+          communityTokenHolding,
+          realmAccount,
+          realmConfig,
+          realmProgram,
+          councilTokenHolding: null,
+          governance,
+          governedAccount,
+          nativeTreasury,
+          daoTokenAccount,
+          signer: wallet.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: anchor.web3.SystemProgram.programId,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        })
+        .rpc();
+
+      // Verify DAO creation
+      const realmAccountInfo = await provider.connection.getAccountInfo(
+        realmAccount
+      );
+      assert.isNotNull(realmAccountInfo, "Realm account should exist");
+
+      const governanceAccountInfo = await provider.connection.getAccountInfo(
+        governance
+      );
+      assert.isNotNull(
+        governanceAccountInfo,
+        "Governance account should exist"
+      );
+
+      const treasuryAccountInfo = await provider.connection.getAccountInfo(
+        nativeTreasury
+      );
+      assert.isNotNull(treasuryAccountInfo, "Treasury account should exist");
+
+      const daoTokenAccountInfo = await provider.connection.getAccountInfo(
+        daoTokenAccount
+      );
+      assert.isNotNull(daoTokenAccountInfo, "DAO token account should exist");
+    });
   });
 });
