@@ -9,8 +9,6 @@ use crate::instructions::*;
 use crate::error::Errors;
 #[program]
 pub mod multisig_dao {
-    use anchor_spl::token::mint_to;
-
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -23,7 +21,6 @@ pub mod multisig_dao {
         name: String,
         supply: u64,
         min_vote_to_govern: u64,
-        is_council: bool,
         quorum: u8,
         vote_duration: u32
     ) -> Result<()> {
@@ -36,11 +33,11 @@ pub mod multisig_dao {
         require!(vote_duration > 0, Errors::InvalidVoteDuration);
 
         // Execute instruction
-        ctx.accounts.create_dao(name, min_vote_to_govern, is_council)?;
-        ctx.accounts.create_governance(vote_duration, quorum, min_vote_to_govern)?;
-        ctx.accounts.create_native_treasury()?;
-        ctx.accounts.set_realm_authority()?;
-        mint_to(ctx.accounts.mint_dao_allocation(), supply)?;
+        ctx.accounts.create_realm(name)?;
+        // ctx.accounts.create_governance(vote_duration, quorum, min_vote_to_govern)?;
+        // ctx.accounts.create_native_treasury()?;
+        // ctx.accounts.set_realm_authority()?;
+        // mint_to(ctx.accounts.mint_dao_allocation(), supply)?;
         Ok(())
     }
 }
