@@ -18,19 +18,19 @@ pub mod multisig_dao {
 
     pub fn create_dao(
         ctx: Context<CreateDao>,
-        name: String,
-        supply: u64,
-        min_vote_to_govern: u64,
-        quorum: u8,
-        vote_duration: u32
+        name: String
+        // supply: u64,
+        // min_vote_to_govern: u64,
+        // quorum: u8,
+        // vote_duration: u32
     ) -> Result<()> {
         // Validate inputs
         require!(!name.is_empty(), Errors::EmptyName);
         require!(name.len() <= 32, Errors::NameTooLong);
-        require!(supply > 0, Errors::InvalidSupply);
-        require!(min_vote_to_govern > 0, Errors::InvalidMinVoteWeight);
-        require!(quorum > 0 && quorum <= 100, Errors::InvalidQuorum);
-        require!(vote_duration > 0, Errors::InvalidVoteDuration);
+        // require!(supply > 0, Errors::InvalidSupply);
+        // require!(min_vote_to_govern > 0, Errors::InvalidMinVoteWeight);
+        // require!(quorum > 0 && quorum <= 100, Errors::InvalidQuorum);
+        // require!(vote_duration > 0, Errors::InvalidVoteDuration);
 
         // Execute instruction
         ctx.accounts.create_realm(name)?;

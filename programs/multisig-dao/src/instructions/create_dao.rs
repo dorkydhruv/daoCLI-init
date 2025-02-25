@@ -1,22 +1,11 @@
-use anchor_lang::{
-    accounts::signer,
-    prelude::*,
-    solana_program::{ instruction::Instruction, program::invoke },
-};
-use anchor_spl::{ associated_token::AssociatedToken, token::{ Mint, MintTo, Token, TokenAccount } };
+use anchor_lang::prelude::*;
+use anchor_spl::{ associated_token::AssociatedToken, token::{ Mint, Token } };
 use spl_governance::{
     instruction::create_realm,
     processor::process_instruction,
-    state::{
-        realm::RealmV2,
-        realm::{ GoverningTokenConfigAccountArgs, GoverningTokenConfigArgs },
-        realm_config::GoverningTokenType,
-        enums::MintMaxVoterWeightSource::Absolute,
-        enums::MintMaxVoterWeightSource::SupplyFraction,
-    },
+    state::enums::MintMaxVoterWeightSource::SupplyFraction,
+    state::enums::MintMaxVoterWeightSource,
 };
-use crate::error::Errors;
-use crate::args::*;
 
 #[constant]
 pub const REALMS_ID: Pubkey = pubkey!("GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw");
@@ -36,9 +25,6 @@ pub struct CreateDao<'info> {
     /// CHECK: CPI Account (for seeding)
     pub governed_account: UncheckedAccount<'info>,
     /// CHECK: CPI Account
-    #[account(mut)]
-    pub native_treasury: UncheckedAccount<'info>,
-    /// CHECK: CPI Account
     #[account(address = REALMS_ID)]
     pub realm_program: UncheckedAccount<'info>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -57,12 +43,23 @@ impl<'info> CreateDao<'info> {
             None,
             None,
             name,
-            0,
-            Absolute(1)
+            1, // Must be nonzero
+            MintMaxVoterWeightSource::SupplyFraction(1) // Nonzero fraction
         );
+
         process_instruction(
             &REALMS_ID,
-            &[self.signer.to_account_info(), self.council_mint.to_account_info()],
+            &[
+                self.signer.to_account_info(),
+                self.council_mint.to_account_info(),
+                self.realm_account.to_account_info(),
+                self.realm_program.to_account_info(),
+                self.governance.to_account_info(),
+                self.governed_account.to_account_info(),
+                self.associated_token_program.to_account_info(),
+                self.token_program.to_account_info(),
+                self.system_program.to_account_info(),
+            ],
             &create_realm_ix.data
         )?;
         Ok(())
