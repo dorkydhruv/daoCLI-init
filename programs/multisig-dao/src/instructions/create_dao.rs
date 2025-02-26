@@ -1,9 +1,11 @@
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::{ instruction::Instruction, program::invoke };
 use anchor_spl::{ associated_token::AssociatedToken, token::{ Mint, Token } };
+// use solana_sdk::{ signature::Keypair, signer::Signer as _ };
 use spl_governance::{
     instruction::create_realm,
+    instruction::create_governance,
     processor::process_instruction,
-    state::enums::MintMaxVoterWeightSource::SupplyFraction,
     state::enums::MintMaxVoterWeightSource,
 };
 
@@ -15,53 +17,108 @@ pub struct CreateDao<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
     #[account(mut)]
+    pub payer: Signer<'info>, // new field for payer
+    #[account(mut)]
+    pub community_mint: Account<'info, Mint>,
+    #[account(mut)]
     pub council_mint: Account<'info, Mint>,
     /// CHECK: CPI Account
     #[account(mut)]
     pub realm_account: UncheckedAccount<'info>,
+    /// CHECK: CPI Account (community token holding)
+    #[account(mut)]
+    pub community_token_holding: UncheckedAccount<'info>,
+    /// CHECK: CPI Account (council token holding)
+    #[account(mut)]
+    pub council_token_holding: UncheckedAccount<'info>,
+    /// CHECK: CPI Account
+    #[account(mut)]
+    pub realm_config: UncheckedAccount<'info>,
     /// CHECK: CPI Account
     #[account(mut)]
     pub governance: UncheckedAccount<'info>,
     /// CHECK: CPI Account (for seeding)
+    #[account(mut)]
     pub governed_account: UncheckedAccount<'info>,
     /// CHECK: CPI Account
-    #[account(address = REALMS_ID)]
+    #[account(address = REALMS_ID, mut)]
     pub realm_program: UncheckedAccount<'info>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    /// CHECK: Rent sysvar
+    pub rent: UncheckedAccount<'info>,
 }
 
 impl<'info> CreateDao<'info> {
     pub fn create_realm(&mut self, name: String) -> Result<()> {
+        msg!("Creating realm with name: {}", name);
+
+        // IMPORTANT: Verify PDA derivation explicitly
+        let realm_seeds: &[&[u8]] = &[b"governance", name.as_bytes()];
+        let (expected_realm_address, _) = Pubkey::find_program_address(realm_seeds, &REALMS_ID);
+
+        msg!("Expected realm address: {:?}", expected_realm_address);
+        msg!("Provided realm address: {:?}", self.realm_account.key());
+
+        if expected_realm_address != *self.realm_account.key {
+            msg!("Error: Realm address mismatch!");
+            return Err(ProgramError::InvalidArgument.into());
+        }
+
+        // Create a raw instruction to call directly rather than using process_instruction
         let create_realm_ix = create_realm(
             &REALMS_ID,
-            &self.signer.key,
-            &self.council_mint.key(),
-            &self.signer.key,
+            &self.payer.key,
+            &self.community_mint.key(),
+            &self.payer.key,
             Some(self.council_mint.key()),
             None,
             None,
             name,
-            1, // Must be nonzero
-            MintMaxVoterWeightSource::SupplyFraction(1) // Nonzero fraction
+            0,
+            MintMaxVoterWeightSource::FULL_SUPPLY_FRACTION
         );
 
-        process_instruction(
-            &REALMS_ID,
+        // Convert AccountInfos to Instruction format
+        let create_realm_accounts = vec![
+            AccountMeta::new(self.realm_account.key(), false),
+            AccountMeta::new_readonly(self.payer.key(), true), // Mark as signer
+            AccountMeta::new_readonly(self.community_mint.key(), false),
+            AccountMeta::new(self.community_token_holding.key(), false),
+            AccountMeta::new(self.payer.key(), true), // Mark as signer
+            AccountMeta::new_readonly(self.system_program.key(), false),
+            AccountMeta::new_readonly(self.token_program.key(), false),
+            AccountMeta::new_readonly(self.rent.key(), false),
+            AccountMeta::new_readonly(self.council_mint.key(), false),
+            AccountMeta::new(self.council_token_holding.key(), false),
+            AccountMeta::new(self.realm_config.key(), false)
+        ];
+
+        // Create the instruction object
+        let realm_ix = Instruction {
+            program_id: REALMS_ID,
+            accounts: create_realm_accounts,
+            data: create_realm_ix.data,
+        };
+
+        // Use invoke instead of process_instruction - only using the needed accounts
+        invoke(
+            &realm_ix,
             &[
-                self.signer.to_account_info(),
-                self.council_mint.to_account_info(),
                 self.realm_account.to_account_info(),
-                self.realm_program.to_account_info(),
-                self.governance.to_account_info(),
-                self.governed_account.to_account_info(),
-                self.associated_token_program.to_account_info(),
-                self.token_program.to_account_info(),
+                self.payer.to_account_info(),
+                self.community_mint.to_account_info(),
+                self.community_token_holding.to_account_info(),
                 self.system_program.to_account_info(),
-            ],
-            &create_realm_ix.data
+                self.token_program.to_account_info(),
+                self.rent.to_account_info(),
+                self.council_mint.to_account_info(),
+                self.council_token_holding.to_account_info(),
+                self.realm_config.to_account_info(),
+            ]
         )?;
+
         Ok(())
     }
     // pub fn create_governance(
@@ -70,47 +127,7 @@ impl<'info> CreateDao<'info> {
     //     quorum: u8,
     //     min_vote_to_govern: u64
     // ) -> Result<()> {
-    //     require_gte!(100, quorum, Errors::InvalidQuorum);
-    //     require_gte!(quorum, 0, Errors::InvalidQuorum);
 
-    //     let create_gov_keys = vec![
-    //         self.realm_account.to_account_info(),
-    //         self.governance.to_account_info(),
-    //         self.governed_account.to_account_info(),
-    //         self.system_program.to_account_info(),
-    //         self.signer.to_account_info(),
-    //         self.system_program.to_account_info(),
-    //         self.signer.to_account_info(),
-    //         self.realm_config.to_account_info()
-    //     ];
-
-    //     let create_gov_args = GovernanceConfig {
-    //         community_vote_threshold: VoteThreshold::YesVotePercentage(quorum),
-    //         min_community_weight_to_create_proposal: min_vote_to_govern,
-    //         min_transaction_hold_up_time: 0,
-    //         voting_base_time: vote_duration,
-    //         community_vote_tipping: VoteTipping::Strict,
-    //         community_veto_vote_threshold: VoteThreshold::Disabled,
-    //         council_veto_vote_threshold: VoteThreshold::YesVotePercentage(60),
-    //         council_vote_threshold: VoteThreshold::YesVotePercentage(60),
-    //         min_council_weight_to_create_proposal: 1,
-    //         council_vote_tipping: VoteTipping::Strict,
-    //         voting_cool_off_time: 43200,
-    //         deposit_exempt_proposal_count: 10,
-    //     };
-
-    //     let mut serialize_args: Vec<u8> = vec![4];
-    //     create_gov_args.serialize(&mut serialize_args)?;
-
-    //     let create_gov_ix = Instruction {
-    //         program_id: self.realm_program.key(),
-    //         accounts: create_gov_keys.to_account_metas(None),
-    //         data: serialize_args,
-    //     };
-
-    //     invoke(&create_gov_ix, &create_gov_keys)?;
-
-    //     Ok(())
     // }
 
     // // Sets up a native treasury for the DAO.
