@@ -1,22 +1,19 @@
-use anchor_lang::error_code;
+use anchor_lang::prelude::*;
+
 #[error_code]
 pub enum Errors {
-    #[msg("council token holding account not provided")]
-    NoCouncilTokenHolding,
-    #[msg("quorum should be in the range of 1 and 100")]
-    InvalidQuorum,
-    #[msg("max recipients has been paid out")]
-    MaxRecipientsPaid,
-    #[msg("DAO name cannot be empty")]
+    #[msg("Name cannot be empty")]
     EmptyName,
-    #[msg("DAO name too long")]
+    #[msg("Name exceeds 32 bytes")]
     NameTooLong,
-    #[msg("Supply must be greater than zero")]
-    InvalidSupply,
-    #[msg("Min vote weight must be greater than zero")]
+    #[msg("Invalid minimum vote weight")]
     InvalidMinVoteWeight,
-    #[msg("Invalid quorum percentage")]
-    InvalidQuorumPercentage,
-    #[msg("Vote duration must be greater than zero")]
+    #[msg("Invalid quorum percentage (1-100)")]
+    InvalidQuorum,
+    #[msg("Invalid vote duration")]
     InvalidVoteDuration,
+    #[msg("Failed to create token owner record")]
+    TokenOwnerRecordCreationFailed,
+    #[msg("Failed to create governance")]
+    GovernanceCreationFailed,
 }
