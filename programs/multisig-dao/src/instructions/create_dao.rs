@@ -1,5 +1,3 @@
-use std::u64;
-
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{ program::invoke, instruction::Instruction };
 use anchor_spl::{ associated_token::AssociatedToken, token::{ Mint, Token } };
@@ -11,13 +9,15 @@ use spl_governance::{
         token_owner_record::get_token_owner_record_address,
     },
 };
+use squads_multisig::client::{ multisig_create_v2, MultisigCreateAccountsV2, MultisigCreateArgsV2 };
+use squads_multisig::pda::{ get_multisig_pda, get_program_config_pda };
+use squads_multisig::state::{ Member, Permissions, Permission };
+use squads_multisig_program::ID as SQUADS_PROGRAM_ID;
 
-#[constant]
 pub const REALMS_ID: Pubkey = pubkey!("GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw");
 
 #[derive(Accounts)]
 pub struct CreateDao<'info> {
-    #[account(mut)]
     pub signer: Signer<'info>,
     #[account(mut)]
     pub payer: Signer<'info>,
@@ -49,6 +49,15 @@ pub struct CreateDao<'info> {
     /// CHECK: CPI Account
     #[account(address = REALMS_ID, mut)]
     pub realm_program: UncheckedAccount<'info>,
+    /// CHECK: CPI Account
+    #[account(mut)]
+    pub multisig: UncheckedAccount<'info>,
+    /// CHECK: CPI Account
+    pub program_config: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub squads_program_treasury: SystemAccount<'info>,
+    /// CHECK: CPI Account
+    pub multisig_program: UncheckedAccount<'info>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -139,6 +148,66 @@ impl<'info> CreateDao<'info> {
         Ok(())
     }
 
+    pub fn create_multisig(&mut self) -> Result<()> {
+        let multisig_pda = get_multisig_pda(&self.payer.key(), None).0;
+        let program_config_pda = get_program_config_pda(None).0;
+
+        // Verify the multisig PDA matches expected account
+        if multisig_pda != *self.multisig.key {
+            msg!("Error: Multisig address mismatch!");
+            return Err(ProgramError::InvalidArgument.into());
+        }
+
+        if program_config_pda != *self.program_config.key {
+            msg!("Error: Program config address mismatch!");
+            return Err(ProgramError::InvalidArgument.into());
+        }
+
+        msg!("Creating multisig with governance as authority");
+
+        // Initialize with the governance as the config authority
+        let args = MultisigCreateArgsV2 {
+            // Set governance as the config authority - this is the key change
+            config_authority: Some(self.governance.key()),
+            members: vec![Member {
+                key: self.payer.key(),
+                permissions: Permissions::from_vec(
+                    &[Permission::Initiate, Permission::Vote, Permission::Execute]
+                ),
+            }],
+            threshold: 1,
+            memo: Some("DAO Governed Multisig".to_string()),
+            rent_collector: Some(self.payer.key()),
+            time_lock: 0,
+        };
+
+        let accounts = MultisigCreateAccountsV2 {
+            create_key: self.payer.key(),
+            multisig: self.multisig.key(),
+            creator: self.payer.key(),
+            program_config: self.program_config.key(),
+            system_program: self.system_program.key(),
+            treasury: self.squads_program_treasury.key(),
+        };
+
+        let ix = multisig_create_v2(accounts, args, None);
+
+        invoke(
+            &ix,
+            &[
+                self.program_config.to_account_info(),
+                self.squads_program_treasury.to_account_info(),
+                self.multisig.to_account_info(),
+                self.payer.to_account_info(),
+                self.payer.to_account_info(),
+                self.system_program.to_account_info(),
+            ]
+        )?;
+
+        msg!("Multisig created successfully with governance as authority");
+        Ok(())
+    }
+
     pub fn create_governance(
         &self,
         vote_duration: u32,
@@ -146,23 +215,11 @@ impl<'info> CreateDao<'info> {
         min_vote_to_govern: u64
     ) -> Result<()> {
         msg!(
-            "Creating governance with quorum: {}, min_vote_to_govern: {}, vote_duration: {}",
+            "Creating governance over multisig with quorum: {}, min_vote_to_govern: {}, vote_duration: {}",
             quorum,
             min_vote_to_govern,
             vote_duration
         );
-
-        // Create an array of account infos in the exact order expected by SPL governance
-        let create_gov_keys = vec![
-            self.realm_account.to_account_info(),
-            self.governance.to_account_info(),
-            self.governed_account.to_account_info(),
-            self.token_owner_record.to_account_info(),
-            self.payer.to_account_info(),
-            self.system_program.to_account_info(),
-            self.payer.to_account_info(), // realm authority
-            self.realm_config.to_account_info()
-        ];
 
         // Create a governance config with the proper settings
         let gov_config = GovernanceConfig {
@@ -184,7 +241,18 @@ impl<'info> CreateDao<'info> {
         let mut serialize_args: Vec<u8> = vec![4];
         gov_config.serialize(&mut serialize_args)?;
 
-        // Create the instruction manually
+        // Create the instruction manually with multisig as governed account
+        let create_gov_keys = vec![
+            self.realm_account.to_account_info(),
+            self.governance.to_account_info(),
+            self.multisig.to_account_info(), // Use multisig as governed account
+            self.token_owner_record.to_account_info(),
+            self.payer.to_account_info(),
+            self.system_program.to_account_info(),
+            self.payer.to_account_info(), // realm authority
+            self.realm_config.to_account_info()
+        ];
+
         let create_gov_ix = Instruction {
             program_id: self.realm_program.key(),
             accounts: create_gov_keys
@@ -197,7 +265,7 @@ impl<'info> CreateDao<'info> {
         // Invoke the instruction with our account infos
         invoke(&create_gov_ix, &create_gov_keys)?;
 
-        msg!("Governance created successfully");
+        msg!("Governance created successfully over the multisig");
         Ok(())
     }
 
@@ -208,11 +276,17 @@ impl<'info> CreateDao<'info> {
         quorum: u8,
         min_vote_to_govern: u64
     ) -> Result<()> {
-        // First create realm
+        // First create the realm and token owner record
         self.create_realm(name)?;
         self.create_tor()?;
+
+        // Then create the governance
         self.create_governance(vote_duration, quorum, min_vote_to_govern)?;
-        msg!("DAO creation completed successfully (realm created)");
+
+        // Finally create the multisig with governance as authority
+        self.create_multisig()?;
+
+        msg!("Multisig DAO creation completed successfully");
         Ok(())
     }
 }
