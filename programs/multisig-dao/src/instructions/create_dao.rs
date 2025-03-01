@@ -9,10 +9,6 @@ use spl_governance::{
         token_owner_record::get_token_owner_record_address,
     },
 };
-use squads_multisig::client::{ multisig_create_v2, MultisigCreateAccountsV2, MultisigCreateArgsV2 };
-use squads_multisig::pda::{ get_multisig_pda, get_program_config_pda };
-use squads_multisig::state::{ Member, Permissions, Permission };
-use squads_multisig_program::ID as SQUADS_PROGRAM_ID;
 
 pub const REALMS_ID: Pubkey = pubkey!("GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw");
 
@@ -43,21 +39,12 @@ pub struct CreateDao<'info> {
     /// CHECK: CPI Account
     #[account(mut)]
     pub governance: UncheckedAccount<'info>,
-    /// CHECK: CPI Account (for seeding)
-    #[account(mut)]
-    pub governed_account: UncheckedAccount<'info>,
     /// CHECK: CPI Account
     #[account(address = REALMS_ID, mut)]
     pub realm_program: UncheckedAccount<'info>,
-    /// CHECK: CPI Account
+    /// CHECK: The multisig account that will be governed
     #[account(mut)]
     pub multisig: UncheckedAccount<'info>,
-    /// CHECK: CPI Account
-    pub program_config: UncheckedAccount<'info>,
-    #[account(mut)]
-    pub squads_program_treasury: SystemAccount<'info>,
-    /// CHECK: CPI Account
-    pub multisig_program: UncheckedAccount<'info>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -66,7 +53,9 @@ pub struct CreateDao<'info> {
 }
 
 impl<'info> CreateDao<'info> {
+    // Keep the existing realm creation function
     pub fn create_realm(&mut self, name: String) -> Result<()> {
+        // ...existing code...
         msg!("Creating realm with name: {}", name);
 
         // Verify PDA derivation
@@ -115,7 +104,9 @@ impl<'info> CreateDao<'info> {
         Ok(())
     }
 
+    // Keep the existing token owner record creation function
     pub fn create_tor(&mut self) -> Result<()> {
+        // ...existing code...
         let creator_tor_address = get_token_owner_record_address(
             &REALMS_ID,
             &*self.realm_account.key,
@@ -148,66 +139,7 @@ impl<'info> CreateDao<'info> {
         Ok(())
     }
 
-    pub fn create_multisig(&mut self) -> Result<()> {
-        let multisig_pda = get_multisig_pda(&self.payer.key(), None).0;
-        let program_config_pda = get_program_config_pda(None).0;
-
-        // Verify the multisig PDA matches expected account
-        if multisig_pda != *self.multisig.key {
-            msg!("Error: Multisig address mismatch!");
-            return Err(ProgramError::InvalidArgument.into());
-        }
-
-        if program_config_pda != *self.program_config.key {
-            msg!("Error: Program config address mismatch!");
-            return Err(ProgramError::InvalidArgument.into());
-        }
-
-        msg!("Creating multisig with governance as authority");
-
-        // Initialize with the governance as the config authority
-        let args = MultisigCreateArgsV2 {
-            // Set governance as the config authority - this is the key change
-            config_authority: Some(self.governance.key()),
-            members: vec![Member {
-                key: self.payer.key(),
-                permissions: Permissions::from_vec(
-                    &[Permission::Initiate, Permission::Vote, Permission::Execute]
-                ),
-            }],
-            threshold: 1,
-            memo: Some("DAO Governed Multisig".to_string()),
-            rent_collector: Some(self.payer.key()),
-            time_lock: 0,
-        };
-
-        let accounts = MultisigCreateAccountsV2 {
-            create_key: self.payer.key(),
-            multisig: self.multisig.key(),
-            creator: self.payer.key(),
-            program_config: self.program_config.key(),
-            system_program: self.system_program.key(),
-            treasury: self.squads_program_treasury.key(),
-        };
-
-        let ix = multisig_create_v2(accounts, args, None);
-
-        invoke(
-            &ix,
-            &[
-                self.program_config.to_account_info(),
-                self.squads_program_treasury.to_account_info(),
-                self.multisig.to_account_info(),
-                self.payer.to_account_info(),
-                self.payer.to_account_info(),
-                self.system_program.to_account_info(),
-            ]
-        )?;
-
-        msg!("Multisig created successfully with governance as authority");
-        Ok(())
-    }
-
+    // Update governance creation function to use multisig as governed account
     pub fn create_governance(
         &self,
         vote_duration: u32,
@@ -220,6 +152,23 @@ impl<'info> CreateDao<'info> {
             min_vote_to_govern,
             vote_duration
         );
+
+        // Verify that the governance PDA matches what we expect
+        let governance_seeds = &[
+            b"account-governance",
+            self.realm_account.key.as_ref(),
+            self.multisig.key.as_ref(),
+        ];
+        let (expected_governance, _) = Pubkey::find_program_address(governance_seeds, &REALMS_ID);
+
+        if expected_governance != *self.governance.key {
+            msg!(
+                "Error: Governance PDA mismatch! Expected: {}, Got: {}",
+                expected_governance,
+                self.governance.key
+            );
+            return Err(ProgramError::InvalidArgument.into());
+        }
 
         // Create a governance config with the proper settings
         let gov_config = GovernanceConfig {
@@ -269,6 +218,7 @@ impl<'info> CreateDao<'info> {
         Ok(())
     }
 
+    // Update create_dao function to only create realm and governance, not multisig
     pub fn create_dao(
         &mut self,
         name: String,
@@ -283,10 +233,7 @@ impl<'info> CreateDao<'info> {
         // Then create the governance
         self.create_governance(vote_duration, quorum, min_vote_to_govern)?;
 
-        // Finally create the multisig with governance as authority
-        self.create_multisig()?;
-
-        msg!("Multisig DAO creation completed successfully");
+        msg!("DAO creation completed successfully. Please create multisig using Squads SDK.");
         Ok(())
     }
 }

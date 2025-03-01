@@ -19,11 +19,14 @@ wallet = "~/.config/solana/id.json"
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
 
 [test.validator]
-url = "https://api.devnet.solana.com"
+url = "https://api.mainnet-beta.solana.com"
 compute_unit_limit = 1000000
 
 [[test.validator.clone]]
 address = "GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw"
 
 [[test.validator.clone]]
-address = "SMPLecH534NA9acpos4G6x7uf3LWbCAwZQE9e8ZekMu"
+address = "SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf"
+
+[[test.validator.clone]]
+address = "BSTq9w3kZwNwpBXJEvTZz2G9ZTNyKBvoSeXMvwb4cNZr"
