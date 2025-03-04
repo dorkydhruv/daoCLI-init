@@ -1,10 +1,9 @@
-.anchor
-.DS_Store
-target
-**/*.rs.bk
 node_modules
+dist
 test-ledger
-.yarn
 
-governance.so
-src*
+//testing purposes
+
+multisig
+ref
+ref2

@@ -1,0 +1,1 @@
+solana-test-validator --quiet --reset --clone-upgradeable-program GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf --clone BSTq9w3kZwNwpBXJEvTZz2G9ZTNyKBvoSeXMvwb4cNZr --url devnet &
