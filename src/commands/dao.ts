@@ -1,22 +1,15 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import {
-  PublicKey,
-  Keypair,
-  LAMPORTS_PER_SOL,
-  TransactionInstruction,
-} from "@solana/web3.js";
+import { PublicKey, Keypair, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { ConnectionService } from "../services/connection-service";
 import { WalletService } from "../services/wallet-service";
 import { MultisigService } from "../services/multisig-service";
 import { GovernanceService } from "../services/governance-service";
 import { ConfigService } from "../services/config-service";
-import BN from "bn.js";
-import {
-  createMint,
-  getOrCreateAssociatedTokenAccount,
-  mintTo,
-} from "@solana/spl-token";
+import * as multisig from "@sqds/multisig";
+import { SplGovernance } from "governance-idl-sdk";
+import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
+import { ProposalService } from "../services/proposal-service";
 
 export function registerDaoCommands(program: Command): void {
   const daoCommand = program
@@ -35,6 +28,11 @@ export function registerDaoCommands(program: Command): void {
     .option(
       "-m, --members <string>",
       "Comma-separated list of member public keys (including yours)"
+    )
+    .option(
+      "--integrated",
+      "Create both SPL Governance and Squads Multisig in an integrated setup",
+      true
     )
     .action(async (options) => {
       try {
@@ -91,31 +89,102 @@ export function registerDaoCommands(program: Command): void {
         // Initialize the entire DAO in one go
         console.log(chalk.blue("\nCreating DAO..."));
         const threshold = parseInt(options.threshold);
-        const result = await GovernanceService.initializeDAO(
-          connection,
-          keypair,
-          options.name,
-          members,
-          threshold
-        );
 
-        // Save configuration
-        await ConfigService.setActiveRealm(result.realmAddress.toBase58());
+        if (options.integrated) {
+          console.log(
+            chalk.blue("Using integrated mode with Squads Multisig...")
+          );
 
-        console.log(chalk.green("\n✅ DAO initialized successfully!"));
-        console.log(chalk.green(`Realm: ${result.realmAddress.toBase58()}`));
-        console.log(
-          chalk.green(`Governance: ${result.governanceAddress.toBase58()}`)
-        );
-        console.log(
-          chalk.green(`Treasury: ${result.treasuryAddress.toBase58()}`)
-        );
-        console.log(
-          chalk.green(`Community Token: ${result.communityMint.toBase58()}`)
-        );
-        console.log(
-          chalk.green(`Council Token: ${result.councilMint.toBase58()}`)
-        );
+          // First create the DAO
+          const daoResult = await GovernanceService.initializeDAO(
+            connection,
+            keypair,
+            options.name,
+            members,
+            threshold
+          );
+
+          // Then create the Squads multisig linked to the DAO using treasury as createKey
+          const multisigResult =
+            await MultisigService.createDaoControlledMultisig(
+              connection,
+              keypair,
+              threshold,
+              members,
+              `${options.name}-multisig`,
+              daoResult.governanceAddress,
+              daoResult.treasuryAddress
+            );
+
+          // Save configuration for both
+          await ConfigService.setActiveRealm(daoResult.realmAddress.toBase58());
+          await ConfigService.setActiveMultisig(
+            multisigResult.multisigPda.toBase58()
+          );
+
+          console.log(
+            chalk.green("\n✅ Integrated DAO initialized successfully!")
+          );
+          console.log(
+            chalk.green(`Realm: ${daoResult.realmAddress.toBase58()}`)
+          );
+          console.log(
+            chalk.green(`Governance: ${daoResult.governanceAddress.toBase58()}`)
+          );
+          console.log(
+            chalk.green(
+              `Native Treasury: ${daoResult.treasuryAddress.toBase58()}`
+            )
+          );
+          console.log(
+            chalk.green(
+              `Squads Multisig: ${multisigResult.multisigPda.toBase58()}`
+            )
+          );
+
+          // Create vault automatically
+          const [vaultPda] = multisig.getVaultPda({
+            multisigPda: multisigResult.multisigPda,
+            index: 0,
+          });
+          console.log(chalk.green(`Squads Vault: ${vaultPda.toBase58()}`));
+
+          console.log(chalk.blue("\nNext steps:"));
+          console.log("1. Fund your treasury and multisig vault:");
+          console.log(`   proposal fund --target treasury --amount 0.1`);
+          console.log(`   proposal fund --target multisig --amount 0.1`);
+          console.log("2. Create and vote on proposals:");
+          console.log(
+            `   proposal multisig-transfer --amount 0.01 --recipient [ADDRESS]`
+          );
+        } else {
+          // Standard DAO creation (existing code)
+          const result = await GovernanceService.initializeDAO(
+            connection,
+            keypair,
+            options.name,
+            members,
+            threshold
+          );
+
+          // Save configuration
+          await ConfigService.setActiveRealm(result.realmAddress.toBase58());
+
+          console.log(chalk.green("\n✅ DAO initialized successfully!"));
+          console.log(chalk.green(`Realm: ${result.realmAddress.toBase58()}`));
+          console.log(
+            chalk.green(`Governance: ${result.governanceAddress.toBase58()}`)
+          );
+          console.log(
+            chalk.green(`Treasury: ${result.treasuryAddress.toBase58()}`)
+          );
+          console.log(
+            chalk.green(`Community Token: ${result.communityMint.toBase58()}`)
+          );
+          console.log(
+            chalk.green(`Council Token: ${result.councilMint.toBase58()}`)
+          );
+        }
 
         console.log(chalk.blue("\nNext steps:"));
         console.log("1. Fund your treasury");
@@ -160,57 +229,6 @@ export function registerDaoCommands(program: Command): void {
         console.error(chalk.red("Failed to show DAO info:"), error);
       }
     });
-
-  //   daoCommand
-  //     .command("list")
-  //     .description("List all DAOs you are a member of")
-  //     .action(async () => {
-  //       try {
-  //         const wallet = await WalletService.loadWallet();
-  //         if (!wallet) {
-  //           console.log(
-  //             chalk.red("No wallet configured. Please create a wallet first.")
-  //           );
-  //           return;
-  //         }
-
-  //         const connection = await ConnectionService.getConnection();
-  //         const keypair = WalletService.getKeypair(wallet);
-
-  //         console.log(chalk.blue("Fetching DAOs you are a member of..."));
-
-  //         // Get both multisigs and realms the user is part of
-  //         const userMultisigs = await MultisigService.getUserMultisigs(
-  //           connection,
-  //           keypair.publicKey
-  //         );
-
-  //         const userRealms = await GovernanceService.getUserRealms(
-  //           connection,
-  //           keypair.publicKey
-  //         );
-
-  //         console.log(chalk.yellow("\nMultisigs:"));
-  //         if (userMultisigs.length === 0) {
-  //           console.log("  None found");
-  //         } else {
-  //           userMultisigs.forEach((multisig) => {
-  //             console.log(`  - ${multisig.toBase58()}`);
-  //           });
-  //         }
-
-  //         console.log(chalk.yellow("\nRealms:"));
-  //         if (userRealms.length === 0) {
-  //           console.log("  None found");
-  //         } else {
-  //           userRealms.forEach((realm) => {
-  //             console.log(`  - ${realm.toBase58()}`);
-  //           });
-  //         }
-  //       } catch (error) {
-  //         console.error(chalk.red("Failed to list DAOs:"), error);
-  //       }
-  //     });
 
   daoCommand
     .command("use")
@@ -257,6 +275,105 @@ export function registerDaoCommands(program: Command): void {
         }
       } catch (error) {
         console.error(chalk.red("Failed to set active DAO:"), error);
+      }
+    });
+
+  daoCommand
+    .command("fund")
+    .description("Fund the DAO treasury or Squads multisig with SOL")
+    .option("-a, --amount <number>", "Amount of SOL to deposit", "0.1")
+    .option(
+      "-t, --target <string>",
+      'Target to fund: "treasury" or "multisig"',
+      "multisig"
+    )
+    .action(async (options) => {
+      try {
+        // Load wallet and connection
+        const wallet = await WalletService.loadWallet();
+        if (!wallet) {
+          console.log(
+            chalk.red("No wallet configured. Please create a wallet first.")
+          );
+          return;
+        }
+
+        // Check config
+        const config = await ConfigService.getConfig();
+        if (!config.dao?.activeRealm) {
+          console.log(
+            chalk.yellow('No DAO configured. Use "dao init" to create one.')
+          );
+          return;
+        }
+
+        const connection = await ConnectionService.getConnection();
+        const keypair = WalletService.getKeypair(wallet);
+        const realmAddress = new PublicKey(config.dao.activeRealm);
+
+        // Parse amount
+        const amount = parseFloat(options.amount);
+        if (isNaN(amount) || amount <= 0) {
+          console.log(
+            chalk.red("Invalid amount. Please provide a positive number.")
+          );
+          return;
+        }
+
+        // Determine target (treasury or multisig)
+        let targetAddress: PublicKey;
+
+        if (options.target === "multisig") {
+          // Get multisig using our deterministic derivation
+          const multisigAddress =
+            MultisigService.getMultisigForRealm(realmAddress);
+
+          // Get the vault PDA for the multisig
+          const [vaultPda] = multisig.getVaultPda({
+            multisigPda: multisigAddress,
+            index: 0,
+          });
+
+          targetAddress = vaultPda;
+          console.log(
+            chalk.blue(`\nFunding Squads multisig vault with ${amount} SOL:`)
+          );
+          console.log(`Multisig: ${multisigAddress.toBase58()}`);
+          console.log(`Vault: ${vaultPda.toBase58()}`);
+        } else {
+          // Get the governance account for the realm
+          const splGovernance = new SplGovernance(
+            connection,
+            new PublicKey(SPL_GOVERNANCE_PROGRAM_ID)
+          );
+          const governanceId = splGovernance.pda.governanceAccount({
+            realmAccount: realmAddress,
+            seed: realmAddress,
+          }).publicKey;
+
+          // Get the native treasury account
+          targetAddress = splGovernance.pda.nativeTreasuryAccount({
+            governanceAccount: governanceId,
+          }).publicKey;
+          console.log(
+            chalk.blue(`\nFunding native treasury with ${amount} SOL:`)
+          );
+          console.log(`Treasury: ${targetAddress.toBase58()}`);
+        }
+
+        // Fund target
+        await ProposalService.fundTreasury(
+          connection,
+          keypair,
+          targetAddress,
+          amount
+        );
+
+        console.log(
+          chalk.green(`\n✅ Successfully funded with ${amount} SOL!`)
+        );
+      } catch (error) {
+        console.error(chalk.red("Failed to fund:"), error);
       }
     });
 }

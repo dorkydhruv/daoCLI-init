@@ -2,6 +2,8 @@ import {
   Connection,
   Keypair,
   PublicKey,
+  sendAndConfirmTransaction,
+  Transaction,
   TransactionInstruction,
   TransactionMessage,
   VersionedTransaction,
@@ -14,6 +16,7 @@ import {
   AuthorityType,
   createSetAuthorityInstruction,
 } from "@solana/spl-token";
+import { MultisigService } from "./multisig-service";
 
 // Constants
 const DISABLED_VOTER_WEIGHT = new BN("18446744073709551615");
@@ -114,12 +117,8 @@ export class GovernanceService {
     console.log(`Expected governance: ${governanceId.toBase58()}`);
     console.log(`Expected treasury: ${nativeTreasuryId.toBase58()}`);
 
-    // Instruction batches
-    const setupInstructions: TransactionInstruction[] = [];
-    const memberInstructions: TransactionInstruction[][] = [];
-    const finalInstructions: TransactionInstruction[] = [];
-
     // 1. Create realm
+    console.log("1. Creating realm...");
     const createRealmIx = await splGovernance.createRealmInstruction(
       name,
       communityMint,
@@ -130,12 +129,23 @@ export class GovernanceService {
       "dormant",
       "membership"
     );
-    setupInstructions.push(createRealmIx);
+
+    const realmTx = new Transaction().add(createRealmIx);
+    realmTx.feePayer = keypair.publicKey;
+    const realmBlockhash = await connection.getLatestBlockhash();
+    realmTx.recentBlockhash = realmBlockhash.blockhash;
+
+    const realmSig = await sendAndConfirmTransaction(connection, realmTx, [
+      keypair,
+    ]);
+    console.log(`Realm created: ${realmSig}`);
 
     // 2. Process member token records
+    console.log("2. Adding members...");
     for (const member of members) {
-      const memberIxs: TransactionInstruction[] = [];
+      console.log(`Adding member: ${member.toBase58()}`);
 
+      // Create token owner record for the member
       const createTokenOwnerRecordIx =
         await splGovernance.createTokenOwnerRecordInstruction(
           realmId,
@@ -144,11 +154,12 @@ export class GovernanceService {
           keypair.publicKey
         );
 
+      // Deposit governance tokens for the member
       const depositGovTokenIx =
         await splGovernance.depositGoverningTokensInstruction(
           realmId,
           councilMint,
-          councilMint,
+          councilMint, // Source - using mint directly since we're the authority
           member,
           keypair.publicKey,
           keypair.publicKey,
@@ -164,8 +175,18 @@ export class GovernanceService {
         });
       }
 
-      memberIxs.push(createTokenOwnerRecordIx, depositGovTokenIx);
-      memberInstructions.push(memberIxs);
+      const memberTx = new Transaction().add(
+        createTokenOwnerRecordIx,
+        depositGovTokenIx
+      );
+      memberTx.feePayer = keypair.publicKey;
+      const memberBlockhash = await connection.getLatestBlockhash();
+      memberTx.recentBlockhash = memberBlockhash.blockhash;
+
+      const memberSig = await sendAndConfirmTransaction(connection, memberTx, [
+        keypair,
+      ]);
+      console.log(`Member added: ${memberSig}`);
     }
 
     // 3. Calculate threshold percentage
@@ -197,7 +218,18 @@ export class GovernanceService {
       keypair.publicKey,
       realmId
     );
-    finalInstructions.push(createGovernanceIx);
+
+    const governanceTx = new Transaction().add(createGovernanceIx);
+    governanceTx.feePayer = keypair.publicKey;
+    const governanceBlockhash = await connection.getLatestBlockhash();
+    governanceTx.recentBlockhash = governanceBlockhash.blockhash;
+
+    const governanceSig = await sendAndConfirmTransaction(
+      connection,
+      governanceTx,
+      [keypair]
+    );
+    console.log(`Governance created: ${governanceSig}`);
 
     // 5. Create treasury and finalize setup
     const createNativeTreasuryIx =
@@ -228,31 +260,29 @@ export class GovernanceService {
         governanceId
       );
 
-    finalInstructions.push(
+    const finalTx = new Transaction().add(
       createNativeTreasuryIx,
       transferCommunityAuthIx,
       transferCouncilAuthIx,
       transferMultisigAuthIx
     );
+    finalTx.feePayer = keypair.publicKey;
+    const finalBlockhash = await connection.getLatestBlockhash();
+    finalTx.recentBlockhash = finalBlockhash.blockhash;
 
-    // Execute all instruction batches in sequence
-    console.log("1. Creating realm...");
-    await this.executeInstructions(connection, keypair, setupInstructions);
-
-    console.log("2. Adding members...");
-    for (let i = 0; i < memberInstructions.length; i++) {
-      console.log(`   Member ${i + 1}/${memberInstructions.length}`);
-      await this.executeInstructions(
-        connection,
-        keypair,
-        memberInstructions[i]
-      );
-    }
-
-    console.log("3. Finalizing DAO setup...");
-    await this.executeInstructions(connection, keypair, finalInstructions);
+    const finalSig = await sendAndConfirmTransaction(connection, finalTx, [
+      keypair,
+    ]);
+    console.log(`DAO setup finalized: ${finalSig}`);
 
     console.log("DAO initialization complete!");
+
+    // Get the expected multisig address (even if not created yet)
+    const expectedMultisigAddress =
+      MultisigService.getMultisigForRealm(realmId);
+    console.log(
+      `Expected associated multisig: ${expectedMultisigAddress.toBase58()}`
+    );
 
     return {
       realmAddress: realmId,
