@@ -647,8 +647,15 @@ export class ProposalService {
     const { multisigAddress, transactionIndex } =
       this.extractMultisigInfo(description);
     if (multisigAddress && transactionIndex) {
-      const sig = await MultisigService.createProposalForTransaction(connection, keypair, multisigAddress, transactionIndex);
-      console.log(`Proposal created for Squads multisig with signature: ${sig}`);
+      const sig = await MultisigService.createProposalForTransaction(
+        connection,
+        keypair,
+        multisigAddress,
+        transactionIndex
+      );
+      console.log(
+        `Proposal created for Squads multisig with signature: ${sig}`
+      );
     }
 
     // Build and send transaction
