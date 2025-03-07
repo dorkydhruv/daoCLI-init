@@ -4,6 +4,8 @@ import {
   LAMPORTS_PER_SOL,
   PublicKey,
 } from "@solana/web3.js";
+import pkg from "bs58";
+const { decode } = pkg;
 import fs from "fs-extra";
 import { WALLET_PATH, CONFIG_DIR } from "../utils/constants";
 import { WalletConfig } from "../types";
@@ -52,10 +54,8 @@ export class WalletService {
           secretKey = JSON.parse(keyfileContent);
         } else {
           // It's likely a base58 string
-          //             const decoded = Keypair.fromSecretKey(
-          //                 Buffer.from(secretKeyString, 'base58')
-          //             );
-          //             secretKey = Array.from(decoded.secretKey);
+          // will get to this in a while
+          // secretKey = decode(secretKeyS)
           throw new Error("Invalid secret key format");
         }
       } catch (error) {

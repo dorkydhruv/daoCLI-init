@@ -112,8 +112,7 @@ export function registerDaoCommands(program: Command): void {
               threshold,
               members,
               `${options.name}-multisig`,
-              daoResult.governanceAddress,
-              daoResult.treasuryAddress
+              daoResult.realmAddress
             );
 
           // Save configuration for both

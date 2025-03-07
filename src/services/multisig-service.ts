@@ -6,11 +6,14 @@ import {
   Transaction,
   TransactionMessage,
   VersionedTransaction,
-  SystemProgram,
-  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
 import { KeypairUtil } from "../utils/keypair-util";
+
+export interface MultisigTransactionResult {
+  transactionIndex: number;
+  multisigPda: PublicKey;
+}
 
 export class MultisigService {
   /**
@@ -22,14 +25,12 @@ export class MultisigService {
     threshold: number,
     members: PublicKey[],
     name: string,
-    createKey?: PublicKey
+    createKey: Keypair
   ): Promise<{ multisigPda: PublicKey }> {
     try {
       console.log(
         `Creating multisig with ${members.length} members and threshold ${threshold}`
       );
-
-      const createKey = keypair;
 
       // Calculate the multisig PDA
       const [multisigPda] = multisig.getMultisigPda({
@@ -54,7 +55,7 @@ export class MultisigService {
         // Create the multisig transaction
         const ix = multisig.instructions.multisigCreateV2({
           createKey: createKey.publicKey,
-          creator: createKey.publicKey,
+          creator: keypair.publicKey,
           multisigPda,
           configAuthority: null,
           timeLock: 0,
@@ -65,12 +66,12 @@ export class MultisigService {
           threshold: threshold,
           treasury: configTreasury,
           memo: name,
-          rentCollector: createKey.publicKey, // Use the creator as the rent collector
+          rentCollector: keypair.publicKey, // Use the creator as the rent collector
         });
         const tx = new Transaction().add(ix);
-        tx.feePayer = createKey.publicKey;
+        tx.feePayer = keypair.publicKey;
         tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-        tx.sign(createKey);
+        tx.sign(...[keypair, createKey]);
         const res = await connection.sendRawTransaction(tx.serialize());
         await connection.confirmTransaction(res);
         console.log("Transaction sent:", res);
@@ -95,8 +96,7 @@ export class MultisigService {
     threshold: number,
     members: PublicKey[],
     name: string,
-    governanceAddress: PublicKey,
-    realmAddress: PublicKey // Changed from treasuryAddress to realmAddress for clarity
+    realmAddress: PublicKey
   ): Promise<{ multisigPda: PublicKey }> {
     try {
       console.log(
@@ -104,6 +104,7 @@ export class MultisigService {
       );
 
       // Generate a deterministic keypair based on the realm address
+      // If treasury is provided, use it for even more determinism
       const derivedKeypair = KeypairUtil.getRealmDerivedKeypair(realmAddress);
 
       console.log(
@@ -115,48 +116,20 @@ export class MultisigService {
       const [multisigPda] = multisig.getMultisigPda({
         createKey: derivedKeypair.publicKey,
       });
-
-      // Get program config for fee payments
-      const programConfigPda = multisig.getProgramConfigPda({})[0];
-      const programConfig =
-        await multisig.accounts.ProgramConfig.fromAccountAddress(
-          connection,
-          programConfigPda
-        );
-
-      const configTreasury = programConfig.treasury;
-
       // Store realm address in the memo for easier on-chain querying if needed
       const realmPrefix = "realm:";
-      const memo = `${realmPrefix}${realmAddress.toBase58()}`;
+      const memo = `${realmPrefix}${realmAddress.toBase58()}-${name}`;
 
-      // Create the multisig transaction
-      const ix = multisig.instructions.multisigCreateV2({
-        createKey: derivedKeypair.publicKey,
-        creator: keypair.publicKey,
-        multisigPda,
-        configAuthority: null,
-        timeLock: 0,
-        members: members.map((m) => ({
-          key: m,
-          permissions: multisig.types.Permissions.all(),
-        })),
-        threshold: threshold,
-        treasury: configTreasury,
-        memo: memo, // Store realm association in memo
-        rentCollector: keypair.publicKey,
-      });
-
-      const tx = new Transaction().add(ix);
-      tx.feePayer = keypair.publicKey;
-      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-
-      // Sign with both the user's keypair and our derived keypair
-      tx.sign(keypair, derivedKeypair);
-
-      const res = await connection.sendRawTransaction(tx.serialize());
-      await connection.confirmTransaction(res);
-
+      const multisigPdaExecuted = await this.createMultisig(
+        connection,
+        keypair,
+        threshold,
+        members,
+        memo,
+        derivedKeypair
+      );
+      if (!multisigPdaExecuted.multisigPda.equals(multisigPda))
+        throw new Error("Multisig PDA mismatch");
       console.log(`Created multisig at address: ${multisigPda.toBase58()}`);
       console.log(`With ${members.length} members and threshold ${threshold}`);
 
@@ -167,29 +140,15 @@ export class MultisigService {
     }
   }
 
-  /**
-   * Creates a synchronized transaction in both the DAO and Squads multisig
-   */
-  static async createSynchronizedProposal(
-    connection: Connection,
-    keypair: Keypair,
-    multisigPda: PublicKey,
-    transactionIndex: number
-  ): Promise<string> {
-    try {
-      // Create proposal instruction for Squads
-      const ix = multisig.instructions.proposalCreate({
-        multisigPda,
-        transactionIndex: BigInt(transactionIndex),
-        creator: keypair.publicKey,
-      });
-
-      // Execute the transaction
-      return await this.executeTransaction(connection, keypair, [ix]);
-    } catch (error) {
-      console.error("Failed to create synchronized proposal:", error);
-      throw error;
-    }
+  /*
+   Get the multisig vault pda for a given multisig
+  */
+  static getMultisigVaultPda(multisigPda: PublicKey): PublicKey {
+    const [vaultPda] = multisig.getVaultPda({
+      multisigPda,
+      index: 0,
+    });
+    return vaultPda;
   }
 
   /**
@@ -207,14 +166,12 @@ export class MultisigService {
         console.log("Vote is a denial - no Squads approval needed");
         return undefined;
       }
-
       // Create approval instruction
       const ix = multisig.instructions.proposalApprove({
         multisigPda,
         transactionIndex: BigInt(transactionIndex),
         member: keypair.publicKey,
       });
-
       // Execute the transaction
       return await this.executeTransaction(connection, keypair, [ix]);
     } catch (error) {
@@ -269,41 +226,39 @@ export class MultisigService {
    */
   static async createMultisigTransaction(
     connection: Connection,
-    recipient: PublicKey,
-    amount: number,
     multisigPda: PublicKey,
-    treasuryAddress: PublicKey
-  ): Promise<TransactionInstruction[]> {
-    const [vaultPda] = multisig.getVaultPda({
-      multisigPda,
-      index: 0,
-    });
+    keypair: Keypair,
+    instructions: TransactionInstruction[],
+    title: String
+  ): Promise<BigInt> {
+    const vaultPda = this.getMultisigVaultPda(multisigPda);
     const multisigInfo = await multisig.accounts.Multisig.fromAccountAddress(
       connection,
       multisigPda
     );
     const currentTransactionIndex = Number(multisigInfo.transactionIndex);
     const newTransactionIndex = BigInt(currentTransactionIndex + 1);
-    const transferInstruction = SystemProgram.transfer({
-      fromPubkey: vaultPda,
-      toPubkey: recipient,
-      lamports: amount * LAMPORTS_PER_SOL,
-    });
-    const testTransferMessage = new TransactionMessage({
-      payerKey: vaultPda,
+    // Create transaction message with the provided instructions
+    const transactionMessage = new TransactionMessage({
+      payerKey: vaultPda, // The vault is the payer for the inner transaction
       recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
-      instructions: [transferInstruction],
+      instructions,
     });
-    const ix = multisig.instructions.vaultTransactionCreate({
-      multisigPda,
-      transactionIndex: newTransactionIndex,
-      creator: treasuryAddress,
+    const createVaultTxIx = multisig.instructions.vaultTransactionCreate({
+      multisigPda: multisigPda,
+      transactionIndex: newTransactionIndex, // Use NEXT index, not current
+      creator: keypair.publicKey,
       vaultIndex: 0,
       ephemeralSigners: 0,
-      transactionMessage: testTransferMessage,
-      memo: "Transfer to recipient using DAO-Cli",
+      transactionMessage,
+      memo: `Proposal: ${title}`,
     });
-    return [ix];
+
+    const sig = await this.executeTransaction(connection, keypair, [
+      createVaultTxIx,
+    ]);
+    console.log(`Vault TX created with signature: ${sig}`);
+    return newTransactionIndex;
   }
 
   /**
@@ -332,6 +287,51 @@ export class MultisigService {
   }
 
   /**
+   * Creates a complete transaction with proposal in one operation
+   * This combines createMultisigTransaction and createProposalForTransaction
+   */
+  static async createTransactionWithProposal(
+    connection: Connection,
+    multisigPda: PublicKey,
+    keypair: Keypair,
+    instructions: TransactionInstruction[],
+    title: string
+  ): Promise<MultisigTransactionResult> {
+    try {
+      console.log(`Creating unified multisig transaction for "${title}"`);
+
+      // First create the transaction
+      const newTransactionIndex = await this.createMultisigTransaction(
+        connection,
+        multisigPda,
+        keypair,
+        instructions,
+        title
+      );
+
+      const transactionIndex = Number(newTransactionIndex);
+      console.log(`Transaction created with index: ${transactionIndex}`);
+
+      // Then create the proposal
+      await this.createProposalForTransaction(
+        connection,
+        keypair,
+        multisigPda,
+        transactionIndex
+      );
+      console.log(`Proposal created for transaction #${transactionIndex}`);
+
+      return {
+        transactionIndex,
+        multisigPda,
+      };
+    } catch (error) {
+      console.error("Failed to create transaction with proposal:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Approves a multisig proposal
    */
   static async approveProposal(
@@ -350,15 +350,6 @@ export class MultisigService {
         multisigPda,
         transactionIndex: BigInt(transactionIndex),
       });
-
-      // Get fresh multisig info to ensure we're using the correct state
-      const multisigInfo = await multisig.accounts.Multisig.fromAccountAddress(
-        connection,
-        multisigPda
-      );
-      console.log(
-        `Current multisig transaction index: ${multisigInfo.transactionIndex}`
-      );
 
       try {
         // Try to fetch the proposal to see if it exists
@@ -414,17 +405,9 @@ export class MultisigService {
       });
 
       // Create and send transaction
-      const tx = new Transaction().add(ix);
-      tx.feePayer = keypair.publicKey;
-      tx.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
-      tx.sign(keypair);
-
-      const signature = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-      });
-
-      await connection.confirmTransaction(signature, "confirmed");
+      const signature = await this.executeTransaction(connection, keypair, [
+        ix,
+      ]);
       console.log(
         `Successfully approved multisig proposal with signature: ${signature}`
       );
@@ -485,10 +468,11 @@ export class MultisigService {
 
   /**
    * Helper function to execute instructions
+   * Made public for easy reuse by other services
    */
-  private static async executeTransaction(
+  static async executeInstructions(
     connection: Connection,
-    keypair: Keypair,
+    payer: Keypair,
     instructions: TransactionInstruction[]
   ): Promise<string> {
     const recentBlockhash = await connection.getLatestBlockhash({
@@ -496,13 +480,13 @@ export class MultisigService {
     });
 
     const txMessage = new TransactionMessage({
-      payerKey: keypair.publicKey,
+      payerKey: payer.publicKey,
       instructions,
       recentBlockhash: recentBlockhash.blockhash,
     }).compileToV0Message();
 
     const tx = new VersionedTransaction(txMessage);
-    tx.sign([keypair]);
+    tx.sign([payer]);
 
     const signature = await connection.sendRawTransaction(tx.serialize(), {
       skipPreflight: false,
@@ -522,13 +506,14 @@ export class MultisigService {
   }
 
   /**
-   * Find the multisig PDA created with the treasury as the createKey
+   * Helper function to execute instructions - made public for reuse by other services
    */
-  static findMultisigForTreasury(treasuryAddress: PublicKey): PublicKey {
-    const [multisigPda] = multisig.getMultisigPda({
-      createKey: treasuryAddress,
-    });
-    return multisigPda;
+  static async executeTransaction(
+    connection: Connection,
+    keypair: Keypair,
+    instructions: TransactionInstruction[]
+  ): Promise<string> {
+    return this.executeInstructions(connection, keypair, instructions);
   }
 
   /**
@@ -581,6 +566,70 @@ export class MultisigService {
     } catch (error) {
       console.error("Failed to check threshold:", error);
       return false;
+    }
+  }
+
+  /**
+   * Get proposal status and whether it meets threshold
+   */
+  static async getProposalStatus(
+    connection: Connection,
+    multisigPda: PublicKey,
+    transactionIndex: number
+  ): Promise<{
+    exists: boolean;
+    approvalCount: number;
+    threshold: number;
+    meetsThreshold: boolean;
+  }> {
+    try {
+      // Get the multisig account to check threshold
+      const multisigAccount =
+        await multisig.accounts.Multisig.fromAccountAddress(
+          connection,
+          multisigPda
+        );
+
+      const threshold = multisigAccount.threshold;
+
+      // Get the proposal account
+      const [proposalPda] = multisig.getProposalPda({
+        multisigPda,
+        transactionIndex: BigInt(transactionIndex),
+      });
+
+      try {
+        const proposal = await multisig.accounts.Proposal.fromAccountAddress(
+          connection,
+          proposalPda
+        );
+
+        const approvalCount = proposal.approved.length;
+        const meetsThreshold = approvalCount >= threshold;
+
+        return {
+          exists: true,
+          approvalCount,
+          threshold,
+          meetsThreshold,
+        };
+      } catch {
+        // Proposal doesn't exist yet
+        return {
+          exists: false,
+          approvalCount: 0,
+          threshold,
+          meetsThreshold: false,
+        };
+      }
+    } catch (error) {
+      console.error("Failed to check proposal status:", error);
+      return {
+        exists: false,
+        approvalCount: 0,
+        threshold: 0,
+        meetsThreshold: false,
+      };
     }
   }
 

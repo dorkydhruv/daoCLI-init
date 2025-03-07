@@ -25,49 +25,13 @@ const DEFAULT_VOTING_TIME = 86400; // 1 day in seconds
 export class GovernanceService {
   static programId = new PublicKey(SPL_GOVERNANCE_PROGRAM_ID);
 
-  // Helper function to execute instructions
+  // Helper function to execute instructions - replaced with MultisigService.executeInstructions
   private static async executeInstructions(
     connection: Connection,
     payer: Keypair,
     instructions: TransactionInstruction[]
   ): Promise<string> {
-    const recentBlockhash = await connection.getLatestBlockhash({
-      commitment: "confirmed",
-    });
-
-    const txMessage = new TransactionMessage({
-      payerKey: payer.publicKey,
-      instructions,
-      recentBlockhash: recentBlockhash.blockhash,
-    }).compileToV0Message();
-
-    const tx = new VersionedTransaction(txMessage);
-    tx.sign([payer]);
-
-    try {
-      const signature = await connection.sendRawTransaction(tx.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: "confirmed",
-      });
-
-      await connection.confirmTransaction(
-        {
-          signature,
-          blockhash: recentBlockhash.blockhash,
-          lastValidBlockHeight: recentBlockhash.lastValidBlockHeight,
-        },
-        "confirmed"
-      );
-
-      return signature;
-    } catch (err: any) {
-      if (err?.getLogs) {
-        try {
-          console.error("Transaction logs:", await err.getLogs());
-        } catch {}
-      }
-      throw err;
-    }
+    return MultisigService.executeInstructions(connection, payer, instructions);
   }
 
   static async initializeDAO(

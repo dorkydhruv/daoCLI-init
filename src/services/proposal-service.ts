@@ -168,10 +168,7 @@ export class ProposalService {
     recipientAddress: PublicKey
   ): Promise<TransactionInstruction> {
     // Get the Squads vault PDA for index 0
-    const [vaultPda] = multisig.getVaultPda({
-      multisigPda: multisigAddress,
-      index: 0,
-    });
+    const vaultPda = MultisigService.getMultisigVaultPda(multisigAddress);
 
     // Calculate lamports
     const lamports =
@@ -204,35 +201,26 @@ export class ProposalService {
     recipientAddress: PublicKey
   ): Promise<TransactionInstruction[]> {
     // Get the Squads vault PDA for index 0
-    const [vaultPda] = multisig.getVaultPda({
-      multisigPda: multisigAddress,
-      index: 0,
-    });
-
+    const vaultPda = MultisigService.getMultisigVaultPda(multisigAddress);
     // Get token accounts
     const sourceTokenAccount = getAssociatedTokenAddressSync(
       tokenMint,
       vaultPda,
       true // Allow PDA
     );
-
     const recipientTokenAccount = getAssociatedTokenAddressSync(
       tokenMint,
       recipientAddress,
       true
     );
-
-    // Check if recipient token account exists
     const instructions: TransactionInstruction[] = [];
     const recipientAccountInfo = await connection.getAccountInfo(
       recipientTokenAccount
     );
-
     if (!recipientAccountInfo) {
       console.log(
         `Creating associated token account for recipient: ${recipientAddress.toBase58()}`
       );
-
       instructions.push(
         createAssociatedTokenAccountInstruction(
           vaultPda, // payer
@@ -242,16 +230,13 @@ export class ProposalService {
         )
       );
     }
-
     // Get token info for decimals
     const tokenInfo = await getMint(connection, tokenMint);
-
     // Calculate transfer amount with decimals
     const adjustedAmount =
       typeof amount === "number"
         ? amount * Math.pow(10, tokenInfo.decimals)
         : amount * BigInt(Math.pow(10, tokenInfo.decimals));
-
     // Add transfer instruction
     instructions.push(
       createTransferInstruction(
@@ -263,7 +248,6 @@ export class ProposalService {
           : adjustedAmount
       )
     );
-
     return instructions;
   }
 
@@ -285,68 +269,26 @@ export class ProposalService {
     const multisigAddress = MultisigService.getMultisigForRealm(realmAddress);
     console.log(`Using multisig: ${multisigAddress.toBase58()}`);
 
-    // Get the multisig info to determine the CURRENT transaction index
-    const multisigInfo = await multisig.accounts.Multisig.fromAccountAddress(
-      connection,
-      multisigAddress
-    );
+    const { transactionIndex } =
+      await MultisigService.createTransactionWithProposal(
+        connection,
+        multisigAddress,
+        keypair,
+        instructions,
+        title
+      );
 
-    // The multisig program expects the NEXT transaction index, not the current one
-    const currentTransactionIndex = Number(multisigInfo.transactionIndex);
-    const nextTransactionIndex = BigInt(currentTransactionIndex + 1); // next index
-    console.log(
-      `Current multisig transaction index: ${currentTransactionIndex}`
-    );
-    console.log(`Using next transaction index: ${nextTransactionIndex}`);
-
-    // For the Squads multisig, create a transaction message with the transfer instructions
-    const [vaultPda] = multisig.getVaultPda({
-      multisigPda: multisigAddress,
-      index: 0,
-    });
-    console.log(`Using vault: ${vaultPda.toBase58()}`);
-
-    // Create transaction message with the provided instructions
-    const transactionMessage = new TransactionMessage({
-      payerKey: vaultPda, // The vault is the payer for the inner transaction
-      recentBlockhash: (await connection.getLatestBlockhash()).blockhash,
-      instructions,
-    });
-
-    // Create instruction to create a vault transaction in the multisig
-    const createVaultTxIx = multisig.instructions.vaultTransactionCreate({
-      multisigPda: multisigAddress,
-      transactionIndex: nextTransactionIndex, // Use NEXT index, not current
-      creator: keypair.publicKey,
-      vaultIndex: 0,
-      ephemeralSigners: 0,
-      transactionMessage,
-      memo: `Proposal: ${title}`,
-    });
-
-    // First create the vault transaction in the multisig
-    const createVaultTxTx = new Transaction().add(createVaultTxIx);
-    createVaultTxTx.feePayer = keypair.publicKey;
-    createVaultTxTx.recentBlockhash = (
-      await connection.getLatestBlockhash()
-    ).blockhash;
-    createVaultTxTx.sign(keypair);
-    const createVaultTxSignature = await connection.sendRawTransaction(
-      createVaultTxTx.serialize()
-    );
-    await connection.confirmTransaction(createVaultTxSignature);
-
-    // Include multisig info in the description - store the NEXT index we're using
+    // Include multisig info in the description
     const enhancedDescription =
       `${description}\n\n` +
       `${this.MULTISIG_TAG}\n` +
       `${this.MULTISIG_ADDRESS_PREFIX}${multisigAddress.toBase58()}\n` +
-      `${this.TX_INDEX_PREFIX}${Number(nextTransactionIndex)}\n` + // Store the NEXT index
+      `${this.TX_INDEX_PREFIX}${transactionIndex}\n` +
       `----------------------------`;
 
-    // Now create the DAO proposal with the vault transaction creation instruction
+    // Now create the DAO proposal
     console.log(
-      "Creating DAO proposal with embedded multisig transaction creation"
+      "Creating DAO proposal with embedded multisig transaction reference"
     );
     const proposalAddress = await this.createProposal(
       connection,
@@ -354,61 +296,17 @@ export class ProposalService {
       realmAddress,
       title,
       enhancedDescription,
-      [] // will not be executed by the DAO, only the multisig
+      [] // empty instructions array as the actual execution happens in the multisig
     );
 
     console.log(`
         Integrated proposal created successfully!
         DAO Proposal: ${proposalAddress.toBase58()}
         Multisig Address: ${multisigAddress.toBase58()}
-        Transaction Index: ${nextTransactionIndex}
-
-        When the DAO proposal is executed, it will create the multisig transaction.
-        After execution, you'll need to approve and execute the multisig transaction.
+        Transaction Index: ${transactionIndex}
+        When the DAO proposal is executed, it will also execute the transaction on multisigPda.
     `);
-
     return proposalAddress;
-  }
-
-  /**
-   * Extract multisig information from a proposal description
-   */
-  private static extractMultisigInfo(description: string): {
-    multisigAddress?: PublicKey;
-    transactionIndex?: number;
-  } {
-    try {
-      // Check if this is an integrated proposal with multisig info
-      if (!description.includes(this.MULTISIG_TAG)) {
-        return {};
-      }
-
-      // Extract multisig address
-      const addressLine = description
-        .split("\n")
-        .find((line) => line.startsWith(this.MULTISIG_ADDRESS_PREFIX));
-
-      // Extract transaction index
-      const indexLine = description
-        .split("\n")
-        .find((line) => line.startsWith(this.TX_INDEX_PREFIX));
-
-      if (addressLine && indexLine) {
-        const address = addressLine
-          .substring(this.MULTISIG_ADDRESS_PREFIX.length)
-          .trim();
-        const index = indexLine.substring(this.TX_INDEX_PREFIX.length).trim();
-
-        return {
-          multisigAddress: new PublicKey(address),
-          transactionIndex: parseInt(index),
-        };
-      }
-    } catch (error) {
-      console.log("Failed to extract multisig info from proposal description");
-    }
-
-    return {};
   }
 
   /**
@@ -434,27 +332,11 @@ export class ProposalService {
       lamports: amount * LAMPORTS_PER_SOL,
     });
 
-    // Create and send transaction
-    const recentBlockhash = await connection.getLatestBlockhash("confirmed");
-
-    const tx = new Transaction().add(transferIx);
-    tx.feePayer = keypair.publicKey;
-    tx.recentBlockhash = recentBlockhash.blockhash;
-
-    tx.sign(keypair);
-
-    const signature = await connection.sendRawTransaction(tx.serialize(), {
-      skipPreflight: false,
-      preflightCommitment: "confirmed",
-    });
-
-    await connection.confirmTransaction(
-      {
-        signature,
-        blockhash: recentBlockhash.blockhash,
-        lastValidBlockHeight: recentBlockhash.lastValidBlockHeight,
-      },
-      "confirmed"
+    // Use the executeInstructions method from MultisigService
+    const signature = await MultisigService.executeInstructions(
+      connection,
+      keypair,
+      [transferIx]
     );
 
     console.log(`Successfully funded with signature: ${signature}`);
@@ -463,6 +345,7 @@ export class ProposalService {
 
   /**
    * Ensures a token owner record exists for the user
+   * Modified to use MultisigService.executeInstructions
    */
   static async ensureTokenOwnerRecord(
     connection: Connection,
@@ -529,27 +412,12 @@ export class ProposalService {
             1
           );
 
-        // Build and send transaction
-        const recentBlockhash = await connection.getLatestBlockhash({
-          commitment: "confirmed",
-        });
-
-        const tx = new Transaction()
-          .add(createTokenOwnerRecordIx)
-          .add(depositGovTokenIx);
-
-        tx.feePayer = keypair.publicKey;
-        tx.recentBlockhash = recentBlockhash.blockhash;
-
-        tx.sign(keypair);
-
-        const signature = await connection.sendRawTransaction(tx.serialize());
-
-        await connection.confirmTransaction({
-          signature,
-          blockhash: recentBlockhash.blockhash,
-          lastValidBlockHeight: recentBlockhash.lastValidBlockHeight,
-        });
+        // Execute instructions using MultisigService.executeInstructions
+        const signature = await MultisigService.executeInstructions(
+          connection,
+          keypair,
+          [createTokenOwnerRecordIx, depositGovTokenIx]
+        );
 
         console.log(`Created token owner record with signature: ${signature}`);
         return tokenOwnerRecordPda.publicKey;
@@ -562,6 +430,7 @@ export class ProposalService {
 
   /**
    * Creates a DAO proposal with the given instructions
+   * Modified to use MultisigService.executeInstructions
    */
   static async createProposal(
     connection: Connection,
@@ -643,42 +512,12 @@ export class ProposalService {
       tokenOwnerRecordKey
     );
 
-    // Create a proposal within SQUADs multisig as well if it's an integrated proposal
-    const { multisigAddress, transactionIndex } =
-      this.extractMultisigInfo(description);
-    if (multisigAddress && transactionIndex) {
-      const sig = await MultisigService.createProposalForTransaction(
-        connection,
-        keypair,
-        multisigAddress,
-        transactionIndex
-      );
-      console.log(
-        `Proposal created for Squads multisig with signature: ${sig}`
-      );
-    }
-
-    // Build and send transaction
-    const recentBlockhash = await connection.getLatestBlockhash({
-      commitment: "confirmed",
-    });
-
-    const tx = new Transaction()
-      .add(createProposalIx)
-      .add(insertIx)
-      .add(signOffIx);
-
-    tx.feePayer = keypair.publicKey;
-    tx.recentBlockhash = recentBlockhash.blockhash;
-    tx.sign(keypair);
-
-    const signature = await connection.sendRawTransaction(tx.serialize());
-
-    await connection.confirmTransaction({
-      signature,
-      blockhash: recentBlockhash.blockhash,
-      lastValidBlockHeight: recentBlockhash.lastValidBlockHeight,
-    });
+    // Execute instructions using MultisigService.executeInstructions
+    const signature = await MultisigService.executeInstructions(
+      connection,
+      keypair,
+      [createProposalIx, insertIx, signOffIx]
+    );
 
     console.log(`Proposal created with signature: ${signature}`);
     console.log(`Proposal address: ${proposalPda.publicKey.toBase58()}`);
@@ -688,6 +527,7 @@ export class ProposalService {
 
   /**
    * Cast a vote on a proposal with automatic multisig execution when threshold is met
+   * Modified to use MultisigService.executeInstructions
    */
   static async castVote(
     connection: Connection,
@@ -737,24 +577,12 @@ export class ProposalService {
       keypair.publicKey
     );
 
-    // Build and send transaction
-    const recentBlockhash = await connection.getLatestBlockhash({
-      commitment: "confirmed",
-    });
-
-    const tx = new Transaction().add(voteIx);
-    tx.feePayer = keypair.publicKey;
-    tx.recentBlockhash = recentBlockhash.blockhash;
-
-    tx.sign(keypair);
-
-    const signature = await connection.sendRawTransaction(tx.serialize());
-
-    await connection.confirmTransaction({
-      signature,
-      blockhash: recentBlockhash.blockhash,
-      lastValidBlockHeight: recentBlockhash.lastValidBlockHeight,
-    });
+    // Execute instructions using MultisigService.executeInstructions
+    const signature = await MultisigService.executeInstructions(
+      connection,
+      keypair,
+      [voteIx]
+    );
 
     console.log(`DAO vote cast with signature: ${signature}`);
 
@@ -768,47 +596,28 @@ export class ProposalService {
       try {
         console.log(`\nThis is an integrated proposal with Squads multisig.`);
 
-        // Approve the corresponding multisig transaction
-        console.log(
-          `Automatically approving multisig transaction #${multisigInfo.transactionIndex}...`
-        );
-
-        await MultisigService.approveProposal(
+        // Use the approve and execute functionality from MultisigService
+        const {
+          approved,
+          executed,
+          signature: multisigSig,
+        } = await MultisigService.approveAndExecuteIfReady(
           connection,
           keypair,
           multisigInfo.multisigAddress,
           multisigInfo.transactionIndex
         );
 
-        console.log(`Multisig transaction approved successfully!`);
-
-        // Check if this approval met the threshold
-        const isReady = await MultisigService.isProposalReadyToExecute(
-          connection,
-          multisigInfo.multisigAddress,
-          multisigInfo.transactionIndex
-        );
-
-        if (isReady) {
-          // Automatically execute when threshold is reached
+        if (approved && executed) {
           console.log(
-            `\nThreshold met! Automatically executing multisig transaction...`
+            `✅ Multisig transaction automatically approved and executed with signature: ${multisigSig}`
           );
-
-          const executeSig = await MultisigService.executeMultisigTransaction(
-            connection,
-            keypair,
-            multisigInfo.multisigAddress,
-            multisigInfo.transactionIndex
-          );
-
+        } else if (approved) {
           console.log(
-            `✅ Multisig transaction executed successfully with signature: ${executeSig}`
+            `✅ Multisig transaction approved. More approvals needed before execution.`
           );
         } else {
-          console.log(
-            `\nTransaction not ready for execution yet. More approvals needed.`
-          );
+          console.log(`❌ Failed to approve multisig transaction.`);
         }
       } catch (error) {
         console.error(`Failed to process multisig transaction:`, error);
@@ -823,6 +632,7 @@ export class ProposalService {
 
   /**
    * Execute an approved proposal
+   * Modified to use MultisigService.executeInstructions
    */
   static async executeProposal(
     connection: Connection,
@@ -887,24 +697,12 @@ export class ProposalService {
       accountsForIx
     );
 
-    // Build and send transaction
-    const recentBlockhash = await connection.getLatestBlockhash({
-      commitment: "confirmed",
-    });
-
-    const tx = new Transaction().add(executeIx);
-    tx.feePayer = keypair.publicKey;
-    tx.recentBlockhash = recentBlockhash.blockhash;
-
-    tx.sign(keypair);
-
-    const signature = await connection.sendRawTransaction(tx.serialize());
-
-    await connection.confirmTransaction({
-      signature,
-      blockhash: recentBlockhash.blockhash,
-      lastValidBlockHeight: recentBlockhash.lastValidBlockHeight,
-    });
+    // Execute instructions using MultisigService.executeInstructions
+    const signature = await MultisigService.executeInstructions(
+      connection,
+      keypair,
+      [executeIx]
+    );
 
     console.log(`DAO proposal executed with signature: ${signature}`);
 
@@ -918,71 +716,50 @@ export class ProposalService {
           `\nThis proposal has created a Squads multisig transaction!`
         );
 
-        // Refresh multisig state to get current transaction index
-        const multisigAccount =
-          await multisig.accounts.Multisig.fromAccountAddress(
-            connection,
-            multisigInfo.multisigAddress
-          );
-
-        // Use the current transaction index from the multisig account
-        const currentTxIndex = Number(multisigAccount.transactionIndex);
-        console.log(`Current multisig transaction index: ${currentTxIndex}`);
-        console.log(
-          `Stored transaction index from proposal: ${multisigInfo.transactionIndex}`
+        // Get proposal status using MultisigService
+        const proposalStatus = await MultisigService.getProposalStatus(
+          connection,
+          multisigInfo.multisigAddress,
+          multisigInfo.transactionIndex
         );
 
         console.log(
           `Automatically approving transaction #${multisigInfo.transactionIndex}...`
         );
 
-        // Approve the transaction
-        await MultisigService.approveProposal(
+        // Use the approve and execute functionality from MultisigService
+        const {
+          approved,
+          executed,
+          signature: multisigSig,
+        } = await MultisigService.approveAndExecuteIfReady(
           connection,
           keypair,
           multisigInfo.multisigAddress,
           multisigInfo.transactionIndex
         );
 
-        console.log(`✅ Multisig transaction approved!`);
-
-        // Check if ready to execute
-        const isReady = await MultisigService.isProposalReadyToExecute(
-          connection,
-          multisigInfo.multisigAddress,
-          multisigInfo.transactionIndex
-        );
-
-        if (isReady) {
+        if (approved && executed) {
           console.log(
-            `Threshold met! Automatically executing multisig transaction...`
+            `✅ Multisig transaction automatically approved and executed with signature: ${multisigSig}`
           );
-
-          const executeSig = await MultisigService.executeMultisigTransaction(
-            connection,
-            keypair,
-            multisigInfo.multisigAddress,
-            multisigInfo.transactionIndex
-          );
-
+        } else if (approved) {
           console.log(
-            `✅ Multisig transaction executed with signature: ${executeSig}`
+            `✅ Multisig transaction approved, but more approvals are needed.`
           );
-        } else {
           console.log(
-            `\nTransaction not ready for execution yet. More approvals needed.`
+            `Current approvals: ${
+              proposalStatus.approvalCount + 1
+            }, threshold: ${proposalStatus.threshold}`
           );
-          console.log(`You can manually approve and execute later with:`);
-          console.log(
-            `dao multisig approve --multisig ${multisigInfo.multisigAddress.toString()} --index ${
-              multisigInfo.transactionIndex
-            }`
-          );
+          console.log(`You can manually execute later with:`);
           console.log(
             `dao multisig execute --multisig ${multisigInfo.multisigAddress.toString()} --index ${
               multisigInfo.transactionIndex
             }`
           );
+        } else {
+          console.log(`❌ Failed to approve multisig transaction.`);
         }
       } catch (error) {
         console.error(`Failed to process multisig transaction:`, error);
@@ -993,5 +770,46 @@ export class ProposalService {
     }
 
     return signature;
+  }
+
+  /**
+   * Extract multisig information from a proposal description
+   */
+  private static extractMultisigInfo(description: string): {
+    multisigAddress?: PublicKey;
+    transactionIndex?: number;
+  } {
+    try {
+      // Check if this is an integrated proposal with multisig info
+      if (!description.includes(this.MULTISIG_TAG)) {
+        return {};
+      }
+
+      // Extract multisig address
+      const addressLine = description
+        .split("\n")
+        .find((line) => line.startsWith(this.MULTISIG_ADDRESS_PREFIX));
+
+      // Extract transaction index
+      const indexLine = description
+        .split("\n")
+        .find((line) => line.startsWith(this.TX_INDEX_PREFIX));
+
+      if (addressLine && indexLine) {
+        const address = addressLine
+          .substring(this.MULTISIG_ADDRESS_PREFIX.length)
+          .trim();
+        const index = indexLine.substring(this.TX_INDEX_PREFIX.length).trim();
+
+        return {
+          multisigAddress: new PublicKey(address),
+          transactionIndex: parseInt(index),
+        };
+      }
+    } catch (error) {
+      console.log("Failed to extract multisig info from proposal description");
+    }
+
+    return {};
   }
 }

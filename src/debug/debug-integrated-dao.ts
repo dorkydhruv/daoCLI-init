@@ -78,7 +78,6 @@ async function debugIntegratedDao() {
       threshold,
       members,
       `${daoName}-multisig`,
-      governanceAddress,
       realmAddress
     );
 
@@ -132,6 +131,8 @@ async function debugIntegratedDao() {
         transferAmount,
         recipient
       );
+
+      console.log("Transfer instruction created successfully!");
 
     // Create the integrated proposal
     const proposalTitle = "Debug Integrated Transfer";
