@@ -12,14 +12,14 @@ export const CLUSTERS: Record<string, Cluster> = {
   mainnet: "mainnet-beta",
   devnet: "devnet",
   testnet: "testnet",
-  localhost: "testnet", // Set localhost to use testnet type
+  localhost: "testnet",
 };
 
-export const DEFAULT_CLUSTER = "devnet";
+export const DEFAULT_CLUSTER = "testnet" as Cluster;
 export const ENDPOINT_MAP: Record<Cluster, string> = {
   "mainnet-beta": "https://api.mainnet-beta.solana.com",
   devnet: "https://api.devnet.solana.com",
-  testnet: "http://localhost:8899",
+  testnet: "http://localhost:8899", // Custom testnet cluster
 };
 
 export const ENDPOINT_LOCALHOST = "http://localhost:8899";

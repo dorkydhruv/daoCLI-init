@@ -4,6 +4,7 @@ import chalk from "chalk";
 import { registerWalletCommands } from "./commands/wallet";
 import { registerConfigCommands } from "./commands/config";
 import { registerDaoCommands } from "./commands/dao";
+import { registerProposalCommands } from "./commands/proposal";
 
 async function main() {
   const program = new Command();
@@ -17,7 +18,7 @@ async function main() {
   registerWalletCommands(program);
   registerConfigCommands(program);
   registerDaoCommands(program);
-
+  registerProposalCommands(program);
   // Add a default help command
   program
     .command("help")

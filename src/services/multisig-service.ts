@@ -696,4 +696,37 @@ export class MultisigService {
       };
     }
   }
+
+  /**
+   * Gets information about a multisig account
+   */
+  static async getMultisigInfo(
+    connection: Connection,
+    multisigPda: PublicKey
+  ): Promise<{
+    threshold: number;
+    memberCount: number;
+    transactionIndex: number;
+    members: PublicKey[];
+    timelock: number;
+  }> {
+    try {
+      const multisigAccount =
+        await multisig.accounts.Multisig.fromAccountAddress(
+          connection,
+          multisigPda
+        );
+
+      return {
+        threshold: multisigAccount.threshold,
+        memberCount: multisigAccount.members.length,
+        transactionIndex: Number(multisigAccount.transactionIndex),
+        members: multisigAccount.members.map((m) => m.key),
+        timelock: multisigAccount.timeLock,
+      };
+    } catch (error) {
+      console.error("Failed to get multisig info:", error);
+      throw error;
+    }
+  }
 }

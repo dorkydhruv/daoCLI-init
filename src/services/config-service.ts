@@ -44,11 +44,19 @@ export class ConfigService {
   }
 
   static async setActiveRealm(realmAddress: string): Promise<Config> {
-    return this.updateDaoConfig({ activeRealm: realmAddress });
-  }
+    // When setting a new active realm, we don't store multisig address anymore
+    // We'll now derive it deterministically when needed
+    const config = await this.getConfig();
 
-  static async setActiveMultisig(multisigAddress: string): Promise<Config> {
-    return this.updateDaoConfig({ activeMultisig: multisigAddress });
+    // Remove any stored multisig address and only keep the realm
+    config.dao = {
+      ...config.dao,
+      activeRealm: realmAddress,
+      activeMultisig: undefined, // Explicitly removing the stored multisig
+    } as DaoConfig;
+
+    await this.saveConfig(config);
+    return config;
   }
 
   static async setCluster(

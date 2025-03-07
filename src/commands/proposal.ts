@@ -9,10 +9,8 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { ProposalService } from "../services/proposal-service";
-import { SplGovernance } from "governance-idl-sdk";
-import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
-import * as multisig from "@sqds/multisig";
-import { MultisigService } from "../services/multisig-service";
+import { GovernanceService } from "../services/governance-service";
+
 export function registerProposalCommands(program: Command): void {
   const proposalCommand = program
     .command("proposal")
@@ -23,29 +21,32 @@ export function registerProposalCommands(program: Command): void {
       "after",
       `
 Integrated Workflow:
-  1. Create a proposal (transfer-sol, transfer-token, or multisig-transfer)
+  1. Create a proposal (transfer)
   2. Vote on the proposal (automatically approves related multisig transaction)
   3. Execute the proposal (automatically executes related multisig transaction if threshold is met)
 
 Examples:
   $ dao init --name "My DAO" --threshold 2 --members "pub1,pub2,pub3"
-  $ proposal fund --target multisig --amount 0.2
-  $ proposal multisig-transfer --amount 0.05 --recipient <ADDRESS>
+  $ dao fund --amount 0.2
+  $ proposal transfer --amount 0.05 --recipient <ADDRESS> --mint <MINT_ADDRESS>
   $ proposal vote --proposal <ADDRESS>
   $ proposal execute --proposal <ADDRESS>
 `
     );
 
   proposalCommand
-    .command("transfer-sol")
-    .description("Create a proposal to transfer SOL from the DAO treasury")
-    .option("-n, --name <string>", "Name of the proposal", "SOL Transfer")
+    .command("transfer")
+    .description(
+      "Create a proposal to transfer SOL (automatically handles treasury or multisig transfers)"
+    )
+    .option("-n, --name <string>", "Name of the proposal", "Asset Transfer")
     .option(
       "-d, --description <string>",
       "Description of the proposal",
-      "Transfer SOL from DAO treasury"
+      "Transfer assets from DAO"
     )
-    .option("-a, --amount <number>", "Amount of SOL to transfer", "0.1")
+    .option("-a, --amount <number>", "Amount of SOL/tokens to transfer", "0.1")
+    .option("-m, --mint <string>", "Token mint address (for token transfers)")
     .option("-r, --recipient <string>", "Recipient wallet address")
     .action(async (options) => {
       try {
@@ -62,7 +63,9 @@ Examples:
         const config = await ConfigService.getConfig();
         if (!config.dao?.activeRealm) {
           console.log(
-            chalk.yellow('No DAO configured. Use "dao init" to create one.')
+            chalk.yellow(
+              'No DAO configured. Use "dao use <ADDRESS>" to select one.'
+            )
           );
           return;
         }
@@ -70,6 +73,13 @@ Examples:
         const connection = await ConnectionService.getConnection();
         const keypair = WalletService.getKeypair(wallet);
         const realmAddress = new PublicKey(config.dao.activeRealm);
+
+        // Get DAO type (integrated or standard)
+        const realmInfo = await GovernanceService.getRealmInfo(
+          connection,
+          realmAddress
+        );
+        const isIntegrated = realmInfo.isIntegrated;
 
         // Parse recipient
         let recipientAddress: PublicKey;
@@ -99,204 +109,151 @@ Examples:
           return;
         }
 
-        // Check if treasury is funded
-        const splGovernance = new SplGovernance(
-          connection,
-          new PublicKey(SPL_GOVERNANCE_PROGRAM_ID)
-        );
-        const governanceId = splGovernance.pda.governanceAccount({
-          realmAccount: realmAddress,
-          seed: realmAddress,
-        }).publicKey;
-        const treasuryAddress = splGovernance.pda.nativeTreasuryAccount({
-          governanceAccount: governanceId,
-        }).publicKey;
+        // Check balance of the source account
+        let sourceAddress: PublicKey;
+        let sourceBalance: number;
 
-        const treasuryBalance = await connection.getBalance(treasuryAddress);
-        console.log(
-          `Treasury balance: ${treasuryBalance / LAMPORTS_PER_SOL} SOL`
-        );
+        if (isIntegrated && realmInfo.vaultAddress) {
+          // Make sure vaultAddress is defined
+          sourceAddress = realmInfo.vaultAddress;
+          sourceBalance = await connection.getBalance(sourceAddress);
+          console.log(
+            `Multisig vault balance: ${sourceBalance / LAMPORTS_PER_SOL} SOL`
+          );
+        } else {
+          sourceAddress = realmInfo.treasuryAddress;
+          sourceBalance = await connection.getBalance(sourceAddress);
+          console.log(
+            `Treasury balance: ${sourceBalance / LAMPORTS_PER_SOL} SOL`
+          );
+        }
 
-        if (treasuryBalance < amount * LAMPORTS_PER_SOL) {
+        if (sourceBalance < amount * LAMPORTS_PER_SOL) {
           console.log(
             chalk.yellow(
-              `\n⚠️ Warning: Treasury doesn't have enough SOL to execute this transfer.`
+              `\n⚠️ Warning: Source account doesn't have enough SOL to execute this transfer.`
             )
           );
           console.log(
             chalk.yellow(
-              `Treasury balance: ${
-                treasuryBalance / LAMPORTS_PER_SOL
+              `Balance: ${
+                sourceBalance / LAMPORTS_PER_SOL
               } SOL, transfer amount: ${amount} SOL`
             )
           );
           console.log(
-            chalk.yellow(
-              `Use 'proposal fund --target treasury' to fund the treasury first.`
-            )
+            chalk.yellow(`Use 'dao fund' to fund the account first.`)
           );
           throw new Error(
             "Treasury doesn't have enough SOL to execute this transfer."
           );
         }
 
-        console.log(chalk.blue("\nCreating SOL transfer proposal:"));
+        console.log(chalk.blue("\nCreating transfer proposal:"));
         console.log(`Name: ${options.name}`);
         console.log(`Description: ${options.description}`);
         console.log(`Amount: ${amount} SOL`);
         console.log(`Recipient: ${recipientAddress.toBase58()}`);
 
-        // Create transfer instruction
-        const transferInstruction =
-          await ProposalService.getSolTransferInstruction(
-            connection,
-            realmAddress,
-            amount,
-            recipientAddress
-          );
+        // Build instructions based on DAO type and transfer type (SOL or Token)
+        let instructions: TransactionInstruction[];
+        let proposalAddress: PublicKey;
 
-        // Create proposal
-        console.log(chalk.blue("\nSubmitting proposal..."));
-        const proposalAddress = await ProposalService.createProposal(
-          connection,
-          keypair,
-          realmAddress,
-          options.name,
-          options.description,
-          [transferInstruction]
-        );
+        if (options.mint) {
+          // Token transfer
+          const tokenMint = new PublicKey(options.mint);
+          console.log(`Token mint: ${tokenMint.toBase58()}`);
 
-        console.log(chalk.green(`\n✅ Proposal created successfully!`));
-        console.log(
-          chalk.green(`Proposal address: ${proposalAddress.toBase58()}`)
-        );
-        console.log(chalk.blue("\nNext steps:"));
-        console.log("1. Have members vote on the proposal");
-        console.log(
-          "2. After the voting period, execute the proposal if approved"
-        );
-      } catch (error) {
-        console.error(chalk.red("Failed to create proposal:"), error);
-      }
-    });
+          if (isIntegrated && realmInfo.multisigAddress) {
+            instructions =
+              await ProposalService.getSquadsMultisigTokenTransferInstruction(
+                connection,
+                realmInfo.multisigAddress,
+                tokenMint,
+                amount,
+                recipientAddress
+              );
 
-  proposalCommand
-    .command("transfer-token")
-    .description(
-      "Create a proposal to transfer SPL tokens from the DAO treasury"
-    )
-    .option("-n, --name <string>", "Name of the proposal", "Token Transfer")
-    .option(
-      "-d, --description <string>",
-      "Description of the proposal",
-      "Transfer tokens from DAO treasury"
-    )
-    .option("-a, --amount <number>", "Amount of tokens to transfer", "1")
-    .option("-m, --mint <string>", "Token mint address")
-    .option("-r, --recipient <string>", "Recipient wallet address")
-    .action(async (options) => {
-      try {
-        // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
-          console.log(
-            chalk.red("No wallet configured. Please create a wallet first.")
-          );
-          return;
-        }
+            proposalAddress =
+              await ProposalService.createIntegratedAssetTransferProposal(
+                connection,
+                keypair,
+                realmAddress,
+                options.name,
+                options.description,
+                instructions
+              );
+          } else {
+            instructions = await ProposalService.getTokenTransferInstruction(
+              connection,
+              realmAddress,
+              tokenMint,
+              amount,
+              recipientAddress
+            );
 
-        // Check config
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
-          console.log(
-            chalk.yellow('No DAO configured. Use "dao init" to create one.')
-          );
-          return;
-        }
-
-        // Check mint
-        if (!options.mint) {
-          console.log(chalk.red("Token mint address is required."));
-          return;
-        }
-
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
-        const realmAddress = new PublicKey(config.dao.activeRealm);
-
-        // Parse recipient
-        let recipientAddress: PublicKey;
-        if (options.recipient) {
-          try {
-            recipientAddress = new PublicKey(options.recipient);
-          } catch (e) {
-            console.log(chalk.red("Invalid recipient address."));
-            return;
+            proposalAddress = await ProposalService.createProposal(
+              connection,
+              keypair,
+              realmAddress,
+              options.name,
+              options.description,
+              instructions
+            );
           }
         } else {
-          // Use own address if no recipient provided
-          recipientAddress = keypair.publicKey;
-          console.log(
-            chalk.yellow(
-              `No recipient specified. Using your address: ${recipientAddress.toBase58()}`
-            )
-          );
+          // SOL transfer
+          if (isIntegrated && realmInfo.multisigAddress) {
+            // For integrated DAO, create a multisig transfer
+            const transferIx =
+              await ProposalService.getSquadsMultisigSolTransferInstruction(
+                connection,
+                realmInfo.multisigAddress,
+                amount,
+                recipientAddress
+              );
+
+            proposalAddress =
+              await ProposalService.createIntegratedAssetTransferProposal(
+                connection,
+                keypair,
+                realmAddress,
+                options.name,
+                options.description,
+                [transferIx]
+              );
+          } else {
+            // For standard DAO, create a treasury transfer
+            const transferIx = await ProposalService.getSolTransferInstruction(
+              connection,
+              realmAddress,
+              amount,
+              recipientAddress
+            );
+
+            proposalAddress = await ProposalService.createProposal(
+              connection,
+              keypair,
+              realmAddress,
+              options.name,
+              options.description,
+              [transferIx]
+            );
+          }
         }
-
-        // Parse token mint
-        let tokenMint: PublicKey;
-        try {
-          tokenMint = new PublicKey(options.mint);
-        } catch (e) {
-          console.log(chalk.red("Invalid token mint address."));
-          return;
-        }
-
-        // Parse amount
-        const amount = parseFloat(options.amount);
-        if (isNaN(amount) || amount <= 0) {
-          console.log(
-            chalk.red("Invalid amount. Please provide a positive number.")
-          );
-          return;
-        }
-
-        console.log(chalk.blue("\nCreating token transfer proposal:"));
-        console.log(`Name: ${options.name}`);
-        console.log(`Description: ${options.description}`);
-        console.log(`Token mint: ${tokenMint.toBase58()}`);
-        console.log(`Amount: ${amount} tokens`);
-        console.log(`Recipient: ${recipientAddress.toBase58()}`);
-
-        // Create transfer instructions
-        const transferInstructions =
-          await ProposalService.getTokenTransferInstruction(
-            connection,
-            realmAddress,
-            tokenMint,
-            amount,
-            recipientAddress
-          );
-
-        // Create proposal
-        console.log(chalk.blue("\nSubmitting proposal..."));
-        const proposalAddress = await ProposalService.createProposal(
-          connection,
-          keypair,
-          realmAddress,
-          options.name,
-          options.description,
-          transferInstructions
-        );
 
         console.log(chalk.green(`\n✅ Proposal created successfully!`));
         console.log(
           chalk.green(`Proposal address: ${proposalAddress.toBase58()}`)
         );
         console.log(chalk.blue("\nNext steps:"));
-        console.log("1. Have members vote on the proposal");
+        console.log(`1. Have members vote on the proposal:`);
         console.log(
-          "2. After the voting period, execute the proposal if approved"
+          `   proposal vote --proposal ${proposalAddress.toBase58()}`
+        );
+        console.log(`2. Execute the proposal when approved:`);
+        console.log(
+          `   proposal execute --proposal ${proposalAddress.toBase58()}`
         );
       } catch (error) {
         console.error(chalk.red("Failed to create proposal:"), error);
@@ -430,21 +387,12 @@ Examples:
       }
     });
 
-  // Add multisig-transfer command for transferring from Squads multisig
+  // Add new list command for proposals
   proposalCommand
-    .command("multisig-transfer")
-    .description(
-      "Create a unified proposal that transfers assets from the multisig vault and automatically synchronizes voting between the DAO and multisig"
-    )
-    .option("-n, --name <string>", "Name of the proposal", "Multisig Transfer")
-    .option(
-      "-d, --description <string>",
-      "Description of the proposal",
-      "Transfer assets from Squads multisig"
-    )
-    .option("-a, --amount <number>", "Amount of SOL to transfer", "0.1")
-    .option("-m, --mint <string>", "Token mint address (for token transfers)")
-    .option("-r, --recipient <string>", "Recipient wallet address")
+    .command("list")
+    .description("List all proposals for the current DAO")
+    .option("--all", "Show all proposals including completed ones", false)
+    .option("--limit <number>", "Limit the number of proposals shown", "10")
     .action(async (options) => {
       try {
         // Load wallet and connection
@@ -458,168 +406,125 @@ Examples:
 
         // Check config
         const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm || !config.dao?.activeMultisig) {
+        if (!config.dao?.activeRealm) {
           console.log(
             chalk.yellow(
-              'No integrated DAO configured. Use "dao init --integrated" to create one.'
+              'No DAO configured. Use "dao use <ADDRESS>" to select one.'
             )
           );
           return;
         }
 
         const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
         const realmAddress = new PublicKey(config.dao.activeRealm);
 
-        // Find the multisig associated with this realm
-        const multisigAddress =
-          MultisigService.getMultisigForRealm(realmAddress);
+        // Get realm info
+        const realmInfo = await GovernanceService.getRealmInfo(
+          connection,
+          realmAddress
+        );
 
-        // Parse recipient
-        let recipientAddress: PublicKey;
-        if (options.recipient) {
-          try {
-            recipientAddress = new PublicKey(options.recipient);
-          } catch (e) {
-            console.log(chalk.red("Invalid recipient address."));
-            return;
-          }
-        } else {
-          // Use own address if no recipient provided
-          recipientAddress = keypair.publicKey;
-          console.log(
-            chalk.yellow(
-              `No recipient specified. Using your address: ${recipientAddress.toBase58()}`
-            )
-          );
-        }
+        console.log(
+          chalk.blue(`\nFetching proposals for DAO: ${realmInfo.name}`)
+        );
 
-        // Parse amount
-        const amount = parseFloat(options.amount);
-        if (isNaN(amount) || amount <= 0) {
-          console.log(
-            chalk.red("Invalid amount. Please provide a positive number.")
-          );
-          return;
-        }
-
-        // Check multisig vault balance
-        const [vaultPda] = multisig.getVaultPda({
-          multisigPda: multisigAddress,
-          index: 0,
-        });
-        const vaultBalance = await connection.getBalance(vaultPda);
-
-        if (vaultBalance < amount * LAMPORTS_PER_SOL) {
-          console.log(
-            chalk.yellow(
-              `\n⚠️ Warning: Vault doesn't have enough SOL to execute this transfer.`
-            )
-          );
-          console.log(
-            chalk.yellow(
-              `Vault balance: ${
-                vaultBalance / LAMPORTS_PER_SOL
-              } SOL, transfer amount: ${amount} SOL`
-            )
-          );
-          console.log(
-            chalk.yellow(
-              `Use 'proposal fund --target multisig' to fund the vault first.`
-            )
-          );
-
-          // Prompt to continue
-          const readline = require("readline").createInterface({
-            input: process.stdin,
-            output: process.stdout,
-          });
-
-          const response = await new Promise((resolve) => {
-            readline.question(
-              "Continue creating the proposal anyway? (y/n): ",
-              (answer: string) => {
-                readline.close();
-                resolve(answer.toLowerCase());
-              }
-            );
-          });
-
-          if (response !== "y" && response !== "yes") {
-            console.log("Operation canceled.");
-            return;
-          }
-        }
-
-        console.log(chalk.blue("\nCreating transfer proposal:"));
-        console.log(`Name: ${options.name}`);
-        console.log(`Description: ${options.description}`);
-        console.log(`Amount: ${amount} SOL`);
-        console.log(`Recipient: ${recipientAddress.toBase58()}`);
-
-        // Create transfer instructions
-        let instructions: TransactionInstruction[];
-
-        if (options.mint) {
-          // Token transfer
-          const tokenMint = new PublicKey(options.mint);
-          console.log(`Token mint: ${tokenMint.toBase58()}`);
-
-          instructions =
-            await ProposalService.getSquadsMultisigTokenTransferInstruction(
-              connection,
-              multisigAddress,
-              tokenMint,
-              amount,
-              recipientAddress
-            );
-        } else {
-          // SOL transfer
-          instructions = [
-            await ProposalService.getSquadsMultisigSolTransferInstruction(
-              connection,
-              multisigAddress,
-              amount,
-              recipientAddress
-            ),
-          ];
-        }
-
-        // Create integrated proposal
-        console.log(chalk.blue("\nSubmitting integrated proposal..."));
-        const proposalAddress =
-          await ProposalService.createIntegratedAssetTransferProposal(
+        try {
+          // Use the new method in GovernanceService to fetch proposals for this realm
+          const { proposals } = await GovernanceService.getProposalsForRealm(
             connection,
-            keypair,
-            realmAddress,
-            options.name,
-            options.description,
-            instructions
+            realmAddress
           );
 
-        console.log(
-          chalk.green(`\n✅ Integrated proposal created successfully!`)
-        );
-        console.log(
-          chalk.green(`Proposal address: ${proposalAddress.toBase58()}`)
-        );
-        console.log(chalk.blue("\nNext steps:"));
-        console.log("1. Vote on the proposal with:");
-        console.log(
-          `   proposal vote --proposal ${proposalAddress.toBase58()}`
-        );
-        console.log("2. After approval, execute the proposal with:");
-        console.log(
-          `   proposal execute --proposal ${proposalAddress.toBase58()}`
-        );
-        console.log(
-          "\nNote: The multisig transaction will be created when the DAO proposal executes"
-        );
-        console.log(
-          "      and will be automatically approved and executed when threshold is met."
-        );
+          if (proposals.length === 0) {
+            console.log(chalk.yellow("No proposals found for this DAO"));
+            return;
+          }
+
+          // Filter proposals if --all is not specified
+          const limit = parseInt(options.limit) || 10;
+          const filteredProposals = options.all
+            ? proposals
+            : proposals.filter(
+                (p) =>
+                  p.state !== "Completed" &&
+                  p.state !== "Cancelled" &&
+                  p.state !== "Defeated"
+              );
+
+          // Limit the number of proposals shown
+          const limitedProposals = filteredProposals.slice(0, limit);
+
+          console.log(
+            chalk.green(
+              `\nFound ${
+                filteredProposals.length
+              } proposals (showing ${Math.min(
+                limit,
+                filteredProposals.length
+              )}):`
+            )
+          );
+
+          console.log(chalk.bold("\nID | STATE | TITLE | ADDRESS"));
+          console.log(chalk.bold("--------------------------------------"));
+
+          // Show each proposal
+          limitedProposals.forEach((proposal, index) => {
+            const stateColor = getStateColor(proposal.state);
+            console.log(
+              `${index + 1}. ${stateColor(proposal.state)} | ${chalk.cyan(
+                proposal.name
+              )} | ${proposal.publicKey.toBase58()}`
+            );
+          });
+
+          console.log(
+            chalk.yellow(
+              "\nUse 'proposal vote --proposal <ADDRESS>' to vote on a proposal"
+            )
+          );
+          console.log(
+            chalk.yellow(
+              "Use 'proposal execute --proposal <ADDRESS>' to execute an approved proposal"
+            )
+          );
+
+          if (options.all === false && filteredProposals.length > limit) {
+            console.log(
+              chalk.blue(
+                `\nShowing ${limit} of ${filteredProposals.length} proposals. Use --all to show all proposals.`
+              )
+            );
+          }
+        } catch (error) {
+          console.error(chalk.red("Failed to fetch proposals:"), error);
+        }
       } catch (error) {
-        console.error(chalk.red("Failed to create proposal:"), error);
+        console.error(chalk.red("Failed to list proposals:"), error);
       }
     });
+}
+
+// Helper function to color code proposal states
+function getStateColor(state: string) {
+  switch (state) {
+    case "Draft":
+      return chalk.gray;
+    case "SigningOff":
+      return chalk.blue;
+    case "Voting":
+      return chalk.yellow;
+    case "Succeeded":
+      return chalk.green;
+    case "Executing":
+      return chalk.magenta;
+    case "Completed":
+      return chalk.green;
+    case "Cancelled":
+      return chalk.red;
+    case "Defeated":
+      return chalk.red;
+    default:
+      return chalk.white;
+  }
 }

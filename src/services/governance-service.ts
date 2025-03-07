@@ -34,6 +34,127 @@ export class GovernanceService {
     return MultisigService.executeInstructions(connection, payer, instructions);
   }
 
+  /**
+   * Checks if a realm has an associated multisig (is integrated)
+   * @param connection Solana connection
+   * @param realmAddress The realm address to check
+   * @returns Promise<boolean> True if the realm has an associated multisig
+   */
+  static async isIntegratedDao(
+    connection: Connection,
+    realmAddress: PublicKey
+  ): Promise<boolean> {
+    try {
+      // Get the expected multisig address for this realm
+      const multisigAddress = MultisigService.getMultisigForRealm(realmAddress);
+
+      // Try to fetch the multisig account to see if it exists
+      const multisigAccountInfo = await connection.getAccountInfo(
+        multisigAddress
+      );
+
+      // If the account exists, this is an integrated DAO
+      return multisigAccountInfo !== null;
+    } catch (error) {
+      console.error("Error checking if DAO is integrated:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Gets information about a realm including whether it's integrated
+   * @param connection Solana connection
+   * @param realmAddress The realm address
+   */
+  static async getRealmInfo(
+    connection: Connection,
+    realmAddress: PublicKey
+  ): Promise<{
+    name: string;
+    isIntegrated: boolean;
+    governanceAddress: PublicKey;
+    treasuryAddress: PublicKey;
+    multisigAddress: PublicKey | undefined;
+    vaultAddress: PublicKey | undefined;
+  }> {
+    try {
+      const splGovernance = new SplGovernance(connection, this.programId);
+
+      // Get the realm info
+      const realmInfo = await splGovernance.getRealmByPubkey(realmAddress);
+
+      // Get the governance account for the realm
+      const governanceId = splGovernance.pda.governanceAccount({
+        realmAccount: realmAddress,
+        seed: realmAddress,
+      }).publicKey;
+
+      // Get the treasury account
+      const treasuryAddress = splGovernance.pda.nativeTreasuryAccount({
+        governanceAccount: governanceId,
+      }).publicKey;
+
+      // Check if it's an integrated DAO
+      const isIntegrated = await this.isIntegratedDao(connection, realmAddress);
+
+      // If integrated, get multisig and vault addresses
+      let multisigAddress, vaultAddress;
+      if (isIntegrated) {
+        multisigAddress = MultisigService.getMultisigForRealm(realmAddress);
+        vaultAddress = MultisigService.getMultisigVaultPda(multisigAddress);
+      }
+
+      return {
+        name: realmInfo.name,
+        isIntegrated,
+        governanceAddress: governanceId,
+        treasuryAddress,
+        multisigAddress: isIntegrated ? multisigAddress : undefined,
+        vaultAddress: isIntegrated ? vaultAddress : undefined,
+      };
+    } catch (error) {
+      console.error("Error getting realm info:", error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets all proposals for a specific governance/realm
+   */
+  static async getProposalsForRealm(
+    connection: Connection,
+    realmAddress: PublicKey
+  ): Promise<{
+    proposals: any[];
+    governanceId: PublicKey;
+  }> {
+    try {
+      const splGovernance = new SplGovernance(connection, this.programId);
+
+      // Get the governance account for the realm
+      const governanceId = splGovernance.pda.governanceAccount({
+        realmAccount: realmAddress,
+        seed: realmAddress,
+      }).publicKey;
+
+      // Get all proposals
+      const allProposals = await splGovernance.getAllProposals();
+
+      // Filter proposals for this specific governance
+      const filteredProposals = allProposals.filter((proposal) =>
+        proposal.governance.equals(governanceId)
+      );
+
+      return {
+        proposals: filteredProposals,
+        governanceId,
+      };
+    } catch (error) {
+      console.error("Error getting proposals for realm:", error);
+      throw error;
+    }
+  }
+
   static async initializeDAO(
     connection: Connection,
     keypair: Keypair,

@@ -7,7 +7,6 @@ export interface WalletConfig {
 
 export interface DaoConfig {
   activeRealm?: string;
-  activeMultisig?: string;
   governanceAddress?: string;
   treasuryAddress?: string;
   cluster: Cluster;
