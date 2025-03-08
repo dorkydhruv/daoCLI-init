@@ -17,7 +17,7 @@ The project includes automated tests that verify both standard DAO and integrate
 # Run integrated DAO tests
 yarn test:integrated
 
-# Run standard DAO tests 
+# Run standard DAO tests
 yarn test:standard
 
 # Run all tests
@@ -25,6 +25,7 @@ yarn test
 ```
 
 The tests perform the following validations:
+
 - Creating a DAO (either standard or integrated with Squads multisig)
 - Funding the treasury/vault
 - Creating proposals
@@ -35,6 +36,7 @@ The tests perform the following validations:
 ### Test Structure
 
 The test files are designed for CI/CD environments and don't rely on stdout parsing. Instead, they:
+
 - Create and manage keypairs programmatically
 - Verify on-chain account states
 - Use retry mechanisms to handle blockchain confirmation times
