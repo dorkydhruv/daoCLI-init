@@ -35,9 +35,6 @@ jobs:
 
       - name: Setup Solana Localnet and run tests
         run: |
-          # Build the contract
-          anchor build --provider.cluster localnet
-
           # Create default keypair first
           mkdir -p /home/runner/.config/solana
           solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json

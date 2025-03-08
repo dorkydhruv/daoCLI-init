@@ -7,12 +7,9 @@ import {
   Keypair,
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import * as multisig from "@sqds/multisig";
 import path from "path";
 import fs from "fs-extra";
 
-// We'll use the ConnectionService to get a connection but we'll avoid using other service methods
-import { ConnectionService } from "../src/services/connection-service";
 import { DEFAULT_CLUSTER, ENDPOINT_MAP } from "../src/utils/constants";
 
 describe("Integrated DAO Workflow Test", function () {
