@@ -84,7 +84,6 @@ async function runIntegratedTest() {
       threshold,
       members,
       `${daoName}-multisig`,
-      governanceAddress,
       realmAddress // Now using realmAddress instead of treasuryAddress
     );
 
