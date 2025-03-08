@@ -10,11 +10,17 @@ import {
 } from "@solana/web3.js";
 import BN from "bn.js";
 import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
-import { GovernanceConfig, SplGovernance } from "governance-idl-sdk";
+import {
+  GovernanceConfig,
+  ProposalV2,
+  SplGovernance,
+} from "governance-idl-sdk";
 import {
   createMint,
   AuthorityType,
   createSetAuthorityInstruction,
+  mintTo,
+  getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
 import { MultisigService } from "./multisig-service";
 
@@ -125,7 +131,7 @@ export class GovernanceService {
     connection: Connection,
     realmAddress: PublicKey
   ): Promise<{
-    proposals: any[];
+    proposals: ProposalV2[];
     governanceId: PublicKey;
   }> {
     try {
@@ -178,7 +184,7 @@ export class GovernanceService {
       keypair,
       keypair.publicKey,
       null,
-      6
+      0
     );
     const councilMint = await createMint(
       connection,
@@ -250,6 +256,25 @@ export class GovernanceService {
           keypair.publicKey,
           1
         );
+
+      // mint 1 community token to the member for query
+      await mintTo(
+        connection,
+        keypair,
+        communityMint,
+        (
+          await getOrCreateAssociatedTokenAccount(
+            connection,
+            keypair,
+            communityMint,
+            member,
+            true
+          )
+        ).address,
+        keypair.publicKey,
+        1,
+        []
+      );
 
       // Member signatures not required for non-payer members
       if (!member.equals(keypair.publicKey)) {

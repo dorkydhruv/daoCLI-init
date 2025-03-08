@@ -5,8 +5,6 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL,
   TransactionInstruction,
-  Transaction,
-  TransactionMessage,
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
@@ -749,104 +747,121 @@ export class ProposalService {
       proposal: proposalAddress,
       optionIndex: 0,
       index: 0,
+    });
+
+    // Get transaction details
+    const proposalTx = await splGovernance.getProposalTransactionByPubkey(
+      proposalTxPda.publicKey
+    );
+
+    // Get the native treasury to fix any isSigner flags
+    const nativeTreasuryId = splGovernance.pda.nativeTreasuryAccount({
+      governanceAccount: governanceId,
     }).publicKey;
 
-    try {
-      // Get transaction details
-      const proposalTx = await splGovernance.getProposalTransactionByPubkey(
-        proposalTxPda
-      );
+    // Reconstruct accounts for execution
+    const accountsForIx = proposalTx.instructions[0].accounts;
 
-      // Guard against missing instructions
-      if (!proposalTx?.instructions || !proposalTx.instructions[0]) {
-        console.log("No instructions found in proposal transaction. This might be an integrated proposal.");
-        
-        // If this is an integrated proposal with multisig, try to execute the multisig transaction
-        if (multisigInfo.multisigAddress && multisigInfo.transactionIndex) {
-          console.log(`Attempting to execute multisig transaction directly`);
-          const multisigSig = await MultisigService.executeMultisigTransaction(
-            connection,
-            keypair,
-            multisigInfo.multisigAddress,
-            multisigInfo.transactionIndex
-          );
-          return multisigSig;
-        }
-        
-        throw new Error("No instructions found in proposal and not a multisig proposal");
+    // Add program ID as first account
+    accountsForIx.unshift({
+      pubkey: proposalTx.instructions[0].programId,
+      isSigner: false,
+      isWritable: false,
+    });
+
+    // Fix signer flags
+    accountsForIx.forEach((account) => {
+      if (account.pubkey.equals(nativeTreasuryId)) {
+        account.isSigner = false;
       }
 
-      // Get the native treasury to fix any isSigner flags
-      const nativeTreasuryId = splGovernance.pda.nativeTreasuryAccount({
-        governanceAccount: governanceId,
-      }).publicKey;
+      // Also the keypair itself should be the only true signer
+      if (!account.pubkey.equals(keypair.publicKey) && account.isSigner) {
+        account.isSigner = false;
+      }
+    });
 
-      // Reconstruct accounts for execution
-      const accountsForIx = proposalTx.instructions[0].accounts;
+    // Build execution instruction
+    const executeIx = await splGovernance.executeTransactionInstruction(
+      governanceId,
+      proposalAddress,
+      proposalTxPda.publicKey,
+      accountsForIx
+    );
 
-      // Add program ID as first account
-      accountsForIx.unshift({
-        pubkey: proposalTx.instructions[0].programId,
-        isSigner: false,
-        isWritable: false,
-      });
+    // Execute instructions using MultisigService.executeInstructions
+    const signature = await MultisigService.executeInstructions(
+      connection,
+      keypair,
+      [executeIx]
+    );
 
-      // Fix signer flags
-      accountsForIx.forEach((account) => {
-        if (account.pubkey.equals(nativeTreasuryId)) {
-          account.isSigner = false;
-        }
+    console.log(`DAO proposal executed with signature: ${signature}`);
+    
+    // If this has created a multisig transaction, try to automatically approve and execute
+    if (multisigInfo.multisigAddress && multisigInfo.transactionIndex) {
+      try {
+        // Add a delay to ensure the vault transaction is fully processed
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
-        // Also the keypair itself should be the only true signer
-        if (!account.pubkey.equals(keypair.publicKey) && account.isSigner) {
-          account.isSigner = false;
-        }
-      });
+        console.log(
+          `\nThis proposal has created a Squads multisig transaction!`
+        );
 
-      // Build execution instruction
-      const executeIx = await splGovernance.executeTransactionInstruction(
-        governanceId,
-        proposalAddress,
-        proposalTxPda,
-        accountsForIx
-      );
+        // Get proposal status using MultisigService
+        const proposalStatus = await MultisigService.getProposalStatus(
+          connection,
+          multisigInfo.multisigAddress,
+          multisigInfo.transactionIndex
+        );
 
-      // Execute instructions using MultisigService.executeInstructions
-      const signature = await MultisigService.executeInstructions(
-        connection,
-        keypair,
-        [executeIx]
-      );
+        console.log(
+          `Automatically approving transaction #${multisigInfo.transactionIndex}...`
+        );
 
-      console.log(`DAO proposal executed with signature: ${signature}`);
+        // Use the approve and execute functionality from MultisigService
+        const {
+          approved,
+          executed,
+          signature: multisigSig,
+        } = await MultisigService.approveAndExecuteIfReady(
+          connection,
+          keypair,
+          multisigInfo.multisigAddress,
+          multisigInfo.transactionIndex
+        );
 
-      // Rest of the function remains unchanged
-      // ...existing code...
-    } catch (error) {
-      console.error("Error executing proposal transaction:", error);
-      
-      // If this is an integrated proposal with multisig, try to execute the multisig transaction
-      if (multisigInfo.multisigAddress && multisigInfo.transactionIndex) {
-        console.log(`Proposal execution failed, attempting to execute multisig transaction directly`);
-        try {
-          const multisigSig = await MultisigService.executeMultisigTransaction(
-            connection,
-            keypair,
-            multisigInfo.multisigAddress,
-            multisigInfo.transactionIndex
+        if (approved && executed) {
+          console.log(
+            `✅ Multisig transaction automatically approved and executed with signature: ${multisigSig}`
           );
-          return multisigSig;
-        } catch (multisigError) {
-          console.error("Failed to execute multisig transaction:", multisigError);
-          throw error; // Re-throw the original error
+        } else if (approved) {
+          console.log(
+            `✅ Multisig transaction approved, but more approvals are needed.`
+          );
+          console.log(
+            `Current approvals: ${
+              proposalStatus.approvalCount + 1
+            }, threshold: ${proposalStatus.threshold}`
+          );
+          console.log(`You can manually execute later with:`);
+          console.log(
+            `dao multisig execute --multisig ${multisigInfo.multisigAddress.toString()} --index ${
+              multisigInfo.transactionIndex
+            }`
+          );
+        } else {
+          console.log(`❌ Failed to approve multisig transaction.`);
         }
-      } else {
-        throw error;
+      } catch (error) {
+        console.error(`Failed to process multisig transaction:`, error);
+        console.log(
+          `Your DAO proposal was executed successfully, but there was an issue with the multisig transaction.`
+        );
       }
     }
-
-    // If we reach here, something went wrong
-    throw new Error("Failed to execute proposal");
+    
+    return signature;
   }
 
   /**

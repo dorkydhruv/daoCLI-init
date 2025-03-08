@@ -477,15 +477,17 @@ export function registerDaoCommands(program: Command): void {
 
         const zeroDecimalTokens = tokenAccounts.value.filter((account) => {
           const tokenAmount = account.account.data.parsed.info.tokenAmount;
-          return tokenAmount.decimals === 0 && tokenAmount.uiAmount > 0;
+          return tokenAmount.uiAmount > 0;
         });
 
         // Get token mints
-        const councilMints = zeroDecimalTokens.map(
+        const communityMints = zeroDecimalTokens.map(
           (token) => token.account.data.parsed.info.mint
         );
 
-        console.log(`Found ${councilMints.length} potential council token(s)`);
+        console.log(
+          `Found ${communityMints.length} potential community token(s)`
+        );
 
         const splGovernance = new SplGovernance(
           connection,
@@ -505,7 +507,7 @@ export function registerDaoCommands(program: Command): void {
         const userRealms = allRealms.filter(
           (realm) =>
             realm.config.councilMint &&
-            councilMints.includes(realm.config.councilMint.toBase58())
+            communityMints.includes(realm.communityMint.toBase58())
         );
 
         if (userRealms.length === 0) {

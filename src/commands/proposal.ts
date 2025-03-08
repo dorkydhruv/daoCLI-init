@@ -10,6 +10,7 @@ import {
 } from "@solana/web3.js";
 import { ProposalService } from "../services/proposal-service";
 import { GovernanceService } from "../services/governance-service";
+import { ProposalV2 } from "governance-idl-sdk";
 
 export function registerProposalCommands(program: Command): void {
   const proposalCommand = program
@@ -446,9 +447,7 @@ Examples:
             ? proposals
             : proposals.filter(
                 (p) =>
-                  p.state !== "Completed" &&
-                  p.state !== "Cancelled" &&
-                  p.state !== "Defeated"
+                  !p.state.completed && !p.state.cancelled && !p.state.defeated
               );
 
           // Limit the number of proposals shown
@@ -469,10 +468,10 @@ Examples:
           console.log(chalk.bold("--------------------------------------"));
 
           // Show each proposal
-          limitedProposals.forEach((proposal, index) => {
-            const stateColor = getStateColor(proposal.state);
+          limitedProposals.forEach((proposal: ProposalV2, index) => {
+            const { chalk: stateColor, text } = getStateColor(proposal);
             console.log(
-              `${index + 1}. ${stateColor(proposal.state)} | ${chalk.cyan(
+              `${index + 1}. ${stateColor(text)} | ${chalk.cyan(
                 proposal.name
               )} | ${proposal.publicKey.toBase58()}`
             );
@@ -506,25 +505,33 @@ Examples:
 }
 
 // Helper function to color code proposal states
-function getStateColor(state: string) {
-  switch (state) {
-    case "Draft":
-      return chalk.gray;
-    case "SigningOff":
-      return chalk.blue;
-    case "Voting":
-      return chalk.yellow;
-    case "Succeeded":
-      return chalk.green;
-    case "Executing":
-      return chalk.magenta;
-    case "Completed":
-      return chalk.green;
-    case "Cancelled":
-      return chalk.red;
-    case "Defeated":
-      return chalk.red;
-    default:
-      return chalk.white;
+function getStateColor(state: ProposalV2): {
+  chalk: chalk.Chalk;
+  text: string;
+} {
+  if (state.state.draft) {
+    return { chalk: chalk.gray, text: "Draft" };
   }
+  if (state.state.signingOff) {
+    return { chalk: chalk.yellow, text: "Signing Off" };
+  }
+  if (state.state.voting) {
+    return { chalk: chalk.blue, text: "Voting" };
+  }
+  if (state.state.succeeded) {
+    return { chalk: chalk.green, text: "Succeeded" };
+  }
+  if (state.state.executing) {
+    return { chalk: chalk.green, text: "Executing" };
+  }
+  if (state.state.completed) {
+    return { chalk: chalk.green, text: "Completed" };
+  }
+  if (state.state.cancelled) {
+    return { chalk: chalk.red, text: "Cancelled" };
+  }
+  if (state.state.defeated) {
+    return { chalk: chalk.red, text: "Defeated" };
+  }
+  return { chalk: chalk.white, text: "Unknown" };
 }
