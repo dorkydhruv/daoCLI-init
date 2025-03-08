@@ -6,10 +6,12 @@
   "author": "",
   "license": "MIT",
   "scripts": {
-    "dev": "ts-node src/index.ts",
+    "dev": "ts-node src/index.ts --no-deprecation",
     "start": "node dist/index.js",
     "build": "tsc",
-    "test": "mocha -r ts-node/register tests/**/*.test.ts"
+    "test": "mocha -r ts-node/register tests/**/*.test.ts",
+    "test:integrated": "mocha -r ts-node/register tests/integrated-dao-test.ts",
+    "test:standard": "mocha -r ts-node/register tests/standard-dao-test.ts"
   },
   "dependencies": {
     "@solana/spl-token": "^0.4.12",
@@ -36,6 +38,6 @@
     "mocha": "^10.2.0"
   },
   "bin": {
-    "dao": "dist/index.js"
+    "daocli": "dist/index.js"
   }
 }

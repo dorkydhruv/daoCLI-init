@@ -9,6 +9,37 @@ This document provides a step-by-step guide for testing the DAO CLI tool, which 
 - Solana CLI tools (for wallet management)
 - A Solana wallet with SOL for transaction fees
 
+## Automated Tests
+
+The project includes automated tests that verify both standard DAO and integrated DAO with Squads multisig workflows. These tests are designed to work in GitHub workflows, verifying on-chain state rather than CLI output.
+
+```bash
+# Run integrated DAO tests
+yarn test:integrated
+
+# Run standard DAO tests 
+yarn test:standard
+
+# Run all tests
+yarn test
+```
+
+The tests perform the following validations:
+- Creating a DAO (either standard or integrated with Squads multisig)
+- Funding the treasury/vault
+- Creating proposals
+- Voting on proposals
+- Executing proposals
+- Verifying transfers occurred on-chain
+
+### Test Structure
+
+The test files are designed for CI/CD environments and don't rely on stdout parsing. Instead, they:
+- Create and manage keypairs programmatically
+- Verify on-chain account states
+- Use retry mechanisms to handle blockchain confirmation times
+- Automatically fund test wallets with airdrops
+
 ## Testing Commands
 
 ### 1. DAO Management

@@ -31,7 +31,7 @@ export function registerDaoCommands(program: Command): void {
       "Comma-separated list of member public keys (including yours)"
     )
     .option(
-      "--integrated",
+      "--integrated <boolean>",
       "Create both SPL Governance and Squads Multisig in an integrated setup",
       true
     )
@@ -91,7 +91,11 @@ export function registerDaoCommands(program: Command): void {
         console.log(chalk.blue("\nCreating DAO..."));
         const threshold = parseInt(options.threshold);
 
-        if (options.integrated) {
+        const integrated =
+          (typeof options.integrated === "string"
+            ? options.integrated.toLowerCase() === "true"
+            : options.integrated) || false;
+        if (integrated) {
           console.log(
             chalk.blue("Using integrated mode with Squads Multisig...")
           );

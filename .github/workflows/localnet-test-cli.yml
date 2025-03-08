@@ -53,7 +53,8 @@ jobs:
           npm run build
 
           # Run the CLI tests
-          npm run test
+          npm run test:standard
+          npm run test:integrated
 
           # Stop the localnet
           kill $VALIDATOR_PID
