@@ -1,8 +1,8 @@
 {
-  "name": "daoCLI-init",
+  "name": "daocli",
   "version": "1.0.0",
   "main": "index.js",
-  "repository": "https://github.com/dorkydhruv/daoCLI-init.git",
+  "repository": "https://github.com/DaoCLI/daoCLI-init.git",
   "author": "",
   "license": "MIT",
   "scripts": {

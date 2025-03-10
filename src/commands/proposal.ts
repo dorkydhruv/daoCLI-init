@@ -27,11 +27,11 @@ Integrated Workflow:
   3. Execute the proposal (automatically executes related multisig transaction if threshold is met)
 
 Examples:
-  $ dao init --name "My DAO" --threshold 2 --members "pub1,pub2,pub3"
-  $ dao fund --amount 0.2
-  $ proposal transfer --amount 0.05 --recipient <ADDRESS> --mint <MINT_ADDRESS>
-  $ proposal vote --proposal <ADDRESS>
-  $ proposal execute --proposal <ADDRESS>
+  $ daocli dao init --name "My DAO" --threshold 2 --members "pub1,pub2,pub3"
+  $ daocli dao fund --amount 0.2
+  $ daocli proposal transfer --amount 0.05 --recipient <ADDRESS> --mint <MINT_ADDRESS>
+  $ daocli proposal vote --proposal <ADDRESS>
+  $ daocli proposal execute --proposal <ADDRESS>
 `
     );
 

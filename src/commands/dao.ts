@@ -90,6 +90,14 @@ export function registerDaoCommands(program: Command): void {
         // Initialize the entire DAO in one go
         console.log(chalk.blue("\nCreating DAO..."));
         const threshold = parseInt(options.threshold);
+        if (members.length < threshold) {
+          console.log(
+            chalk.red(
+              `Threshold should be less than or equal to number of members`
+            )
+          );
+          return;
+        }
 
         const integrated =
           (typeof options.integrated === "string"
@@ -149,15 +157,6 @@ export function registerDaoCommands(program: Command): void {
             index: 0,
           });
           console.log(chalk.green(`Squads Vault: ${vaultPda.toBase58()}`));
-
-          console.log(chalk.blue("\nNext steps:"));
-          console.log("1. Fund your treasury and multisig vault:");
-          console.log(`   proposal fund --target treasury --amount 0.1`);
-          console.log(`   proposal fund --target multisig --amount 0.1`);
-          console.log("2. Create and vote on proposals:");
-          console.log(
-            `   proposal multisig-transfer --amount 0.01 --recipient [ADDRESS]`
-          );
         } else {
           // Standard DAO creation (existing code)
           const result = await GovernanceService.initializeDAO(
@@ -186,9 +185,12 @@ export function registerDaoCommands(program: Command): void {
             chalk.green(`Council Token: ${result.councilMint.toBase58()}`)
           );
         }
-
         console.log(chalk.blue("\nNext steps:"));
-        console.log("1. Fund your treasury");
+        console.log("1. Fund your vault:");
+        console.log(` $ daocli dao fund --amount 0.1`);
+        console.log(` $ daocli dao fund-token --mint <mint> --amount <amount>`);
+        console.log("2. Create and vote on proposals:");
+        console.log(`   proposal transfer --amount 0.01 --recipient <address>`);
       } catch (error) {
         console.error(chalk.red("Failed to initialize DAO:"), error);
       }
