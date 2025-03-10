@@ -1,602 +1,206 @@
-# daoCLI - the value of AI Agents is only made possible by DAOs
+# DAO CLI Tool - Testing Guide
 
-## Multi-Chain Programmatic & Embedded DAOs for AI Agents and Developers
-### It's like Terraform...but for DAOs!!!
+This document provides a step-by-step guide for testing the DAO CLI tool, which allows you to create and manage DAOs with integrated Squads multisig support on Solana.
 
-daoCLI is a toolkit built for AI agents to create and manage programmatic & embedded DAOs across multiple blockchains. Currently supporting Solana and StarkNet, daoCLI provides a unified interface for cross-chain DAO operations. Traditional DAOs require human interfaces, separate websites, and manual governance - making them unsuitable for AI-driven operations. daoCLI solves this by providing a CLI-first, programmatic approach that enables AI agents to create, manage, and interact with DAOs directly through code.
+## Prerequisites
 
-**We are like Stripe...we are developer first. Because AI Agents are developer first**.
+- Node.js (v16+)
+- Yarn or npm
+- Solana CLI tools (for wallet management)
+- A Solana wallet with SOL for transaction fees
 
-## OpenAI & Sam Altman thinks exactly like us
-Don't believe me ? This is what OpenAI focuses on.
-* [https://openai.com/index/practices-for-governing-agentic-ai-systems/](https://openai.com/index/practices-for-governing-agentic-ai-systems/)
-* [https://openai.com/index/governance-of-superintelligence/](https://openai.com/index/governance-of-superintelligence/)
+## Automated Tests
 
-
-## DAO is everything - not the token
-
-<div align="center">
-  <table>
-    <tr>
-      <td align="center" width="50%">
-        <a href="https://github.com/user-attachments/assets/f0ca054a-12b9-407e-a1bb-b36a30361695">
-          <img src="https://github.com/user-attachments/assets/f0ca054a-12b9-407e-a1bb-b36a30361695" 
-               width="100%" 
-               alt="DAO image 1"
-               style="transition: transform 0.2s; display: inline-block;"
-               onmouseover="this.style.transform='scale(1.05)'"
-               onmouseout="this.style.transform='scale(1)'"/>
-        </a>
-      </td>
-      <td align="center" width="50%">
-        <a href="https://github.com/user-attachments/assets/fb63863a-05bb-4bfb-811e-89d37fe8e7b0">
-          <img src="https://github.com/user-attachments/assets/fb63863a-05bb-4bfb-811e-89d37fe8e7b0" 
-               width="100%" 
-               alt="DAO image 2"
-               style="transition: transform 0.2s; display: inline-block;"
-               onmouseover="this.style.transform='scale(1.05)'"
-               onmouseout="this.style.transform='scale(1)'"/>
-        </a>
-      </td>
-    </tr>
-    <tr>
-      <td align="center">
-        <a href="https://github.com/user-attachments/assets/20e724ca-c0d4-48c8-b8d2-a6c359d87cde">
-          <img src="https://github.com/user-attachments/assets/20e724ca-c0d4-48c8-b8d2-a6c359d87cde" 
-               width="100%" 
-               alt="DAO image 3"
-               style="transition: transform 0.2s; display: inline-block;"
-               onmouseover="this.style.transform='scale(1.05)'"
-               onmouseout="this.style.transform='scale(1)'"/>
-        </a>
-      </td>
-      <td align="center">
-        <a href="https://github.com/user-attachments/assets/ca674171-b71c-4374-ac99-9e3e9fbd699f">
-          <img src="https://github.com/user-attachments/assets/ca674171-b71c-4374-ac99-9e3e9fbd699f" 
-               width="100%" 
-               alt="DAO image 4"
-               style="transition: transform 0.2s; display: inline-block;"
-               onmouseover="this.style.transform='scale(1.05)'"
-               onmouseout="this.style.transform='scale(1)'"/>
-        </a>
-      </td>
-    </tr>
-    <tr>
-      <td align="center" colspan="2">
-        <a href="https://github.com/user-attachments/assets/d9527473-39c0-49c7-adfc-b19199c806b3">
-          <img src="https://github.com/user-attachments/assets/d9527473-39c0-49c7-adfc-b19199c806b3" 
-               width="50%" 
-               alt="DAO image 5"
-               style="transition: transform 0.2s; display: inline-block;"
-               onmouseover="this.style.transform='scale(1.05)'"
-               onmouseout="this.style.transform='scale(1)'"/>
-        </a>
-      </td>
-    </tr>
-  </table>
-</div>
-
-## Why daoCLI?
-For Developers | For Users | For Investors
----------------|-----------|---------------
-Multi-chain support from day one | Chain-agnostic interface | Cross-chain exposure
-CLI-first approach | Stay in your product ecosystem | Multi-chain liquidity
-Full automation support | Seamless token interactions | Real-time price discovery
-Git & CI/CD integration | Integrated trading interface | Transparent mechanics
-Chain-specific optimizations | No platform switching | Cross-chain arbitrage
-
-## 🤖 Why AI Agents Need daoCLI
-
-Traditional DAOs | daoCLI for AI
-----------------|---------------
-Single-chain limitation | Multi-chain orchestration
-Requires human interfaces | Pure programmatic interaction
-Manual governance through websites | Automated cross-chain governance
-Separate platforms & websites | Embedded directly in applications
-High operational overhead | Minimal computational overhead
-Chain-specific implementations | Unified API across chains
-
-
-
-## 🎯 Core Features for AI Agents
-
-### Multi-Chain Support
-- **Unified API**: Consistent interface across chains
-- **Chain Abstraction**: Chain-agnostic operations
-- **Cross-chain Management**: Manage DAOs across Solana and StarkNet
-- **Chain-specific Optimizations**: Leverage each chain's strengths
-
-### Programmatic Control
-- **API-First Design**: Every feature accessible through code
-- **Event-Driven Architecture**: React to cross-chain events
-- **Automated Decision Making**: Chain-agnostic governance
-- **Batch Operations**: Handle multiple DAOs efficiently
-
-### AI Integration Features
-- **Cross-chain Analytics**: Unified view across chains
-- **Chain Selection Logic**: AI-driven chain selection
-- **Multi-chain State Management**: Track DAO state across chains
-- **Cross-chain Event Subscriptions**: Real-time updates
-
-## 🚀 Quick Start
-
-### Installation
-```bash
-npm install -g daocli
-```
-
-### Basic Setup
-```bash
-# Initialize DAO on Solana
-daocli init --chain solana \
-  --target 1000 \
-  --min-price 0.1 \
-  --duration 30
-
-# Initialize DAO on StarkNet
-daocli init --chain starknet \
-  --target 1000 \
-  --min-price 0.1 \
-  --duration 30
-
-# Create pool on specific chain
-daocli create-pool --chain solana \
-  --native 100 \
-  --tokens 1000000
-
-# Stake LP tokens
-daocli stake --chain starknet \
-  --amount 1000
-```
-
-### Chain Configuration
-Create chain-specific config files:
-- `dao-config-solana.jsonnet` for Solana
-- `dao-config-starknet.jsonnet` for StarkNet
-
-Example configuration:
-```jsonnet
-{
-  // Common configuration
-  "name": "MyDAO",
-  "version": "1.0.0",
-
-  // Chain-specific configuration
-  "chain": {
-    // Solana specific
-    "solana": {
-      "rpcUrl": "https://api.mainnet-beta.solana.com",
-      "programId": "dao11111111111111111111111111111111111111"
-    },
-    // StarkNet specific
-    "starknet": {
-      "providerUrl": "https://alpha-mainnet.starknet.io",
-      "daoAddress": "0x123..."
-    }
-  }
-}
-```
-
-### Complete CLI Reference
+The project includes automated tests that verify both standard DAO and integrated DAO with Squads multisig workflows. These tests are designed to work in GitHub workflows, verifying on-chain state rather than CLI output.
 
 ```bash
-# Global Options
---chain <chain>            # Specify chain (solana/starknet)
+# Run integrated DAO tests
+yarn test:integrated
 
-# Basic DAO Operations
-daocli create-dao --chain <chain> --target 1000 --name "MyDAO"
-daocli setup-pool --chain <chain> --native 10 --tokens 1000000
-daocli deploy --chain <chain> --network mainnet
-daocli set-permissions --chain <chain> --address YOUR_ADDRESS
+# Run standard DAO tests
+yarn test:standard
 
-# AI Agent Operations
-daocli set-agent --chain <chain> --key YOUR_AI_KEY --permissions "TRADE,GOVERN"
-daocli configure-agent --chain <chain> --strategy ./strategy.json
-daocli monitor-agent --chain <chain> --metrics "performance,risk"
-
-# Cross-chain Operations
-daocli bridge-liquidity --from solana --to starknet --amount 1000
-daocli sync-state --chains "solana,starknet"
-daocli monitor-all-chains --metrics "tvl,volume"
-
-# Chain-specific Commands
-## Solana
-daocli solana:create-token --supply 1000000
-daocli solana:setup-amm --dex orca --fee-tier 0.3
-
-## StarkNet
-daocli starknet:deploy-dao --class-hash 0x123
-daocli starknet:setup-jediswap --pool-fee 0.3
+# Run all tests
+yarn test
 ```
 
-## 💡 Technical Architecture
+The tests perform the following validations:
 
-### Chain Support Matrix
-Feature | Solana | StarkNet
---------|---------|----------
-DAO Creation | ✅ | ✅
-AMM Integration | Orca, Raydium | JediSwap
-Staking | Native | Native
-Governance | SPL-Gov | Cairo Native
-Performance | High TPS | Layer 2 Scaling
+- Creating a DAO (either standard or integrated with Squads multisig)
+- Funding the treasury/vault
+- Creating proposals
+- Voting on proposals
+- Executing proposals
+- Verifying transfers occurred on-chain
 
-### Integration Points
-1. **Cross-chain Messaging**
-   - Wormhole integration
-   - State synchronization
-   - Asset bridges
+### Test Structure
 
-2. **Chain-specific Features**
-   - Solana Program Deployment
-   - StarkNet Contract Declaration
-   - Chain-optimal execution
+The test files are designed for CI/CD environments and don't rely on stdout parsing. Instead, they:
 
-### Core Components
-1. **AI Interface Layer**
-   - Event subscriptions
-   - State management
-   - Decision execution
-   - Performance monitoring
+- Create and manage keypairs programmatically
+- Verify on-chain account states
+- Use retry mechanisms to handle blockchain confirmation times
+- Automatically fund test wallets with airdrops
 
-2. **Smart Contracts**
-   - Programmatic governance
-   - Automated treasury
-   - Trading mechanics
-   - Risk management
+## Testing Commands
 
-3. **API Layer**
-   - RESTful endpoints
-   - WebSocket feeds
-   - State queries
-   - Batch operations
+### 1. DAO Management
 
-## 📊 AI Trading Integration
+#### Create a new DAO
 
-### Automated Markets
-- AI-driven liquidity provision
-- Dynamic fee adjustment
-- Risk-based position sizing
-- Multi-pool optimization
+```bash
+# Create an integrated DAO with SPL Governance and Squads Multisig
+yarn dev dao init --name "Test DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3"
 
-### Performance Metrics
-- Real-time price analysis
-- Volume predictions
-- Risk assessments
-- Portfolio analytics
-
-## 🛠 Implementation Example
-
-### AI Agent Integration
-```typescript
-import { DaoManager } from '@daocli/ai'
-
-async function setupAIManager() {
-  const manager = new DaoManager({
-    strategy: './ai_strategy.json',
-    riskParams: './risk_config.json',
-    autoRebalance: true
-  })
-
-  // Subscribe to events
-  manager.on('priceChange', async (data) => {
-    await manager.adjustStrategy(data)
-  })
-
-  // Execute trades
-  await manager.executeTradingStrategy()
-}
+# Create just a standard DAO without multisig
+yarn dev dao init --name "Standard DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3" --integrated false
 ```
 
-### Automated Governance
-```typescript
-import { Governance } from '@daocli/governance'
+#### View your DAOs
 
-async function setupGovernance() {
-  const governance = new Governance({
-    aiAgent: YOUR_AI_AGENT,
-    quorum: 100_000,
-    executionDelay: 0 // Instant for AI
-  })
+```bash
+# List all DAOs where you are a member
+yarn dev dao list
 
-  // Create and execute proposals
-  await governance.createProposal({
-    action: 'adjustFees',
-    params: { newFee: 0.3 }
-  })
-}
+# Switch to a specific DAO
+yarn dev dao use <REALM_ADDRESS>
+
+# Show details about the current active DAO
+yarn dev dao show
 ```
 
-## 🔒 Security
+#### Fund your DAO
 
-### AI-Specific Security
-- Rate limiting
-- Risk boundaries
-- Emergency shutdown
-- State validation
+```bash
+# Fund with SOL (automatically detects if it's an integrated DAO with multisig)
+yarn dev dao fund --amount 0.5
 
-### Smart Contract Security
-- Formal verification
-- Automated testing
-- Security bounties
-- Regular audits
+# Fund with tokens
+yarn dev dao fund-token --mint <TOKEN_MINT_ADDRESS> --amount 100
+```
 
+### 2. Proposal Management
 
-## 📈 For Investors
+#### Create Proposals
 
-### Investment Benefits
-- Direct exposure to DAO performance
-- Liquid secondary market
-- Real-time price discovery
-- Transparent mechanics
-- No lockup periods
+```bash
+# Create a SOL transfer proposal
+yarn dev proposal transfer --amount 0.1 --recipient <RECIPIENT_ADDRESS> --name "Pay Developer" --description "Payment for UI work"
 
-### Trading Features
-- Price charts and market depth
-- Portfolio tracking
-- Order history
-- Performance analytics
+# Create a token transfer proposal
+yarn dev proposal transfer --mint <TOKEN_MINT_ADDRESS> --amount 50 --recipient <RECIPIENT_ADDRESS>
+```
 
-## 🔒 Security
+#### Vote on Proposals
 
-### Smart Contract Security
-- Audited by leading firms
-- Open-source contracts
-- Bug bounty program
-- Regular security updates
+```bash
+# Vote to approve a proposal
+yarn dev proposal vote --proposal <PROPOSAL_ADDRESS>
 
-### Best Practices
-- Multi-sig treasury
-- Time-locked operations
-- Slippage protection
-- Emergency shutdown mechanisms
+# Vote to deny a proposal
+yarn dev proposal vote --proposal <PROPOSAL_ADDRESS> --deny
+```
 
+#### Execute Proposals
 
-## 📋 Roadmap
+```bash
+# Execute an approved proposal
+yarn dev proposal execute --proposal <PROPOSAL_ADDRESS>
+```
 
-### Phase 1 (Current)
-- [x] Core DAO functionality
-- [x] AMM implementation
-- [x] Basic trading interface
-- [x] CLI tools
+## Testing Workflow
 
-### Phase 2 (Q2 2024)
-- [ ] Advanced governance features
-- [ ] Multi-chain support
-- [ ] Enhanced analytics
-- [ ] Mobile SDK
+Here's a complete testing workflow to validate all major features:
 
-### Phase 3 (Q3 2024)
-- [ ] AI integration
-- [ ] Advanced trading features
-- [ ] Cross-chain operations
-- [ ] DAO templates
+1. **Initial setup**:
 
-# daoCLI (DCLI) Token Economics
-## Platform Token for the daoCLI Ecosystem
+   ```bash
+   yarn dev wallet import ~/.config/solana/dev-wallet.json
+   yarn dev wallet fund --amount 2
+   ```
 
-## Overview
-DCLI is the native utility and governance token for the daoCLI platform, designed to align incentives between developers, AI agents, and DAO creators while ensuring sustainable platform growth.
+2. **Create an integrated DAO**:
 
-## Token Details
-- **Name**: daoCLI CLI Token
-- **Symbol**: DCLI
-- **Blockchain**: Solana
-- **Token Standard**: SPL
-- **Total Supply**: 1,000,000,000 (1 billion) DCLI
-- **Decimal Places**: 9
+   ```bash
+   yarn dev dao init --name "Test DAO" --threshold 1
+   ```
 
-## Token Distribution
+3. **Fund the multisig vault**:
 
-### Initial Token Allocation
-Total Supply: 1,000,000,000 DCLI
+   ```bash
+   yarn dev dao fund --amount 0.5
+   ```
 
-| Category | Allocation | Tokens | Vesting |
-|----------|------------|---------|---------|
-| Platform Development | 20% | 200M | 4-year linear vesting, 1-year cliff |
-| Ecosystem Growth | 25% | 250M | 5-year linear release |
-| Community Treasury | 20% | 200M | Community-controlled |
-| Initial Liquidity | 5% | 50M | Locked in AMM pools |
-| Team & Advisors | 15% | 150M | 3-year linear vesting, 1-year cliff |
-| Early Investors | 10% | 100M | 2-year linear vesting, 6-month cliff |
-| Public Sale | 5% | 50M | Immediate circulation |
+4. **Create a transfer proposal**:
 
-### Vesting Schedule Details
+   ```bash
+   yarn dev proposal transfer --amount 0.1 --recipient <YOUR_WALLET_ADDRESS>
+   ```
 
-#### Platform Development (20%)
-- 1-year cliff
-- 4-year linear vesting
-- Quarterly unlocks after cliff
-- Used for core platform development, security audits, and infrastructure
+5. **Vote on the proposal**:
 
-#### Ecosystem Growth (25%)
-- 5-year linear release
-- Monthly unlocks
-- Allocation breakdown:
-  - Developer Incentives: 40%
-  - AI Agent Integration Grants: 30%
-  - Hackathons & Bounties: 20%
-  - Educational Content: 10%
+   ```bash
+   yarn dev proposal vote --proposal <PROPOSAL_ADDRESS>
+   ```
 
-#### Community Treasury (20%)
-- Controlled by DAO governance
-- Initial unlock: 10%
-- Remaining 90% unlocked over 3 years
-- Used for:
-  - Protocol improvements
-  - Community initiatives
-  - Grants
-  - Bug bounties
+6. **Execute the proposal**:
 
-#### Initial Liquidity (5%)
-- Permanently locked in AMM pools
-- Distribution:
-  - Orca: 40%
-  - Raydium: 40%
-  - Jupiter: 20%
+   ```bash
+   yarn dev proposal execute --proposal <PROPOSAL_ADDRESS>
+   ```
 
-#### Team & Advisors (15%)
-- 1-year cliff
-- 3-year linear vesting
-- Monthly unlocks after cliff
-- Smart contract enforced vesting
+7. **Check your wallet balance** to confirm receipt of funds:
+   ```bash
+   solana balance
+   ```
 
-#### Early Investors (10%)
-- 6-month cliff
-- 2-year linear vesting
-- Monthly unlocks after cliff
+## Testing in Different Environments
 
-#### Public Sale (5%)
-- Immediate circulation
-- Fair launch auction mechanism
-- Price discovery through Orca Whirlpools
+### Local Validator
 
-## Token Utility
+To test with a local validator:
 
-### 1. Platform Access
-- DCLI staking required for:
-  - Premium features access
-  - Advanced analytics
-  - Priority support
-  - Custom deployment options
+```bash
+chmod +x local-dev.sh
+./local-dev.sh
+solana config set localhost
+yarn dev wallet import  ~/.config/solana/id.json
+# Airdrop some SOL to your wallet
+solana airdrop 10
+# Continue with the testing workflow described above
+```
 
-### 2. Fee Structure
-| Action | Fee (DCLI) | Distribution |
-|--------|------------|--------------|
-| DAO Creation | 1,000 DCLI | 70% burned, 30% treasury |
-| Template Usage | 100 DCLI | 50% template creator, 50% treasury |
-| Premium Features | 500 DCLI/month | 80% burned, 20% treasury |
-| Custom Domain | 200 DCLI/month | 100% burned |
+### Devnet
 
-### 3. Staking Tiers
-| Tier | DCLI Required | Benefits |
-|------|---------------|-----------|
-| Basic | 1,000 | Access to basic templates |
-| Pro | 5,000 | Custom branding, priority support |
-| Enterprise | 25,000 | White-label solution, dedicated support |
-| Network | 100,000 | Revenue sharing, governance weight 2x |
+To test on Devnet:
 
-### 4. Governance
-- Voting weight: 1 DCLI = 1 vote
-- Proposal creation: 10,000 DCLI minimum stake
-- Voting period: 5 days
-- Quorum requirement: 10% of circulating supply
-- Time-lock for major upgrades: 48 hours
+```bash
+solana config set devnet
+yarn dev wallet import ~/.config/solana/id.json
+solana airdrop 2
+# Continue with the testing workflow described above
+```
 
-## Deflationary Mechanisms
+## Troubleshooting
 
-### 1. Fee Burning
-- 70% of all platform fees burned
-- Estimated quarterly burn rate: 0.5-1% of circulating supply
-- Dynamic burning based on platform usage
+- If you encounter errors about insufficient funds, make sure your wallet has enough SOL
+- For transaction errors, check that you're using the correct account addresses
+- If you see "Account not found" errors, the blockchain might be congested - try again
 
-### 2. Buy-Back Program
-- 10% of platform revenue allocated to buy-back
-- Automated execution through smart contracts
-- Purchased tokens split:
-  - 80% burned
-  - 20% to community treasury
+## Testing Edge Cases
 
-### 3. Staking Rewards
-- Base APY: 5%
-- Bonus APY for long-term staking:
-  - 6 months: +2%
-  - 1 year: +5%
-  - 2 years: +8%
-- Maximum combined APY: 15%
+- Test with invalid addresses
+- Try executing a proposal before it's approved
+- Test with insufficient funds in the treasury
+- Create a multisig with a threshold higher than the member count
+- Try to fund with negative or zero amounts
 
-## Treasury Management
+## Cleanup
 
-### Revenue Streams
-1. Platform fees (30%)
-2. Template marketplace fees (5%)
-3. Premium subscriptions (40%)
-4. Enterprise licenses (25%)
+To reset your testing environment:
 
-### Treasury Allocation
-- Development: 40%
-- Marketing & Growth: 20%
-- Security: 15%
-- Community Rewards: 15%
-- Reserve: 10%
+```bash
+rm -rf ~/.config/daoCLI  # Remove the CLI config
+```
 
-## Economic Sustainability
-
-### Supply Control
-- All platform fees paid in DCLI
-- Regular token burns from fee collection
-- Long-term staking incentives
-- Governance-controlled inflation rate (max 2% annually)
-
-### Demand Drivers
-1. Required for platform usage
-2. Staking rewards
-3. Governance rights
-4. Revenue sharing for high-tier stakers
-5. Access to premium features
-
-## Risk Mitigation
-
-### Concentration Limits
-- Maximum wallet holding: 5% of total supply
-- Maximum voting power: 4% per address
-- Minimum 14-day unstaking period
-
-### Security Measures
-- Multi-sig treasury management
-- Time-locked governance actions
-- Regular security audits
-- Bug bounty program
-
-## Ecosystem Development
-
-### Developer Incentives
-- Grant program: 50M DCLI allocated
-- Hackathon prizes: 25M DCLI allocated
-- Integration bounties: 25M DCLI allocated
-
-### Partnership Allocations
-- Strategic partners: 50M DCLI reserved
-- Integration partners: 25M DCLI reserved
-- Marketing initiatives: 25M DCLI reserved
-
-## Future Considerations
-
-### Governance Evolution
-- Transition to full DAO governance over 2 years
-- Introduction of delegated voting
-- Specialized governance committees
-- Cross-chain governance capabilities
-
-### Technical Upgrades
-- Cross-chain bridge support
-- Layer 2 scaling solutions
-- Advanced staking mechanisms
-- Automated market makers optimization
-
-## Success Metrics
-
-### Key Performance Indicators
-1. Monthly Active DAOs
-2. Total Value Locked (TVL)
-3. Daily Active Users
-4. Token Velocity
-5. Governance Participation Rate
-
-### Growth Targets
-Year 1:
-- 1,000 DAOs created
-- $100M TVL
-- 50,000 active users
-
-Year 3:
-- 10,000 DAOs created
-- $1B TVL
-- 500,000 active users
-
----
-
-Note: This tokenomics model is designed to be sustainable and value-accruing while prioritizing long-term platform growth and community involvement. All parameters are subject to adjustment through governance proposals.
-
----
-
-Built with ❤️ by the daoCLI team
+Happy testing!

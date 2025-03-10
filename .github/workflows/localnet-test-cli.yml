@@ -1,0 +1,82 @@
+name: Deploy contract on Localnet
+
+on:
+  push:
+    branches: [cli-multisig, feb-25]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18"
+
+      - name: Install Solana CLI and Anchor
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config libudev-dev llvm libclang-dev protobuf-compiler libssl-dev
+          curl --proto '=https' --tlsv1.2 -sSfL https://raw.githubusercontent.com/solana-developers/solana-install/main/install.sh | bash
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          export PATH="$HOME/home/runner/.avm/bin:$PATH"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+          echo "$HOME/home/runner/.avm/bin" >> $GITHUB_PATH
+
+      - name: Verify Solana CLI installation
+        run: |
+          solana --version
+          solana config get
+
+      - name: Install CLI dependencies
+        run: |
+          npm install
+          npm run build
+
+      - name: Setup Solana Localnet
+        run: |
+          # Create default keypair first
+          mkdir -p /home/runner/.config/solana
+          solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
+
+          # Start a localnet with explicit bind address for IPv4
+          solana-test-validator --quiet --reset --clone-upgradeable-program GovER5Lthms3bLBqWub97yVrMmEogzX7xNjdXpPPCVZw SQDS4ep65T869zMMBKyuUq6aD6EgTu8psMjkvj52pCf --clone BSTq9w3kZwNwpBXJEvTZz2G9ZTNyKBvoSeXMvwb4cNZr --url devnet --bind-address 127.0.0.1 --rpc-port 8899 &
+          VALIDATOR_PID=$!
+
+          # Give the localnet time to boot up
+          echo "Waiting for validator to start..."
+          sleep 10
+
+          # Check if validator is running
+          if ps -p $VALIDATOR_PID > /dev/null; then
+            echo "Validator is running with PID $VALIDATOR_PID"
+          else
+            echo "Failed to start validator"
+            exit 1
+          fi
+
+          # Configure Solana to use localhost
+          solana config set --url http://127.0.0.1:8899
+
+          # Try to get version to verify validator is responsive
+          echo "Testing validator connection..."
+          solana cluster-version || { echo "Validator not responding"; exit 1; }
+
+          # Airdrop to default wallet
+          solana airdrop 100
+          solana balance
+
+      - name: Run tests
+        run: |
+          # Run the tests
+          npm run test:standard
+          npm run test:integrated
+
+      - name: Cleanup
+        run: |
+          # Stop the validator
+          pkill -f solana-test-validator || true

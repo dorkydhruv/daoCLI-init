@@ -1,0 +1,43 @@
+{
+  "name": "daoCLI-init",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/dorkydhruv/daoCLI-init.git",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc",
+    "test": "mocha -r ts-node/register tests/**/*.test.ts",
+    "test:integrated": "mocha -r ts-node/register tests/integrated-dao-test.ts",
+    "test:standard": "mocha -r ts-node/register tests/standard-dao-test.ts"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.4.12",
+    "@solana/web3.js": "^1.98.0",
+    "@sqds/multisig": "^2.1.3",
+    "bn.js": "^5.2.1",
+    "bs58": "^6.0.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.1.0",
+    "dotenv": "^16.4.7",
+    "fs-extra": "^11.2.0",
+    "governance-idl-sdk": "^0.0.4"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.1",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.11.16",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2",
+    "@types/chai": "^4.3.4",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0"
+  },
+  "bin": {
+    "daocli": "dist/index.js"
+  }
+}
