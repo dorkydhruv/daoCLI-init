@@ -11,7 +11,6 @@ export const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 export const CLUSTERS: Record<string, Cluster> = {
   mainnet: "mainnet-beta",
   devnet: "devnet",
-  testnet: "testnet",
   localhost: "testnet",
 };
 
