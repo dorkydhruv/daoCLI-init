@@ -1,7 +1,11 @@
-.anchor
-.DS_Store
-target
-**/*.rs.bk
 node_modules
+dist
 test-ledger
-.yarn
+
+//testing purposes
+
+multisig
+ref
+ref2
+log
+sqds
