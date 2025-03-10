@@ -163,8 +163,8 @@ To test with a local validator:
 ```bash
 chmod +x local-dev.sh
 ./local-dev.sh
-solana config set --url localhost
-yarn dev wallet import --path ~/.config/solana/id.json
+solana config set localhost
+yarn dev wallet import  ~/.config/solana/id.json
 # Airdrop some SOL to your wallet
 solana airdrop 10
 # Continue with the testing workflow described above
@@ -175,8 +175,8 @@ solana airdrop 10
 To test on Devnet:
 
 ```bash
-solana config set --url devnet
-yarn dev wallet import --path ~/.config/solana/id.json
+solana config set devnet
+yarn dev wallet import ~/.config/solana/id.json
 solana airdrop 2
 # Continue with the testing workflow described above
 ```
