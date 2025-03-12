@@ -83,12 +83,12 @@ export function registerDaoCommands(program: Command): void {
 
         // Check account balance first
         const balance = await connection.getBalance(keypair.publicKey);
-        if (balance < LAMPORTS_PER_SOL) {
+        if (balance < 0.1 * LAMPORTS_PER_SOL) {
           console.log(
             chalk.yellow(
               `⚠️  Low balance: ${
                 balance / LAMPORTS_PER_SOL
-              } SOL. You may need at least 1 SOL to create all accounts.`
+              } SOL. You may need at least 0.1 SOL to create all accounts.`
             )
           );
         }
@@ -109,30 +109,60 @@ export function registerDaoCommands(program: Command): void {
           (typeof options.integrated === "string"
             ? options.integrated.toLowerCase() === "true"
             : options.integrated) || false;
+        // First create the DAO
+        const daoResult = await GovernanceService.initializeDAO(
+          connection,
+          keypair,
+          options.name,
+          members,
+          threshold
+        );
+
+        if (!daoResult.success || !daoResult.data) {
+          console.log(
+            chalk.red("Failed to initialize DAO:"),
+            daoResult.error?.message,
+            daoResult.error?.details
+              ? JSON.stringify(daoResult.error.details, null, 2)
+              : ""
+          );
+          return;
+        }
+
+        // Only store the realm address in config
+        const configResult = await ConfigService.setActiveRealm(
+          daoResult.data.realmAddress.toBase58()
+        );
+        if (!configResult.success) {
+          console.log(
+            chalk.yellow("Warning: Failed to save configuration:"),
+            configResult.error?.message
+          );
+        }
+        console.log(chalk.green("\n✅ DAO initialized successfully!"));
+        console.log(
+          chalk.green(`Realm: ${daoResult.data.realmAddress.toBase58()}`)
+        );
+        console.log(
+          chalk.green(
+            `Governance: ${daoResult.data.governanceAddress.toBase58()}`
+          )
+        );
+        console.log(
+          chalk.green(`Treasury: ${daoResult.data.treasuryAddress.toBase58()}`)
+        );
+        console.log(
+          chalk.green(
+            `Community Token: ${daoResult.data.communityMint.toBase58()}`
+          )
+        );
+        console.log(
+          chalk.green(`Council Token: ${daoResult.data.councilMint.toBase58()}`)
+        );
         if (integrated) {
           console.log(
             chalk.blue("Using integrated mode with Squads Multisig...")
           );
-
-          // First create the DAO
-          const daoResult = await GovernanceService.initializeDAO(
-            connection,
-            keypair,
-            options.name,
-            members,
-            threshold
-          );
-
-          if (!daoResult.success || !daoResult.data) {
-            console.log(
-              chalk.red("Failed to initialize DAO:"),
-              daoResult.error?.message,
-              daoResult.error?.details
-                ? JSON.stringify(daoResult.error.details, null, 2)
-                : ""
-            );
-            return;
-          }
 
           // Then create the Squads multisig linked to the DAO using treasury as createKey
           const multisigResult =
@@ -153,100 +183,19 @@ export function registerDaoCommands(program: Command): void {
             return;
           }
 
-          // Only store the realm address in config
-          const configResult = await ConfigService.setActiveRealm(
-            daoResult.data.realmAddress.toBase58()
-          );
-          if (!configResult.success) {
-            console.log(
-              chalk.yellow("Warning: Failed to save configuration:"),
-              configResult.error?.message
-            );
-          }
-
           console.log(
             chalk.green("\n✅ Integrated DAO initialized successfully!")
-          );
-          console.log(
-            chalk.green(`Realm: ${daoResult.data.realmAddress.toBase58()}`)
-          );
-          console.log(
-            chalk.green(
-              `Governance: ${daoResult.data.governanceAddress.toBase58()}`
-            )
-          );
-          console.log(
-            chalk.green(
-              `Native Treasury: ${daoResult.data.treasuryAddress.toBase58()}`
-            )
           );
           console.log(
             chalk.green(
               `Squads Multisig: ${multisigResult.data.multisigPda.toBase58()}`
             )
           );
-
-          // Create vault automatically
           const [vaultPda] = multisig.getVaultPda({
             multisigPda: multisigResult.data.multisigPda,
             index: 0,
           });
           console.log(chalk.green(`Squads Vault: ${vaultPda.toBase58()}`));
-        } else {
-          // Standard DAO creation (existing code)
-          const daoResult = await GovernanceService.initializeDAO(
-            connection,
-            keypair,
-            options.name,
-            members,
-            threshold
-          );
-          if (!daoResult.success || !daoResult.data) {
-            console.log(
-              chalk.red("Failed to initialize DAO:"),
-              daoResult.error?.message,
-              daoResult.error?.details
-                ? JSON.stringify(daoResult.error.details, null, 2)
-                : ""
-            );
-            return;
-          }
-
-          // Save configuration
-          const configResult = await ConfigService.setActiveRealm(
-            daoResult.data.realmAddress.toBase58()
-          );
-          if (!configResult.success) {
-            console.log(
-              chalk.yellow("Warning: Failed to save configuration:"),
-              configResult.error?.message
-            );
-          }
-
-          console.log(chalk.green("\n✅ DAO initialized successfully!"));
-          console.log(
-            chalk.green(`Realm: ${daoResult.data.realmAddress.toBase58()}`)
-          );
-          console.log(
-            chalk.green(
-              `Governance: ${daoResult.data.governanceAddress.toBase58()}`
-            )
-          );
-          console.log(
-            chalk.green(
-              `Treasury: ${daoResult.data.treasuryAddress.toBase58()}`
-            )
-          );
-          console.log(
-            chalk.green(
-              `Community Token: ${daoResult.data.communityMint.toBase58()}`
-            )
-          );
-          console.log(
-            chalk.green(
-              `Council Token: ${daoResult.data.councilMint.toBase58()}`
-            )
-          );
         }
         console.log(chalk.blue("\nNext steps:"));
         console.log("1. Fund your vault:");
