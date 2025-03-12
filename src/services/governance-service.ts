@@ -496,7 +496,6 @@ export class GovernanceService {
       // Execute the transaction
       return await sendTx(connection, keypair, [transferIx]);
     } catch (error) {
-      console.error("Failed to fund treasury", error);
       return {
         success: false,
         error: {

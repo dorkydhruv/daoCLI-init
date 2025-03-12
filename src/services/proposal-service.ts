@@ -57,10 +57,6 @@ export class ProposalService {
         governanceAccount: governanceId,
       }).publicKey;
 
-      console.log(
-        `Creating SOL transfer instruction from treasury ${nativeTreasuryId.toBase58()}`
-      );
-
       // Calculate lamports
       const lamports =
         typeof amount === "number"
@@ -133,10 +129,6 @@ export class ProposalService {
       );
 
       if (!recipientAccountInfo) {
-        console.log(
-          `Creating associated token account for recipient: ${recipientAddress.toBase58()}`
-        );
-
         instructions.push(
           createAssociatedTokenAccountInstruction(
             nativeTreasuryId, // payer (will be replaced by treasury in execution)
@@ -259,9 +251,6 @@ export class ProposalService {
         recipientTokenAccount
       );
       if (!recipientAccountInfo) {
-        console.log(
-          `Creating associated token account for recipient: ${recipientAddress.toBase58()}`
-        );
         instructions.push(
           createAssociatedTokenAccountInstruction(
             vaultPda, // payer
@@ -317,14 +306,9 @@ export class ProposalService {
     instructions: TransactionInstruction[]
   ): Promise<ServiceResponse<PublicKey>> {
     try {
-      console.log(
-        "Creating integrated proposal between DAO and Squads multisig"
-      );
-
       // Find the multisig associated with this realm
       const multisigAddress =
         MultisigService.getMultisigForRealm(realmAddress).data!;
-      console.log(`Using multisig: ${multisigAddress.toBase58()}`);
 
       const transactionIndex = (
         await MultisigService.createTransactionWithProposal(
@@ -343,11 +327,6 @@ export class ProposalService {
         `${this.MULTISIG_ADDRESS_PREFIX}${multisigAddress.toBase58()}\n` +
         `${this.TX_INDEX_PREFIX}${transactionIndex}\n` +
         `----------------------------`;
-
-      // Now create the DAO proposal
-      console.log(
-        "Creating DAO proposal with embedded multisig transaction reference"
-      );
       const proposalAddress = (
         await this.createProposal(
           connection,
@@ -358,14 +337,6 @@ export class ProposalService {
           [] // empty instructions array as the actual execution happens in the multisig
         )
       ).data!;
-
-      console.log(`
-        Integrated proposal created successfully!
-        DAO Proposal: ${proposalAddress.toBase58()}
-        Multisig Address: ${multisigAddress.toBase58()}
-        Transaction Index: ${transactionIndex}
-        When the DAO proposal is executed, it will also execute the transaction on multisigPda.
-    `);
       return {
         success: true,
         data: proposalAddress,
@@ -392,10 +363,6 @@ export class ProposalService {
   ): Promise<ServiceResponse<PublicKey>> {
     try {
       const splGovernance = new SplGovernance(connection, this.programId);
-
-      // Get realm info to find the council mint
-      console.log(`Getting realm info for ${realmAddress.toBase58()}...`);
-
       try {
         const realmInfo = await splGovernance.getRealmByPubkey(realmAddress);
         const councilMint = realmInfo.config.councilMint;
@@ -403,35 +370,22 @@ export class ProposalService {
         if (!councilMint) {
           throw new Error("Council mint not found for this realm");
         }
-
-        console.log(`Using council mint: ${councilMint.toBase58()}`);
-
         // Check if token owner record already exists
         const tokenOwnerRecordPda = splGovernance.pda.tokenOwnerRecordAccount({
           realmAccount: realmAddress,
           governingTokenMintAccount: councilMint,
           governingTokenOwner: keypair.publicKey,
         });
-
-        console.log(
-          `Checking token owner record at ${tokenOwnerRecordPda.publicKey.toBase58()}`
-        );
-
         try {
           const tokenOwnerRecord =
             await splGovernance.getTokenOwnerRecordByPubkey(
               tokenOwnerRecordPda.publicKey
             );
-          console.log(
-            "Token owner record exists:",
-            tokenOwnerRecord.publicKey.toBase58()
-          );
           return {
             success: true,
             data: tokenOwnerRecordPda.publicKey,
           };
         } catch (err) {
-
           // Create token owner record instruction
           const createTokenOwnerRecordIx =
             await splGovernance.createTokenOwnerRecordInstruction(
@@ -468,17 +422,12 @@ export class ProposalService {
               },
             };
           }
-
-          console.log(
-            `Created token owner record with signature: ${txResult.data}`
-          );
           return {
             success: true,
             data: tokenOwnerRecordPda.publicKey,
           };
         }
       } catch (error) {
-        console.error("Failed to get realm info:", error);
         throw error;
       }
     } catch (error) {
@@ -525,10 +474,6 @@ export class ProposalService {
         realmAccount: realmAddress,
         seed: realmAddress,
       }).publicKey;
-
-      console.log(
-        `Creating proposal for governance: ${governanceId.toBase58()}`
-      );
 
       // Get realm info to find the council mint
       const realmInfo = await splGovernance.getRealmByPubkey(realmAddress);
@@ -606,10 +551,6 @@ export class ProposalService {
           },
         };
       }
-
-      console.log(`Proposal created with signature: ${txResult.data}`);
-      console.log(`Proposal address: ${proposalPda.publicKey.toBase58()}`);
-
       return {
         success: true,
         data: proposalPda.publicKey,
@@ -689,8 +630,6 @@ export class ProposalService {
         return txResult;
       }
 
-      console.log(`DAO vote cast with signature: ${txResult.data}`);
-
       // If this is an integrated proposal with multisig info and it's an approval,
       // we check if we should approve and possibly execute the multisig transaction
       if (
@@ -699,8 +638,6 @@ export class ProposalService {
         approve
       ) {
         try {
-          console.log(`\nThis is an integrated proposal with Squads multisig.`);
-
           // Use the approve and execute functionality from MultisigService
           const approveResult = await MultisigService.approveAndExecuteIfReady(
             connection,
@@ -808,17 +745,11 @@ export class ProposalService {
         return txResult;
       }
 
-      console.log(`DAO proposal executed with signature: ${txResult.data}`);
-
       // If this has created a multisig transaction, try to automatically approve and execute
       if (multisigInfo.multisigAddress && multisigInfo.transactionIndex) {
         try {
           // Add a delay to ensure the vault transaction is fully processed
           await new Promise((resolve) => setTimeout(resolve, 2000));
-
-          console.log(
-            `\nThis proposal has created a Squads multisig transaction!`
-          );
 
           // Get proposal status using MultisigService
           const proposalStatus = (
@@ -828,11 +759,6 @@ export class ProposalService {
               multisigInfo.transactionIndex
             )
           ).data!;
-
-          console.log(
-            `Automatically approving transaction #${multisigInfo.transactionIndex}...`
-          );
-
           // Use the approve and execute functionality from MultisigService
           const approveResult = await MultisigService.approveAndExecuteIfReady(
             connection,
@@ -842,33 +768,10 @@ export class ProposalService {
           );
 
           if (approveResult.success && approveResult.data) {
-            console.log(
-              `✅ Multisig transaction automatically approved and executed with signature: ${approveResult.data}`
-            );
           } else if (approveResult.success) {
-            console.log(
-              `✅ Multisig transaction approved, but more approvals are needed.`
-            );
-            console.log(
-              `Current approvals: ${
-                proposalStatus.approvalCount + 1
-              }, threshold: ${proposalStatus.threshold}`
-            );
-            console.log(`You can manually execute later with:`);
-            console.log(
-              `dao multisig execute --multisig ${multisigInfo.multisigAddress.toString()} --index ${
-                multisigInfo.transactionIndex
-              }`
-            );
           } else {
-            console.log(`❌ Failed to approve multisig transaction.`);
           }
-        } catch (error) {
-          console.error(`Failed to process multisig transaction:`, error);
-          console.log(
-            `Your DAO proposal was executed successfully, but there was an issue with the multisig transaction.`
-          );
-        }
+        } catch (error) {}
       }
 
       return {
@@ -920,9 +823,7 @@ export class ProposalService {
           transactionIndex: parseInt(index),
         };
       }
-    } catch (error) {
-      console.log("Failed to extract multisig info from proposal description");
-    }
+    } catch (error) {}
     return {};
   }
 }
