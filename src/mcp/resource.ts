@@ -1,7 +1,7 @@
 import {
   McpServer,
   ResourceTemplate,
-} from "@modelcontextprotocol/sdk/server/mcp";
+} from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerResource(server: McpServer) {
   // README resource for daoCLI

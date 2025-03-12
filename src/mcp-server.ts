@@ -6,6 +6,7 @@ import { registerProposalTools } from "./mcp/proposal";
 import { z } from "zod";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { ConnectionService } from "./services/connection-service";
+import { registerResource } from "./mcp/resource";
 
 const server = new McpServer({
   name: "DaoCLI",
@@ -43,7 +44,7 @@ server.tool(
   }
 );
 
-// Get Balance
+// // Get Balance
 server.tool(
   "getBalance",
   "Used to look up balance by public key (32 byte base58 encoded address)",
@@ -75,7 +76,7 @@ server.tool(
   }
 );
 
-// Get Transaction
+// // Get Transaction
 server.tool(
   "getTransaction",
   "Used to look up transaction by signature (64 byte base58 encoded string)",
@@ -120,7 +121,7 @@ server.prompt(
   })
 );
 
-registerProposalTools(server);
+registerResource(server);
 
 const transport = new StdioServerTransport();
 server.connect(transport);
