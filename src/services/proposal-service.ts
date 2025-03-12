@@ -5,6 +5,7 @@ import {
   SystemProgram,
   LAMPORTS_PER_SOL,
   TransactionInstruction,
+  AccountMeta,
 } from "@solana/web3.js";
 import {
   getAssociatedTokenAddressSync,
@@ -310,15 +311,25 @@ export class ProposalService {
       const multisigAddress =
         MultisigService.getMultisigForRealm(realmAddress).data!;
 
-      const transactionIndex = (
+      const createTxAndProposalRes =
         await MultisigService.createTransactionWithProposal(
           connection,
           multisigAddress,
           keypair,
           instructions,
           title
-        )
-      ).data;
+        );
+
+      if (!createTxAndProposalRes.success || !createTxAndProposalRes.data) {
+        return {
+          success: false,
+          error: createTxAndProposalRes.error ?? {
+            message: "Failed to create integrated asset transfer proposal",
+          },
+        };
+      }
+
+      const transactionIndex = createTxAndProposalRes.data.transactionIndex;
 
       // Include multisig info in the description
       const enhancedDescription =
@@ -609,6 +620,21 @@ export class ProposalService {
         governingTokenOwner: keypair.publicKey,
       });
 
+      const ensureTokenOwnerRecordRes = await this.ensureTokenOwnerRecord(
+        connection,
+        keypair,
+        realmAddress
+      );
+
+      if (!ensureTokenOwnerRecordRes.success) {
+        return {
+          success: false,
+          error: ensureTokenOwnerRecordRes.error ?? {
+            message: "Failed to ensure token owner record",
+          },
+        };
+      }
+
       // Build vote instruction
       const voteIx = await splGovernance.castVoteInstruction(
         approve
@@ -631,15 +657,14 @@ export class ProposalService {
       }
 
       // If this is an integrated proposal with multisig info and it's an approval,
-      // we check if we should approve and possibly execute the multisig transaction
       if (
         multisigInfo.multisigAddress &&
         multisigInfo.transactionIndex &&
         approve
       ) {
         try {
-          // Use the approve and execute functionality from MultisigService
-          const approveResult = await MultisigService.approveAndExecuteIfReady(
+          // Use the approve functionality from MultisigService
+          const approveResult = await MultisigService.approveProposal(
             connection,
             keypair,
             multisigInfo.multisigAddress,
@@ -648,6 +673,10 @@ export class ProposalService {
 
           if (approveResult.success && approveResult.data) {
             // Extra log data could be added to the response
+            return {
+              success: true,
+              data: `Multisig approve: ${approveResult.data} \n Dao approve: ${txResult.data}`,
+            };
           }
         } catch (error) {
           // Don't fail the vote if multisig actions fail
@@ -657,7 +686,7 @@ export class ProposalService {
 
       return {
         success: true,
-        data: txResult.data!,
+        data: `Dao approve: ${txResult.data!}`,
       };
     } catch (error) {
       return {
@@ -684,52 +713,55 @@ export class ProposalService {
 
       // Get proposal info
       const proposal = await splGovernance.getProposalByPubkey(proposalAddress);
-
-      // Extract multisig info from description if available
-      const multisigInfo = this.extractMultisigInfo(proposal.descriptionLink);
-
+      const { multisigAddress, transactionIndex } = this.extractMultisigInfo(
+        proposal.descriptionLink
+      );
       // Get governance account
       const governanceId = proposal.governance;
-
       // Get the proposal transaction account
       const proposalTxPda = splGovernance.pda.proposalTransactionAccount({
         proposal: proposalAddress,
         optionIndex: 0,
         index: 0,
       });
-
       // Get transaction details
       const proposalTx = await splGovernance.getProposalTransactionByPubkey(
         proposalTxPda.publicKey
       );
-
       // Get the native treasury to fix any isSigner flags
       const nativeTreasuryId = splGovernance.pda.nativeTreasuryAccount({
         governanceAccount: governanceId,
       }).publicKey;
+      let accountsForIx: AccountMeta[];
+      if (proposalTx.instructions.length > 0) {
+        // Reconstruct accounts for execution
+        accountsForIx = proposalTx.instructions[0].accounts;
+        // Add program ID as first account
+        accountsForIx.unshift({
+          pubkey: proposalTx.instructions[0].programId,
+          isSigner: false,
+          isWritable: false,
+        });
 
-      // Reconstruct accounts for execution
-      const accountsForIx = proposalTx.instructions[0].accounts;
-
-      // Add program ID as first account
-      accountsForIx.unshift({
-        pubkey: proposalTx.instructions[0].programId,
-        isSigner: false,
-        isWritable: false,
-      });
-
-      // Fix signer flags
-      accountsForIx.forEach((account) => {
-        if (account.pubkey.equals(nativeTreasuryId)) {
-          account.isSigner = false;
-        }
-
-        // Also the keypair itself should be the only true signer
-        if (!account.pubkey.equals(keypair.publicKey) && account.isSigner) {
-          account.isSigner = false;
-        }
-      });
-
+        // Fix signer flags
+        accountsForIx.forEach((account) => {
+          if (account.pubkey.equals(nativeTreasuryId)) {
+            account.isSigner = false;
+          }
+          // Also the keypair itself should be the only true signer
+          if (!account.pubkey.equals(keypair.publicKey) && account.isSigner) {
+            account.isSigner = false;
+          }
+        });
+      } else {
+        accountsForIx = [
+          {
+            pubkey: nativeTreasuryId,
+            isSigner: false,
+            isWritable: true,
+          },
+        ];
+      }
       // Build execution instruction
       const executeIx = await splGovernance.executeTransactionInstruction(
         governanceId,
@@ -737,46 +769,49 @@ export class ProposalService {
         proposalTxPda.publicKey,
         accountsForIx
       );
-
       // Execute instructions using MultisigService.executeInstructions
       const txResult = await sendTx(connection, keypair, [executeIx]);
-
       if (!txResult.success) {
         return txResult;
       }
-
       // If this has created a multisig transaction, try to automatically approve and execute
-      if (multisigInfo.multisigAddress && multisigInfo.transactionIndex) {
+      if (multisigAddress && transactionIndex) {
         try {
-          // Add a delay to ensure the vault transaction is fully processed
-          await new Promise((resolve) => setTimeout(resolve, 2000));
-
           // Get proposal status using MultisigService
           const proposalStatus = (
             await MultisigService.getProposalStatus(
               connection,
-              multisigInfo.multisigAddress,
-              multisigInfo.transactionIndex
+              multisigAddress,
+              transactionIndex
             )
           ).data!;
-          // Use the approve and execute functionality from MultisigService
-          const approveResult = await MultisigService.approveAndExecuteIfReady(
-            connection,
-            keypair,
-            multisigInfo.multisigAddress,
-            multisigInfo.transactionIndex
-          );
-
-          if (approveResult.success && approveResult.data) {
-          } else if (approveResult.success) {
-          } else {
+          if (proposalStatus.meetsThreshold) {
+            const executeRes = await MultisigService.executeMultisigTransaction(
+              connection,
+              keypair,
+              multisigAddress,
+              transactionIndex
+            );
+            if (executeRes.success) {
+              return {
+                success: true,
+                data: `Multisig execute: ${executeRes.data} \n Dao execute: ${txResult.data}`,
+              };
+            }
           }
-        } catch (error) {}
+        } catch (error) {
+          return {
+            success: false,
+            error: {
+              message: "Failed to execute multisig transaction",
+              details: error,
+            },
+          };
+        }
       }
-
       return {
         success: true,
-        data: txResult.data!,
+        data: `Dao execute: ${txResult.data!}`,
       };
     } catch (error) {
       return {

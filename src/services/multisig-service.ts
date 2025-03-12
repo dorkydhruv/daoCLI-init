@@ -30,7 +30,6 @@ export class MultisigService {
     createKey: Keypair
   ): Promise<ServiceResponse<{ multisigPda: PublicKey }>> {
     try {
-
       // Calculate the multisig PDA
       const [multisigPda] = multisig.getMultisigPda({
         createKey: createKey.publicKey,
@@ -111,7 +110,6 @@ export class MultisigService {
     realmAddress: PublicKey
   ): Promise<ServiceResponse<{ multisigPda: PublicKey }>> {
     try {
-
       // Generate a deterministic keypair based on the realm address
       // If treasury is provided, use it for even more determinism
       const derivedKeypair = KeypairUtil.getRealmDerivedKeypair(realmAddress);
@@ -169,25 +167,15 @@ export class MultisigService {
   static getMultisigVaultPda(
     multisigPda: PublicKey
   ): ServiceResponse<PublicKey> {
-    try {
-      const [vaultPda] = multisig.getVaultPda({
-        multisigPda,
-        index: 0,
-      });
+    const [vaultPda] = multisig.getVaultPda({
+      multisigPda,
+      index: 0,
+    });
 
-      return {
-        success: true,
-        data: vaultPda,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          message: "Failed to get multisig vault PDA",
-          details: error,
-        },
-      };
-    }
+    return {
+      success: true,
+      data: vaultPda,
+    };
   }
 
   /**
@@ -288,13 +276,12 @@ export class MultisigService {
     keypair: Keypair,
     instructions: TransactionInstruction[],
     title: string
-  ): Promise<ServiceResponse<BigInt | undefined>> {
+  ): Promise<ServiceResponse<BigInt>> {
     try {
       const vaultPdaResult = this.getMultisigVaultPda(multisigPda);
       if (!vaultPdaResult.success) {
         return {
           success: false,
-          data: undefined,
           error: vaultPdaResult.error ?? {
             message: "Failed to get multisig vault PDA",
           },
@@ -335,7 +322,6 @@ export class MultisigService {
       if (!txResult.success) {
         return {
           success: false,
-          data: undefined,
           error: txResult.error ?? {
             message: "Failed to create multisig transaction",
           },
@@ -397,7 +383,7 @@ export class MultisigService {
     keypair: Keypair,
     instructions: TransactionInstruction[],
     title: string
-  ): Promise<ServiceResponse<MultisigTransactionResult | undefined>> {
+  ): Promise<ServiceResponse<MultisigTransactionResult>> {
     try {
       // First create the transaction
       const txResult = await this.createMultisigTransaction(
@@ -411,7 +397,6 @@ export class MultisigService {
       if (!txResult.success) {
         return {
           success: false,
-          data: undefined,
           error: txResult.error ?? {
             message: "Unable to create Multisig transaction",
           },
@@ -437,7 +422,6 @@ export class MultisigService {
           },
         };
       }
-
       return {
         success: true,
         data: {
@@ -466,7 +450,6 @@ export class MultisigService {
     transactionIndex: number
   ): Promise<ServiceResponse<string>> {
     try {
-
       // First check if the proposal exists
       const [proposalPda] = multisig.getProposalPda({
         multisigPda,
@@ -483,6 +466,12 @@ export class MultisigService {
         const alreadyApproved = proposal.approved.some((approver) =>
           approver.equals(keypair.publicKey)
         );
+        if (alreadyApproved) {
+          return {
+            success: true,
+            data: "Already approved",
+          };
+        }
         // Get multisig account to check membership
         const multisigAccount =
           await multisig.accounts.Multisig.fromAccountAddress(
@@ -496,11 +485,20 @@ export class MultisigService {
         );
 
         if (!isMember) {
-          // shouldnt vote therefore
+          return {
+            success: false,
+            error: {
+              message: "User is not a member of the multisig",
+            },
+          };
         }
       } catch (e) {
-        // Proposal doesn't exist yet
-
+        return {
+          success: false,
+          error: {
+            message: "Proposal doesn't exist",
+          },
+        };
       }
 
       // Create approval instruction
@@ -533,7 +531,6 @@ export class MultisigService {
     transactionIndex: number
   ): Promise<ServiceResponse<string>> {
     try {
-
       // Get fresh multisig info
       const multisigInfo = await multisig.accounts.Multisig.fromAccountAddress(
         connection,
@@ -715,113 +712,114 @@ export class MultisigService {
     }
   }
 
-  /**
-   * Approves and executes a multisig transaction in one step if threshold is met
-   */
-  static async approveAndExecuteIfReady(
-    connection: Connection,
-    keypair: Keypair,
-    multisigPda: PublicKey,
-    transactionIndex: number
-  ): Promise<
-    ServiceResponse<{
-      approved: boolean;
-      executed: boolean;
-      signature?: string;
-    }>
-  > {
-    try {
-      // First check if our approval would meet the threshold
-      const thresholdResult = await this.wouldMeetThreshold(
-        connection,
-        multisigPda,
-        transactionIndex
-      );
+  // TODO: Should be of use when we want the multisig to be approved and executed simultaneously
+  // /**
+  //  * Approves and executes a multisig transaction in one step if threshold is met
+  //  */
+  // static async approveAndExecuteIfReady(
+  //   connection: Connection,
+  //   keypair: Keypair,
+  //   multisigPda: PublicKey,
+  //   transactionIndex: number
+  // ): Promise<
+  //   ServiceResponse<{
+  //     approved: boolean;
+  //     executed: boolean;
+  //     signature?: string;
+  //   }>
+  // > {
+  //   try {
+  //     // First check if our approval would meet the threshold
+  //     const thresholdResult = await this.wouldMeetThreshold(
+  //       connection,
+  //       multisigPda,
+  //       transactionIndex
+  //     );
 
-      if (!thresholdResult.success) {
-        return {
-          success: false,
-          data: {
-            approved: false,
-            executed: false,
-          },
-          error: thresholdResult.error ?? { message: "Threshold error" },
-        };
-      }
+  //     if (!thresholdResult.success) {
+  //       return {
+  //         success: false,
+  //         data: {
+  //           approved: false,
+  //           executed: false,
+  //         },
+  //         error: thresholdResult.error ?? { message: "Threshold error" },
+  //       };
+  //     }
 
-      const willMeetThreshold = thresholdResult.data!;
+  //     const willMeetThreshold = thresholdResult.data!;
 
-      // Approve the transaction
-      const approveResult = await this.approveProposal(
-        connection,
-        keypair,
-        multisigPda,
-        transactionIndex
-      );
+  //     // Approve the transaction
+  //     const approveResult = await this.approveProposal(
+  //       connection,
+  //       keypair,
+  //       multisigPda,
+  //       transactionIndex
+  //     );
 
-      if (!approveResult.success) {
-        return {
-          success: false,
-          data: {
-            approved: false,
-            executed: false,
-          },
-          error: approveResult.error ?? {
-            message: "Couldn't approve proposal",
-          },
-        };
-      }
+  //     if (!approveResult.success) {
+  //       return {
+  //         success: false,
+  //         data: {
+  //           approved: false,
+  //           executed: false,
+  //         },
+  //         error: approveResult.error ?? {
+  //           message: "Couldn't approve proposal",
+  //         },
+  //       };
+  //     }
 
-      const approveSig = approveResult.data!;
+  //     const approveSig = approveResult.data!;
 
-      // If threshold is met, execute immediately
-      if (willMeetThreshold) {
-        const executeResult = await this.executeMultisigTransaction(
-          connection,
-          keypair,
-          multisigPda,
-          transactionIndex
-        );
+  //     // If threshold is met, execute immediately
+  //     if (willMeetThreshold) {
+  //       const executeResult = await this.executeMultisigTransaction(
+  //         connection,
+  //         keypair,
+  //         multisigPda,
+  //         transactionIndex
+  //       );
 
-        if (!executeResult.success) {
-          return {
-            success: true,
-            data: {
-              approved: true,
-              executed: false,
-              signature: approveSig,
-            },
-          };
-        }
+  //       if (!executeResult.success) {
+  //         return {
+  //           success: true,
+  //           data: {
+  //             approved: true,
+  //             executed: false,
+  //             signature: approveSig,
+  //           },
+  //         };
+  //       }
 
-        return {
-          success: true,
-          data: {
-            approved: true,
-            executed: true,
-            signature: executeResult.data ?? "",
-          },
-        };
-      }
+  //       return {
+  //         success: true,
+  //         data: {
+  //           approved: true,
+  //           executed: true,
+  //           signature: executeResult.data ?? "",
+  //         },
+  //       };
+  //     }
 
-      return {
-        success: true,
-        data: {
-          approved: true,
-          executed: false,
-          signature: approveSig,
-        },
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: {
-          message: "Failed to approve and execute transaction",
-          details: error,
-        },
-      };
-    }
-  }
+  //     return {
+  //       success: true,
+  //       data: {
+  //         approved: true,
+  //         executed: false,
+  //         signature: approveSig,
+  //       },
+  //     };
+  //   } catch (error) {
+  //     return {
+  //       success: false,
+  //       error: {
+  //         message: "Failed to approve and execute transaction",
+  //         details: error,
+  //       },
+  //     };
+  //   }
+  // }
 
   /**
    * Gets information about a multisig account
