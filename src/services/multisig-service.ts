@@ -30,9 +30,6 @@ export class MultisigService {
     createKey: Keypair
   ): Promise<ServiceResponse<{ multisigPda: PublicKey }>> {
     try {
-      console.log(
-        `Creating multisig with ${members.length} members and threshold ${threshold}`
-      );
 
       // Calculate the multisig PDA
       const [multisigPda] = multisig.getMultisigPda({
@@ -50,9 +47,6 @@ export class MultisigService {
           );
 
         const configTreasury = programConfig.treasury;
-        console.log(
-          `Using program config treasury: ${configTreasury.toBase58()}`
-        );
 
         // Create the multisig transaction
         const ix = multisig.instructions.multisigCreateV2({
@@ -117,18 +111,10 @@ export class MultisigService {
     realmAddress: PublicKey
   ): Promise<ServiceResponse<{ multisigPda: PublicKey }>> {
     try {
-      console.log(
-        `Creating DAO-controlled multisig with ${members.length} members and threshold ${threshold}`
-      );
 
       // Generate a deterministic keypair based on the realm address
       // If treasury is provided, use it for even more determinism
       const derivedKeypair = KeypairUtil.getRealmDerivedKeypair(realmAddress);
-
-      console.log(
-        `Using realm-derived createKey: ${derivedKeypair.publicKey.toBase58()}`
-      );
-      console.log(`Associated with realm: ${realmAddress.toBase58()}`);
 
       // Use the derived keypair as createKey
       const [multisigPda] = multisig.getMultisigPda({
@@ -216,7 +202,6 @@ export class MultisigService {
   ): Promise<ServiceResponse<string | undefined>> {
     try {
       if (!approve) {
-        console.log("Vote is a denial - no Squads approval needed");
         return {
           success: true,
           data: undefined,
@@ -279,11 +264,6 @@ export class MultisigService {
 
       const approvalCount = proposal.approved.length;
       const threshold = multisigAccount.threshold;
-
-      console.log(
-        `Proposal has ${approvalCount} approvals, threshold is ${threshold}`
-      );
-
       return {
         success: true,
         data: approvalCount >= threshold,
@@ -419,8 +399,6 @@ export class MultisigService {
     title: string
   ): Promise<ServiceResponse<MultisigTransactionResult | undefined>> {
     try {
-      console.log(`Creating unified multisig transaction for "${title}"`);
-
       // First create the transaction
       const txResult = await this.createMultisigTransaction(
         connection,
@@ -488,9 +466,6 @@ export class MultisigService {
     transactionIndex: number
   ): Promise<ServiceResponse<string>> {
     try {
-      console.log(
-        `Approving multisig proposal at index ${transactionIndex} for multisig ${multisigPda.toBase58()}`
-      );
 
       // First check if the proposal exists
       const [proposalPda] = multisig.getProposalPda({
@@ -504,20 +479,10 @@ export class MultisigService {
           connection,
           proposalPda
         );
-        console.log(
-          `Found proposal with ${proposal.approved.length} current approvals`
-        );
-
         // Check if the user already approved this proposal
         const alreadyApproved = proposal.approved.some((approver) =>
           approver.equals(keypair.publicKey)
         );
-
-        if (alreadyApproved) {
-          console.log(`You have already approved this proposal.`);
-          // You might want to return early here
-        }
-
         // Get multisig account to check membership
         const multisigAccount =
           await multisig.accounts.Multisig.fromAccountAddress(
@@ -531,17 +496,11 @@ export class MultisigService {
         );
 
         if (!isMember) {
-          console.log(
-            `Warning: ${keypair.publicKey.toBase58()} is not a member of this multisig`
-          );
+          // shouldnt vote therefore
         }
       } catch (e) {
-        console.log(
-          `Unable to find proposal at index ${transactionIndex}. It might not exist yet.`
-        );
-        console.log(
-          `You may need to execute the DAO proposal first to create the multisig transaction.`
-        );
+        // Proposal doesn't exist yet
+
       }
 
       // Create approval instruction
@@ -574,7 +533,6 @@ export class MultisigService {
     transactionIndex: number
   ): Promise<ServiceResponse<string>> {
     try {
-      console.log(`Executing multisig transaction #${transactionIndex}`);
 
       // Get fresh multisig info
       const multisigInfo = await multisig.accounts.Multisig.fromAccountAddress(
