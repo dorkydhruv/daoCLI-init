@@ -5,54 +5,60 @@ import {
   sendAndConfirmTransaction,
   Transaction,
   TransactionInstruction,
-  TransactionMessage,
-  VersionedTransaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
-import BN from "bn.js";
-import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
 import {
   GovernanceConfig,
   ProposalV2,
   SplGovernance,
 } from "governance-idl-sdk";
+import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
+import { ServiceResponse, DaoData } from "../types/service-types";
 import {
   createMint,
+  getAssociatedTokenAddressSync,
+  getMint,
+  createAssociatedTokenAccountInstruction,
+  createTransferInstruction,
   AuthorityType,
   createSetAuthorityInstruction,
   mintTo,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
 import { MultisigService } from "./multisig-service";
+import { sendTx } from "../utils/send_tx";
+import BN from "bn.js";
 
-// Constants
+// Constants moved from class to top level
 const DISABLED_VOTER_WEIGHT = new BN("18446744073709551615");
 const DEFAULT_VOTING_TIME = 86400; // 1 day in seconds
 
 export class GovernanceService {
   static programId = new PublicKey(SPL_GOVERNANCE_PROGRAM_ID);
 
-  // Helper function to execute instructions - replaced with MultisigService.executeInstructions
-  private static async executeInstructions(
-    connection: Connection,
-    payer: Keypair,
-    instructions: TransactionInstruction[]
-  ): Promise<string> {
-    return MultisigService.executeInstructions(connection, payer, instructions);
-  }
-
   /**
    * Checks if a realm has an associated multisig (is integrated)
-   * @param connection Solana connection
-   * @param realmAddress The realm address to check
-   * @returns Promise<boolean> True if the realm has an associated multisig
    */
   static async isIntegratedDao(
     connection: Connection,
     realmAddress: PublicKey
-  ): Promise<boolean> {
+  ): Promise<ServiceResponse<boolean>> {
     try {
       // Get the expected multisig address for this realm
-      const multisigAddress = MultisigService.getMultisigForRealm(realmAddress);
+      const multisigResult = MultisigService.getMultisigForRealm(realmAddress);
+
+      if (!multisigResult.success) {
+        return {
+          success: false,
+          error: {
+            message: "Failed to derive multisig address",
+            details: multisigResult.error,
+          },
+        };
+      }
+
+      const multisigAddress = multisigResult.data!;
 
       // Try to fetch the multisig account to see if it exists
       const multisigAccountInfo = await connection.getAccountInfo(
@@ -60,346 +66,533 @@ export class GovernanceService {
       );
 
       // If the account exists, this is an integrated DAO
-      return multisigAccountInfo !== null;
+      return {
+        success: true,
+        data: multisigAccountInfo !== null,
+      };
     } catch (error) {
-      console.error("Error checking if DAO is integrated:", error);
-      return false;
+      return {
+        success: false,
+        error: {
+          message: "Error checking if DAO is integrated",
+          details: error,
+        },
+      };
     }
   }
 
   /**
    * Gets information about a realm including whether it's integrated
-   * @param connection Solana connection
-   * @param realmAddress The realm address
    */
   static async getRealmInfo(
     connection: Connection,
     realmAddress: PublicKey
-  ): Promise<{
-    name: string;
-    isIntegrated: boolean;
-    governanceAddress: PublicKey;
-    treasuryAddress: PublicKey;
-    multisigAddress: PublicKey | undefined;
-    vaultAddress: PublicKey | undefined;
-  }> {
+  ): Promise<ServiceResponse<DaoData>> {
     try {
       const splGovernance = new SplGovernance(connection, this.programId);
 
-      // Get the realm info
-      const realmInfo = await splGovernance.getRealmByPubkey(realmAddress);
+      // Get realm information
+      const realm = await splGovernance.getRealmByPubkey(realmAddress);
 
-      // Get the governance account for the realm
-      const governanceId = splGovernance.pda.governanceAccount({
+      if (!realm) {
+        return {
+          success: false,
+          error: {
+            message: `Realm not found: ${realmAddress.toBase58()}`,
+          },
+        };
+      }
+
+      // Get governance from realm
+      const governanceAddress = splGovernance.pda.governanceAccount({
         realmAccount: realmAddress,
         seed: realmAddress,
       }).publicKey;
 
-      // Get the treasury account
+      // Get treasury from governance
       const treasuryAddress = splGovernance.pda.nativeTreasuryAccount({
-        governanceAccount: governanceId,
+        governanceAccount: governanceAddress,
       }).publicKey;
 
-      // Check if it's an integrated DAO
-      const isIntegrated = await this.isIntegratedDao(connection, realmAddress);
+      // Check if this is an integrated DAO
+      const integratedResult = await this.isIntegratedDao(
+        connection,
+        realmAddress
+      );
+      const isIntegrated = integratedResult.success
+        ? integratedResult.data!
+        : false;
 
-      // If integrated, get multisig and vault addresses
-      let multisigAddress, vaultAddress;
+      // Build base DAO data
+      const daoData: DaoData = {
+        name: realm.name,
+        realmAddress,
+        governanceAddress,
+        treasuryAddress,
+        isIntegrated,
+      };
+
+      // If integrated, add multisig and vault info
       if (isIntegrated) {
-        multisigAddress = MultisigService.getMultisigForRealm(realmAddress);
-        vaultAddress = MultisigService.getMultisigVaultPda(multisigAddress);
+        const multisigResult =
+          MultisigService.getMultisigForRealm(realmAddress);
+
+        if (multisigResult.success && multisigResult.data) {
+          daoData.multisigAddress = multisigResult.data;
+
+          // Get multisig info to verify it exists
+          const multisigInfoResult = await MultisigService.getMultisigInfo(
+            connection,
+            multisigResult.data
+          );
+
+          if (multisigInfoResult.success && multisigInfoResult.data) {
+            // Get vault address
+            const vaultResult = MultisigService.getMultisigVaultPda(
+              multisigResult.data
+            );
+
+            if (vaultResult.success && vaultResult.data) {
+              daoData.vaultAddress = vaultResult.data;
+
+              // Get balances if possible
+              try {
+                daoData.treasuryBalance =
+                  (await connection.getBalance(treasuryAddress)) / 1e9;
+                daoData.vaultBalance =
+                  (await connection.getBalance(daoData.vaultAddress)) / 1e9;
+              } catch (error) {
+                // Ignore balance fetch errors
+              }
+            }
+          }
+        }
+      } else {
+        // For non-integrated DAOs, just get the treasury balance
+        try {
+          daoData.treasuryBalance =
+            (await connection.getBalance(treasuryAddress)) / 1e9;
+        } catch (error) {
+          // Ignore balance fetch errors
+        }
       }
 
       return {
-        name: realmInfo.name,
-        isIntegrated,
-        governanceAddress: governanceId,
-        treasuryAddress,
-        multisigAddress: isIntegrated ? multisigAddress : undefined,
-        vaultAddress: isIntegrated ? vaultAddress : undefined,
+        success: true,
+        data: daoData,
       };
     } catch (error) {
-      console.error("Error getting realm info:", error);
-      throw error;
+      return {
+        success: false,
+        error: {
+          message: "Failed to get realm information",
+          details: error,
+        },
+      };
     }
   }
 
   /**
-   * Gets all proposals for a specific governance/realm
+   * Initialize a DAO with governance and token setup
    */
-  static async getProposalsForRealm(
-    connection: Connection,
-    realmAddress: PublicKey
-  ): Promise<{
-    proposals: ProposalV2[];
-    governanceId: PublicKey;
-  }> {
-    try {
-      const splGovernance = new SplGovernance(connection, this.programId);
-
-      // Get the governance account for the realm
-      const governanceId = splGovernance.pda.governanceAccount({
-        realmAccount: realmAddress,
-        seed: realmAddress,
-      }).publicKey;
-
-      // Get all proposals
-      const allProposals = await splGovernance.getAllProposals();
-
-      // Filter proposals for this specific governance
-      const filteredProposals = allProposals.filter((proposal) =>
-        proposal.governance.equals(governanceId)
-      );
-
-      return {
-        proposals: filteredProposals,
-        governanceId,
-      };
-    } catch (error) {
-      console.error("Error getting proposals for realm:", error);
-      throw error;
-    }
-  }
-
   static async initializeDAO(
     connection: Connection,
     keypair: Keypair,
     name: string,
     members: PublicKey[],
     threshold: number
-  ): Promise<{
-    realmAddress: PublicKey;
-    governanceAddress: PublicKey;
-    treasuryAddress: PublicKey;
-    communityMint: PublicKey;
-    councilMint: PublicKey;
-  }> {
-    console.log(`Initializing DAO with name: ${name}`);
+  ): Promise<
+    ServiceResponse<{
+      realmAddress: PublicKey;
+      governanceAddress: PublicKey;
+      treasuryAddress: PublicKey;
+      communityMint: PublicKey;
+      councilMint: PublicKey;
+    }>
+  > {
+    try {
+      const splGovernance = new SplGovernance(connection, this.programId);
 
-    const splGovernance = new SplGovernance(connection, this.programId);
+      // Create token mints
+      const communityMint = await createMint(
+        connection,
+        keypair,
+        keypair.publicKey,
+        null,
+        0
+      );
 
-    // Create token mints
-    const communityMint = await createMint(
-      connection,
-      keypair,
-      keypair.publicKey,
-      null,
-      0
-    );
-    const councilMint = await createMint(
-      connection,
-      keypair,
-      keypair.publicKey,
-      null,
-      0
-    );
+      const councilMint = await createMint(
+        connection,
+        keypair,
+        keypair.publicKey,
+        null,
+        0
+      );
 
-    // Calculate PDAs
-    const realmId = splGovernance.pda.realmAccount({ name }).publicKey;
-    const governanceId = splGovernance.pda.governanceAccount({
-      realmAccount: realmId,
-      seed: realmId,
-    }).publicKey;
-    const nativeTreasuryId = splGovernance.pda.nativeTreasuryAccount({
-      governanceAccount: governanceId,
-    }).publicKey;
+      // Calculate PDAs
+      const realmId = splGovernance.pda.realmAccount({ name }).publicKey;
+      const governanceId = splGovernance.pda.governanceAccount({
+        realmAccount: realmId,
+        seed: realmId,
+      }).publicKey;
+      const nativeTreasuryId = splGovernance.pda.nativeTreasuryAccount({
+        governanceAccount: governanceId,
+      }).publicKey;
 
-    console.log(`Expected realm: ${realmId.toBase58()}`);
-    console.log(`Expected governance: ${governanceId.toBase58()}`);
-    console.log(`Expected treasury: ${nativeTreasuryId.toBase58()}`);
+      // 1. Create realm instruction
+      const createRealmIx = await splGovernance.createRealmInstruction(
+        name,
+        communityMint,
+        DISABLED_VOTER_WEIGHT,
+        keypair.publicKey,
+        undefined,
+        councilMint,
+        "dormant",
+        "membership"
+      );
 
-    // 1. Create realm
-    console.log("1. Creating realm...");
-    const createRealmIx = await splGovernance.createRealmInstruction(
-      name,
-      communityMint,
-      DISABLED_VOTER_WEIGHT,
-      keypair.publicKey,
-      undefined,
-      councilMint,
-      "dormant",
-      "membership"
-    );
+      // Execute realm creation
+      const realmTx = new Transaction().add(createRealmIx);
+      realmTx.feePayer = keypair.publicKey;
+      const realmBlockhash = await connection.getLatestBlockhash();
+      realmTx.recentBlockhash = realmBlockhash.blockhash;
+      await sendAndConfirmTransaction(connection, realmTx, [keypair]);
 
-    const realmTx = new Transaction().add(createRealmIx);
-    realmTx.feePayer = keypair.publicKey;
-    const realmBlockhash = await connection.getLatestBlockhash();
-    realmTx.recentBlockhash = realmBlockhash.blockhash;
+      // 2. Process members
+      for (const member of members) {
+        // Create token owner record
+        const createTokenOwnerRecordIx =
+          await splGovernance.createTokenOwnerRecordInstruction(
+            realmId,
+            member,
+            councilMint,
+            keypair.publicKey
+          );
 
-    const realmSig = await sendAndConfirmTransaction(connection, realmTx, [
-      keypair,
-    ]);
-    console.log(`Realm created: ${realmSig}`);
+        // Deposit governance tokens
+        const depositGovTokenIx =
+          await splGovernance.depositGoverningTokensInstruction(
+            realmId,
+            councilMint,
+            councilMint,
+            member,
+            keypair.publicKey,
+            keypair.publicKey,
+            1
+          );
 
-    // 2. Process member token records
-    console.log("2. Adding members...");
-    for (const member of members) {
-      console.log(`Adding member: ${member.toBase58()}`);
+        // Mint community token
+        await mintTo(
+          connection,
+          keypair,
+          communityMint,
+          (
+            await getOrCreateAssociatedTokenAccount(
+              connection,
+              keypair,
+              communityMint,
+              member,
+              true
+            )
+          ).address,
+          keypair.publicKey,
+          1,
+          []
+        );
 
-      // Create token owner record for the member
-      const createTokenOwnerRecordIx =
-        await splGovernance.createTokenOwnerRecordInstruction(
+        // Adjust signer flags
+        if (!member.equals(keypair.publicKey)) {
+          depositGovTokenIx.keys.forEach((key) => {
+            if (key.pubkey.equals(member) && key.isSigner) {
+              key.isSigner = false;
+            }
+          });
+        }
+
+        // Execute member setup
+        const memberTx = new Transaction().add(
+          createTokenOwnerRecordIx,
+          depositGovTokenIx
+        );
+        memberTx.feePayer = keypair.publicKey;
+        const memberBlockhash = await connection.getLatestBlockhash();
+        memberTx.recentBlockhash = memberBlockhash.blockhash;
+        await sendAndConfirmTransaction(connection, memberTx, [keypair]);
+      }
+
+      // 3. Create governance
+      const thresholdPercentage = Math.floor(
+        (threshold / members.length) * 100
+      );
+
+      const governanceConfig: GovernanceConfig = {
+        communityVoteThreshold: { disabled: {} },
+        minCommunityWeightToCreateProposal: DISABLED_VOTER_WEIGHT,
+        minTransactionHoldUpTime: 0,
+        votingBaseTime: DEFAULT_VOTING_TIME,
+        communityVoteTipping: { disabled: {} },
+        councilVoteThreshold: {
+          yesVotePercentage: [thresholdPercentage],
+        },
+        councilVetoVoteThreshold: { disabled: {} },
+        minCouncilWeightToCreateProposal: 1,
+        councilVoteTipping: { early: {} },
+        communityVetoVoteThreshold: { disabled: {} },
+        votingCoolOffTime: 0,
+        depositExemptProposalCount: 254,
+      };
+
+      const createGovernanceIx =
+        await splGovernance.createGovernanceInstruction(
+          governanceConfig,
           realmId,
-          member,
-          councilMint,
+          keypair.publicKey,
+          undefined,
+          keypair.publicKey,
+          realmId
+        );
+
+      const governanceTx = new Transaction().add(createGovernanceIx);
+      governanceTx.feePayer = keypair.publicKey;
+      const governanceBlockhash = await connection.getLatestBlockhash();
+      governanceTx.recentBlockhash = governanceBlockhash.blockhash;
+      await sendAndConfirmTransaction(connection, governanceTx, [keypair]);
+
+      // 4. Setup treasury and finalize
+      const createNativeTreasuryIx =
+        await splGovernance.createNativeTreasuryInstruction(
+          governanceId,
           keypair.publicKey
         );
 
-      // Deposit governance tokens for the member
-      const depositGovTokenIx =
-        await splGovernance.depositGoverningTokensInstruction(
+      const transferCommunityAuthIx = createSetAuthorityInstruction(
+        communityMint,
+        keypair.publicKey,
+        AuthorityType.MintTokens,
+        nativeTreasuryId
+      );
+
+      const transferCouncilAuthIx = createSetAuthorityInstruction(
+        councilMint,
+        keypair.publicKey,
+        AuthorityType.MintTokens,
+        nativeTreasuryId
+      );
+
+      const transferMultisigAuthIx =
+        await splGovernance.setRealmAuthorityInstruction(
           realmId,
-          councilMint,
-          councilMint, // Source - using mint directly since we're the authority
-          member,
           keypair.publicKey,
-          keypair.publicKey,
-          1
+          "setChecked",
+          governanceId
         );
 
-      // mint 1 community token to the member for query
-      await mintTo(
-        connection,
-        keypair,
-        communityMint,
-        (
-          await getOrCreateAssociatedTokenAccount(
-            connection,
-            keypair,
-            communityMint,
-            member,
-            true
-          )
-        ).address,
-        keypair.publicKey,
-        1,
-        []
+      const finalTx = new Transaction().add(
+        createNativeTreasuryIx,
+        transferCommunityAuthIx,
+        transferCouncilAuthIx,
+        transferMultisigAuthIx
       );
 
-      // Member signatures not required for non-payer members
-      if (!member.equals(keypair.publicKey)) {
-        depositGovTokenIx.keys.forEach((key) => {
-          if (key.pubkey.equals(member) && key.isSigner) {
-            key.isSigner = false;
-          }
-        });
+      finalTx.feePayer = keypair.publicKey;
+      const finalBlockhash = await connection.getLatestBlockhash();
+      finalTx.recentBlockhash = finalBlockhash.blockhash;
+      await sendAndConfirmTransaction(connection, finalTx, [keypair]);
+
+      return {
+        success: true,
+        data: {
+          realmAddress: realmId,
+          governanceAddress: governanceId,
+          treasuryAddress: nativeTreasuryId,
+          communityMint,
+          councilMint,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: "Failed to initialize DAO",
+          details: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Gets proposals for a realm
+   */
+  static async getProposalsForRealm(
+    connection: Connection,
+    realmAddress: PublicKey
+  ): Promise<
+    ServiceResponse<{
+      proposals: ProposalV2[];
+      governanceId: PublicKey;
+    }>
+  > {
+    try {
+      const splGovernance = new SplGovernance(connection, this.programId);
+
+      const governanceId = splGovernance.pda.governanceAccount({
+        realmAccount: realmAddress,
+        seed: realmAddress,
+      }).publicKey;
+
+      const allProposals = await splGovernance.getAllProposals();
+      const filteredProposals = allProposals.filter((proposal) =>
+        proposal.governance.equals(governanceId)
+      );
+
+      return {
+        success: true,
+        data: {
+          proposals: filteredProposals,
+          governanceId,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: "Failed to get proposals for realm",
+          details: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Get the program ID for SPL Governance
+   */
+  static getProgramId(): PublicKey {
+    return this.programId;
+  }
+
+  /**
+   * Fund either the native DAO treasury or the Squads multisig
+   * @param connection Solana connection
+   * @param keypair Wallet keypair
+   * @param targetAddress The treasury or multisig address to fund
+   * @param amount Amount of SOL to transfer
+   * @returns Transaction signature
+   */
+  static async fundTreasury(
+    connection: Connection,
+    keypair: Keypair,
+    targetAddress: PublicKey,
+    amount: number
+  ): Promise<ServiceResponse<string>> {
+    try {
+      // Create transfer instruction
+      const transferIx = SystemProgram.transfer({
+        fromPubkey: keypair.publicKey,
+        toPubkey: targetAddress,
+        lamports: amount * LAMPORTS_PER_SOL,
+      });
+
+      // Execute the transaction
+      return await sendTx(connection, keypair, [transferIx]);
+    } catch (error) {
+      console.error("Failed to fund treasury", error);
+      return {
+        success: false,
+        error: {
+          message: "Failed to fund treasury",
+          details: error,
+        },
+      };
+    }
+  }
+
+  /**
+   * Fund a token account for a recipient
+   * @param connection Solana connection
+   * @param keypair Wallet keypair
+   * @param tokenMint Token mint address
+   * @param recipient Recipient address
+   * @param amount Amount of tokens to transfer (decimal)
+   * @returns Transaction signature
+   */
+  static async fundTokenAccount(
+    connection: Connection,
+    keypair: Keypair,
+    tokenMint: PublicKey,
+    recipient: PublicKey,
+    amount: number
+  ): Promise<ServiceResponse<string>> {
+    try {
+      // Get token info for decimals
+      const tokenInfo = await getMint(connection, tokenMint);
+
+      // Find source token account
+      const sourceAccounts = await connection.getParsedTokenAccountsByOwner(
+        keypair.publicKey,
+        { mint: tokenMint }
+      );
+
+      if (!sourceAccounts.value || sourceAccounts.value.length === 0) {
+        return {
+          success: false,
+          error: {
+            message: `No token accounts found for mint ${tokenMint.toBase58()}`,
+          },
+        };
       }
 
-      const memberTx = new Transaction().add(
-        createTokenOwnerRecordIx,
-        depositGovTokenIx
-      );
-      memberTx.feePayer = keypair.publicKey;
-      const memberBlockhash = await connection.getLatestBlockhash();
-      memberTx.recentBlockhash = memberBlockhash.blockhash;
+      // Use the first account that has enough tokens
+      const sourceAccount = sourceAccounts.value[0].pubkey;
 
-      const memberSig = await sendAndConfirmTransaction(connection, memberTx, [
-        keypair,
-      ]);
-      console.log(`Member added: ${memberSig}`);
+      // Calculate the destination token account (ATA)
+      const destinationAccount = getAssociatedTokenAddressSync(
+        tokenMint,
+        recipient,
+        true // Allow PDA owners
+      );
+
+      // Check if destination account exists
+      const instructions: TransactionInstruction[] = [];
+      const destinationAccountInfo = await connection.getAccountInfo(
+        destinationAccount
+      );
+
+      // Create destination account if needed
+      if (!destinationAccountInfo) {
+        instructions.push(
+          createAssociatedTokenAccountInstruction(
+            keypair.publicKey,
+            destinationAccount,
+            recipient,
+            tokenMint
+          )
+        );
+      }
+
+      // Calculate token amount with decimals
+      const adjustedAmount = amount * Math.pow(10, tokenInfo.decimals);
+
+      // Add transfer instruction
+      instructions.push(
+        createTransferInstruction(
+          sourceAccount,
+          destinationAccount,
+          keypair.publicKey,
+          Math.floor(adjustedAmount)
+        )
+      );
+
+      // Execute instructions
+      return await sendTx(connection, keypair, instructions);
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: "Failed to fund token account",
+          details: error,
+        },
+      };
     }
-
-    // 3. Calculate threshold percentage
-    const thresholdPercentage = Math.floor((threshold / members.length) * 100);
-
-    // 4. Create governance with directly matching multisig format
-    const governanceConfig: GovernanceConfig = {
-      communityVoteThreshold: { disabled: {} },
-      minCommunityWeightToCreateProposal: DISABLED_VOTER_WEIGHT,
-      minTransactionHoldUpTime: 0,
-      votingBaseTime: DEFAULT_VOTING_TIME,
-      communityVoteTipping: { disabled: {} },
-      councilVoteThreshold: {
-        yesVotePercentage: [thresholdPercentage],
-      },
-      councilVetoVoteThreshold: { disabled: {} },
-      minCouncilWeightToCreateProposal: 1,
-      councilVoteTipping: { early: {} },
-      communityVetoVoteThreshold: { disabled: {} },
-      votingCoolOffTime: 0,
-      depositExemptProposalCount: 254,
-    };
-
-    const createGovernanceIx = await splGovernance.createGovernanceInstruction(
-      governanceConfig,
-      realmId,
-      keypair.publicKey,
-      undefined,
-      keypair.publicKey,
-      realmId
-    );
-
-    const governanceTx = new Transaction().add(createGovernanceIx);
-    governanceTx.feePayer = keypair.publicKey;
-    const governanceBlockhash = await connection.getLatestBlockhash();
-    governanceTx.recentBlockhash = governanceBlockhash.blockhash;
-
-    const governanceSig = await sendAndConfirmTransaction(
-      connection,
-      governanceTx,
-      [keypair]
-    );
-    console.log(`Governance created: ${governanceSig}`);
-
-    // 5. Create treasury and finalize setup
-    const createNativeTreasuryIx =
-      await splGovernance.createNativeTreasuryInstruction(
-        governanceId,
-        keypair.publicKey
-      );
-
-    const transferCommunityAuthIx = createSetAuthorityInstruction(
-      communityMint,
-      keypair.publicKey,
-      AuthorityType.MintTokens,
-      nativeTreasuryId
-    );
-
-    const transferCouncilAuthIx = createSetAuthorityInstruction(
-      councilMint,
-      keypair.publicKey,
-      AuthorityType.MintTokens,
-      nativeTreasuryId
-    );
-
-    const transferMultisigAuthIx =
-      await splGovernance.setRealmAuthorityInstruction(
-        realmId,
-        keypair.publicKey,
-        "setChecked",
-        governanceId
-      );
-
-    const finalTx = new Transaction().add(
-      createNativeTreasuryIx,
-      transferCommunityAuthIx,
-      transferCouncilAuthIx,
-      transferMultisigAuthIx
-    );
-    finalTx.feePayer = keypair.publicKey;
-    const finalBlockhash = await connection.getLatestBlockhash();
-    finalTx.recentBlockhash = finalBlockhash.blockhash;
-
-    const finalSig = await sendAndConfirmTransaction(connection, finalTx, [
-      keypair,
-    ]);
-    console.log(`DAO setup finalized: ${finalSig}`);
-
-    console.log("DAO initialization complete!");
-
-    // Get the expected multisig address (even if not created yet)
-    const expectedMultisigAddress =
-      MultisigService.getMultisigForRealm(realmId);
-    console.log(
-      `Expected associated multisig: ${expectedMultisigAddress.toBase58()}`
-    );
-
-    return {
-      realmAddress: realmId,
-      governanceAddress: governanceId,
-      treasuryAddress: nativeTreasuryId,
-      communityMint,
-      councilMint,
-    };
   }
 }

@@ -10,12 +10,6 @@ import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
 
 /**
  * Debug script for testing the integrated DAO with Squads multisig
- *
- * This tests:
- * 1. Creating an integrated DAO with Squads multisig
- * 2. Funding both the DAO treasury and multisig vault
- * 3. Creating a proposal through the DAO that links with the multisig
- * 4. Voting and execution of the integrated proposal
  */
 async function debugIntegratedDao() {
   console.log("\n=================================================");
@@ -25,14 +19,20 @@ async function debugIntegratedDao() {
   // 1. Setup connection and wallet
   try {
     console.log("Setting up connection and wallet...");
-    const connection = await ConnectionService.getConnection();
-    const wallet = await WalletService.loadWallet();
-
-    if (!wallet) {
-      throw new Error("No wallet configured. Please run 'wallet create' first");
+    const connectionRes = await ConnectionService.getConnection();
+    if (!connectionRes.success || !connectionRes.data) {
+      console.log("Failed to establish connection");
+      return;
     }
+    const connection = connectionRes.data;
 
-    const keypair = WalletService.getKeypair(wallet);
+    const walletRes = await WalletService.loadWallet();
+    if (!walletRes.success || !walletRes.data) {
+      console.log("No wallet configured. Please run 'wallet create' first");
+      return;
+    }
+    const keypair = WalletService.getKeypair(walletRes.data);
+
     console.log(`Using wallet: ${keypair.publicKey.toBase58()}`);
 
     // Check balance
@@ -55,14 +55,20 @@ async function debugIntegratedDao() {
     console.log(`Members: ${members.map((m) => m.toBase58()).join(", ")}`);
     console.log(`Threshold: ${threshold}`);
 
-    const { realmAddress, governanceAddress, treasuryAddress } =
-      await GovernanceService.initializeDAO(
-        connection,
-        keypair,
-        daoName,
-        members,
-        threshold
-      );
+    const daoResult = await GovernanceService.initializeDAO(
+      connection,
+      keypair,
+      daoName,
+      members,
+      threshold
+    );
+
+    if (!daoResult.success || !daoResult.data) {
+      console.log("Failed to initialize DAO:", daoResult.error?.message);
+      return;
+    }
+
+    const { realmAddress, governanceAddress, treasuryAddress } = daoResult.data;
 
     console.log(`\nDAO created successfully!`);
     console.log(`Realm: ${realmAddress.toBase58()}`);
@@ -72,7 +78,7 @@ async function debugIntegratedDao() {
     // Create the Squads multisig connected to this DAO
     console.log("\n----- STEP 2: Creating Squads multisig -----");
 
-    const { multisigPda } = await MultisigService.createDaoControlledMultisig(
+    const multisigResult = await MultisigService.createDaoControlledMultisig(
       connection,
       keypair,
       threshold,
@@ -81,14 +87,22 @@ async function debugIntegratedDao() {
       realmAddress
     );
 
+    if (!multisigResult.success || !multisigResult.data) {
+      console.log("Failed to create multisig:", multisigResult.error?.message);
+      return;
+    }
+
+    const { multisigPda } = multisigResult.data;
     console.log(`\nSquads multisig created successfully!`);
     console.log(`Multisig: ${multisigPda.toBase58()}`);
 
     // Get the vault PDA
-    const [vaultPda] = multisig.getVaultPda({
-      multisigPda: multisigPda,
-      index: 0,
-    });
+    const vaultPdaRes = MultisigService.getMultisigVaultPda(multisigPda);
+    if (!vaultPdaRes.success || !vaultPdaRes.data) {
+      console.log("Failed to get vault address:", vaultPdaRes.error?.message);
+      return;
+    }
+    const vaultPda = vaultPdaRes.data;
     console.log(`Vault: ${vaultPda.toBase58()}`);
 
     // 3. Fund both treasury and multisig vault
@@ -96,16 +110,31 @@ async function debugIntegratedDao() {
 
     // Fund treasury
     console.log(`Funding treasury with 0.2 SOL...`);
-    await ProposalService.fundTreasury(
+    const treasuryFundRes = await GovernanceService.fundTreasury(
       connection,
       keypair,
       treasuryAddress,
       0.2
     );
 
+    if (!treasuryFundRes.success) {
+      console.log("Failed to fund treasury:", treasuryFundRes.error?.message);
+      return;
+    }
+
     // Fund multisig vault
     console.log(`Funding multisig vault with 0.2 SOL...`);
-    await ProposalService.fundTreasury(connection, keypair, vaultPda, 0.2);
+    const vaultFundRes = await GovernanceService.fundTreasury(
+      connection,
+      keypair,
+      vaultPda,
+      0.2
+    );
+
+    if (!vaultFundRes.success) {
+      console.log("Failed to fund vault:", vaultFundRes.error?.message);
+      return;
+    }
 
     // Verify balances
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -124,7 +153,7 @@ async function debugIntegratedDao() {
     console.log("\n----- STEP 4: Creating integrated proposal -----");
 
     // Create transfer instruction for the multisig
-    const transferInstruction =
+    const transferInstructionRes =
       await ProposalService.getSquadsMultisigSolTransferInstruction(
         connection,
         multisigPda,
@@ -132,35 +161,54 @@ async function debugIntegratedDao() {
         recipient
       );
 
-      console.log("Transfer instruction created successfully!");
+    if (!transferInstructionRes.success || !transferInstructionRes.data) {
+      console.log(
+        "Failed to create transfer instruction:",
+        transferInstructionRes.error?.message
+      );
+      return;
+    }
+
+    console.log("Transfer instruction created successfully!");
 
     // Create the integrated proposal
     const proposalTitle = "Debug Integrated Transfer";
     const proposalDescription = `Transfer ${transferAmount} SOL from multisig vault to ${recipient.toBase58()}`;
 
-    const proposalAddress =
+    const proposalRes =
       await ProposalService.createIntegratedAssetTransferProposal(
         connection,
         keypair,
         realmAddress,
         proposalTitle,
         proposalDescription,
-        [transferInstruction]
+        [transferInstructionRes.data]
       );
 
+    if (!proposalRes.success || !proposalRes.data) {
+      console.log("Failed to create proposal:", proposalRes.error?.message);
+      return;
+    }
+
+    const proposalAddress = proposalRes.data;
     console.log(`\nIntegrated proposal created: ${proposalAddress.toBase58()}`);
 
     // 6. Vote on the proposal
     console.log("\n----- STEP 5: Voting on proposal -----");
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    await ProposalService.castVote(
+    const voteRes = await ProposalService.castVote(
       connection,
       keypair,
       realmAddress,
       proposalAddress,
       true
     );
+
+    if (!voteRes.success) {
+      console.log("Failed to cast vote:", voteRes.error?.message);
+      return;
+    }
 
     console.log("Vote cast successfully!");
 
@@ -175,6 +223,7 @@ async function debugIntegratedDao() {
     );
 
     const proposal = await splGovernance.getProposalByPubkey(proposalAddress);
+    // @ts-ignore: Accessing private static method
     const multisigInfo = ProposalService["extractMultisigInfo"](
       proposal.descriptionLink
     );
@@ -203,12 +252,19 @@ async function debugIntegratedDao() {
         console.log("Attempting manual multisig transaction execution...");
 
         try {
-          await MultisigService.executeMultisigTransaction(
+          const executeRes = await MultisigService.executeMultisigTransaction(
             connection,
             keypair,
             multisigInfo.multisigAddress,
             multisigInfo.transactionIndex
           );
+
+          if (!executeRes.success) {
+            console.log(
+              "Failed to execute multisig transaction:",
+              executeRes.error?.message
+            );
+          }
 
           // Check balance again after manual execution
           await new Promise((resolve) => setTimeout(resolve, 3000));
