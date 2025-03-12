@@ -265,18 +265,19 @@ describe("Integrated DAO with Squads Multisig Test", function () {
     try {
       // First create the DAO
       console.log("Creating SPL Governance DAO...");
-      const { realmAddress, governanceAddress, treasuryAddress } =
+      const realmRes = (
         await GovernanceService.initializeDAO(
           connection,
           wallet,
           daoName,
           [wallet.publicKey],
           threshold
-        );
+        )
+      ).data;
 
-      realmPubkey = realmAddress;
-      governancePubkey = governanceAddress;
-      treasuryPubkey = treasuryAddress;
+      realmPubkey = realmRes?.realmAddress!;
+      governancePubkey = realmRes?.governanceAddress!;
+      treasuryPubkey = realmRes?.treasuryAddress!;
 
       console.log(`Created realm at: ${realmPubkey.toBase58()}`);
       console.log(`Created governance at: ${governancePubkey.toBase58()}`);
@@ -288,16 +289,18 @@ describe("Integrated DAO with Squads Multisig Test", function () {
 
       // Now create the multisig linked to the DAO
       console.log("Creating Squads multisig...");
-      const { multisigPda } = await MultisigService.createDaoControlledMultisig(
-        connection,
-        wallet,
-        threshold,
-        [wallet.publicKey],
-        `${daoName}-multisig`,
-        realmPubkey
-      );
+      const multisigPdaRes = (
+        await MultisigService.createDaoControlledMultisig(
+          connection,
+          wallet,
+          threshold,
+          [wallet.publicKey],
+          `${daoName}-multisig`,
+          realmPubkey
+        )
+      ).data;
 
-      multisigPubkey = multisigPda;
+      multisigPubkey = multisigPdaRes?.multisigPda!;
       console.log(`Created multisig at: ${multisigPubkey.toBase58()}`);
 
       // Get the vault PDA
@@ -320,8 +323,8 @@ describe("Integrated DAO with Squads Multisig Test", function () {
       console.log("Verified multisig account exists on-chain");
 
       // Verify the config file was updated with the realm
-      const config = await ConfigService.getConfig();
-      expect(config.dao?.activeRealm).to.equal(realmPubkey.toBase58());
+      const config = (await ConfigService.getConfig()).data;
+      expect(config?.dao?.activeRealm).to.equal(realmPubkey.toBase58());
     } catch (error) {
       console.error("Error creating integrated DAO:", error);
       throw error;
@@ -421,15 +424,16 @@ describe("Integrated DAO with Squads Multisig Test", function () {
       const proposalTitle = "Test Transfer";
       const proposalDescription = `Transfer ${transferAmount} SOL to ${recipientAddress}`;
 
-      proposalPubkey =
+      proposalPubkey = (
         await ProposalService.createIntegratedAssetTransferProposal(
           connection,
           wallet,
           realmPubkey,
           proposalTitle,
           proposalDescription,
-          [transferInstruction]
-        );
+          [transferInstruction.data!]
+        )
+      ).data!;
 
       console.log(`Created proposal at: ${proposalPubkey.toBase58()}`);
 
@@ -496,6 +500,26 @@ describe("Integrated DAO with Squads Multisig Test", function () {
     } catch (error) {
       console.error("Error voting on proposal:", error);
       throw error;
+    }
+  });
+
+  it("should execute the proposal", async () => {
+    console.log("====== Executing proposal ======");
+    // Make sure we have a valid proposal address
+    try {
+      expect(proposalPubkey).to.not.be.undefined;
+      const executeRes = await ProposalService.executeProposal(
+        connection,
+        wallet,
+        proposalPubkey
+      );
+      if (!executeRes.success) {
+        throw new Error(executeRes.error?.message);
+      }
+      console.log("Proposal executed successfully");
+    } catch (err) {
+      console.error("Error executing proposal:", err);
+      throw err;
     }
   });
 
