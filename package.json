@@ -25,7 +25,8 @@
     "dotenv": "^16.4.7",
     "fastestsmallesttextencoderdecoder": "^1.0.22",
     "fs-extra": "^11.2.0",
-    "governance-idl-sdk": "^0.0.4"
+    "governance-idl-sdk": "^0.0.4",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.1",
