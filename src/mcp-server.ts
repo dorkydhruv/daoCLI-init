@@ -4,9 +4,9 @@ import { registerDaoTools } from "./mcp/dao";
 import { registerConfigAndWalletTools } from "./mcp/config-and-wallet";
 import { registerProposalTools } from "./mcp/proposal";
 import { z } from "zod";
-import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { ConnectionService } from "./services/connection-service";
 import { registerResource } from "./mcp/resource";
+import { registerAgentTools } from "./mcp/agent-tools";
 
 const server = new McpServer({
   name: "DaoCLI",
@@ -16,66 +16,8 @@ const server = new McpServer({
 registerConfigAndWalletTools(server);
 registerDaoTools(server);
 registerProposalTools(server);
-
-// some other tools for basic operations
-server.tool(
-  "getAccountInfo",
-  "Used to look up account info by public key (32 byte base58 encoded address)",
-  { publicKey: z.string() },
-  async ({ publicKey }) => {
-    try {
-      const connectionRes = await ConnectionService.getConnection();
-      if (!connectionRes.success || !connectionRes.data) {
-        return {
-          content: [{ type: "text", text: "Connection not established" }],
-        };
-      }
-      const connection = connectionRes.data;
-      const pubkey = new PublicKey(publicKey);
-      const accountInfo = await connection.getAccountInfo(pubkey);
-      return {
-        content: [{ type: "text", text: JSON.stringify(accountInfo, null, 2) }],
-      };
-    } catch (error) {
-      return {
-        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
-      };
-    }
-  }
-);
-
-// // Get Balance
-server.tool(
-  "getBalance",
-  "Used to look up balance by public key (32 byte base58 encoded address)",
-  { publicKey: z.string() },
-  async ({ publicKey }) => {
-    try {
-      const connectionRes = await ConnectionService.getConnection();
-      if (!connectionRes.success || !connectionRes.data)
-        return {
-          content: [{ type: "text", text: "Connection not established" }],
-        };
-
-      const connection = connectionRes.data;
-      const pubkey = new PublicKey(publicKey);
-      const balance = await connection.getBalance(pubkey);
-      return {
-        content: [
-          {
-            type: "text",
-            text: `${balance / LAMPORTS_PER_SOL} SOL (${balance} lamports)`,
-          },
-        ],
-      };
-    } catch (error) {
-      return {
-        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
-      };
-    }
-  }
-);
-
+registerResource(server);
+registerAgentTools(server);
 // // Get Transaction
 server.tool(
   "getTransaction",
@@ -120,8 +62,6 @@ server.prompt(
     ],
   })
 );
-
-registerResource(server);
 
 const transport = new StdioServerTransport();
 server.connect(transport);

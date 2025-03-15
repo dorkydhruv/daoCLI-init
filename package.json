@@ -26,6 +26,7 @@
     "fastestsmallesttextencoderdecoder": "^1.0.22",
     "fs-extra": "^11.2.0",
     "governance-idl-sdk": "^0.0.4",
+    "solana-agent-kit": "^1.4.9",
     "zod": "^3.24.2"
   },
   "devDependencies": {
