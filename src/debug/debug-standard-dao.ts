@@ -23,14 +23,20 @@ async function debugStandardDao() {
   // 1. Setup connection and wallet
   try {
     console.log("Setting up connection and wallet...");
-    const connection = await ConnectionService.getConnection();
-    const wallet = await WalletService.loadWallet();
-
-    if (!wallet) {
-      throw new Error("No wallet configured. Please run 'wallet create' first");
+    const connectionRes = await ConnectionService.getConnection();
+    if (!connectionRes.success || !connectionRes.data) {
+      console.log("Failed to establish connection");
+      return;
     }
+    const connection = connectionRes.data;
 
-    const keypair = WalletService.getKeypair(wallet);
+    const walletRes = await WalletService.loadWallet();
+    if (!walletRes.success || !walletRes.data) {
+      console.log("No wallet configured. Please run 'wallet create' first");
+      return;
+    }
+    const keypair = WalletService.getKeypair(walletRes.data);
+
     console.log(`Using wallet: ${keypair.publicKey.toBase58()}`);
 
     // Check balance
@@ -53,14 +59,20 @@ async function debugStandardDao() {
     console.log(`Members: ${members.map((m) => m.toBase58()).join(", ")}`);
     console.log(`Threshold: ${threshold}`);
 
-    const { realmAddress, governanceAddress, treasuryAddress } =
-      await GovernanceService.initializeDAO(
-        connection,
-        keypair,
-        daoName,
-        members,
-        threshold
-      );
+    const daoResult = await GovernanceService.initializeDAO(
+      connection,
+      keypair,
+      daoName,
+      members,
+      threshold
+    );
+
+    if (!daoResult.success || !daoResult.data) {
+      console.log("Failed to initialize DAO:", daoResult.error?.message);
+      return;
+    }
+
+    const { realmAddress, governanceAddress, treasuryAddress } = daoResult.data;
 
     console.log(`\nDAO created successfully!`);
     console.log(`Realm: ${realmAddress.toBase58()}`);
@@ -71,12 +83,17 @@ async function debugStandardDao() {
     console.log("\n----- STEP 2: Funding treasury -----");
 
     console.log(`Funding treasury with 0.2 SOL...`);
-    await ProposalService.fundTreasury(
+    const fundResult = await GovernanceService.fundTreasury(
       connection,
       keypair,
       treasuryAddress,
       0.2
     );
+
+    if (!fundResult.success) {
+      console.log("Failed to fund treasury:", fundResult.error?.message);
+      return;
+    }
 
     // Verify balance
     await new Promise((resolve) => setTimeout(resolve, 2000));
@@ -92,33 +109,48 @@ async function debugStandardDao() {
     console.log("\n----- STEP 3: Creating transfer proposal -----");
 
     // Create transfer instruction
-    const transferInstruction = await ProposalService.getSolTransferInstruction(
-      connection,
-      realmAddress,
-      transferAmount,
-      recipient
-    );
+    const transferInstructionRes =
+      await ProposalService.getSolTransferInstruction(
+        connection,
+        realmAddress,
+        transferAmount,
+        recipient
+      );
+
+    if (!transferInstructionRes.success || !transferInstructionRes.data) {
+      console.log(
+        "Failed to create transfer instruction:",
+        transferInstructionRes.error?.message
+      );
+      return;
+    }
 
     // Create the proposal
     const proposalTitle = "Debug Standard Transfer";
     const proposalDescription = `Transfer ${transferAmount} SOL from treasury to ${recipient.toBase58()}`;
 
-    const proposalAddress = await ProposalService.createProposal(
+    const proposalRes = await ProposalService.createProposal(
       connection,
       keypair,
       realmAddress,
       proposalTitle,
       proposalDescription,
-      [transferInstruction]
+      [transferInstructionRes.data]
     );
 
+    if (!proposalRes.success || !proposalRes.data) {
+      console.log("Failed to create proposal:", proposalRes.error?.message);
+      return;
+    }
+
+    const proposalAddress = proposalRes.data;
     console.log(`\nProposal created: ${proposalAddress.toBase58()}`);
 
     // 6. Vote on the proposal
     console.log("\n----- STEP 4: Voting on proposal -----");
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    await ProposalService.castVote(
+    const voteRes = await ProposalService.castVote(
       connection,
       keypair,
       realmAddress,
@@ -126,13 +158,27 @@ async function debugStandardDao() {
       true
     );
 
+    if (!voteRes.success) {
+      console.log("Failed to cast vote:", voteRes.error?.message);
+      return;
+    }
+
     console.log("Vote cast successfully!");
 
     // 7. Execute the proposal
     console.log("\n----- STEP 5: Executing proposal -----");
     await new Promise((resolve) => setTimeout(resolve, 2000));
 
-    await ProposalService.executeProposal(connection, keypair, proposalAddress);
+    const executeRes = await ProposalService.executeProposal(
+      connection,
+      keypair,
+      proposalAddress
+    );
+
+    if (!executeRes.success) {
+      console.log("Failed to execute proposal:", executeRes.error?.message);
+      return;
+    }
 
     console.log("Proposal executed successfully!");
 

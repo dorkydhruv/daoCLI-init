@@ -20,13 +20,19 @@ async function runIntegratedTest() {
   console.log("========== RUNNING INTEGRATED DAO-MULTISIG TEST ==========");
 
   // Setup connection
-  const connection = await ConnectionService.getConnection();
-  const wallet = await WalletService.loadWallet();
-  if (!wallet) {
+  const connectionRes = await ConnectionService.getConnection();
+  if (!connectionRes.success || !connectionRes.data) {
+    console.log("Failed to establish connection");
+    return;
+  }
+  const connection = connectionRes.data;
+
+  const walletRes = await WalletService.loadWallet();
+  if (!walletRes.success || !walletRes.data) {
     console.log("No wallet configured. Please run 'wallet create' first");
     return;
   }
-  const keypair = WalletService.getKeypair(wallet);
+  const keypair = WalletService.getKeypair(walletRes.data);
 
   console.log(`Using wallet: ${keypair.publicKey.toBase58()}`);
 
@@ -53,21 +59,27 @@ async function runIntegratedTest() {
     const members = [keypair.publicKey];
     const threshold = 1;
 
-    const { realmAddress, governanceAddress, treasuryAddress } =
-      await GovernanceService.initializeDAO(
-        connection,
-        keypair,
-        daoName,
-        members,
-        threshold
-      );
+    const daoResult = await GovernanceService.initializeDAO(
+      connection,
+      keypair,
+      daoName,
+      members,
+      threshold
+    );
+
+    if (!daoResult.success || !daoResult.data) {
+      console.log("Failed to initialize DAO:", daoResult.error?.message);
+      return;
+    }
+
+    const { realmAddress, governanceAddress, treasuryAddress } = daoResult.data;
 
     console.log(`DAO created with realm: ${realmAddress.toBase58()}`);
     console.log(`Governance: ${governanceAddress.toBase58()}`);
     console.log(`Treasury: ${treasuryAddress.toBase58()}`);
 
     // Pre-calculate what our multisig address will be
-    const expectedMultisigAddress =
+    const expectedMultisigAddress=
       KeypairUtil.getRealmAssociatedMultisigAddress(realmAddress);
     console.log(`Expected multisig: ${expectedMultisigAddress.toBase58()}`);
 
@@ -78,7 +90,7 @@ async function runIntegratedTest() {
     console.log("\n=== STEP 2: Creating integrated multisig ===");
 
     // We only need the realm address now to deterministically generate the multisig
-    const { multisigPda } = await MultisigService.createDaoControlledMultisig(
+    const multisigResult = await MultisigService.createDaoControlledMultisig(
       connection,
       keypair,
       threshold,
@@ -87,6 +99,12 @@ async function runIntegratedTest() {
       realmAddress // Now using realmAddress instead of treasuryAddress
     );
 
+    if (!multisigResult.success || !multisigResult.data) {
+      console.log("Failed to create multisig:", multisigResult.error?.message);
+      return;
+    }
+
+    const { multisigPda } = multisigResult.data;
     console.log(`Squads multisig created: ${multisigPda.toBase58()}`);
 
     // Verify the multisig address matches our expected address
@@ -99,22 +117,28 @@ async function runIntegratedTest() {
     // Step 3: Fund the multisig vault
     console.log("\n=== STEP 3: Funding multisig vault ===");
 
-    // Get vault PDA - this is where the funds will be stored
-    const [vaultPda] = multisig.getVaultPda({
-      multisigPda,
-      index: 0,
-    });
-
+    // Get vault PDA
+    const vaultPdaRes = MultisigService.getMultisigVaultPda(multisigPda);
+    if (!vaultPdaRes.success || !vaultPdaRes.data) {
+      console.log("Failed to get vault address:", vaultPdaRes.error?.message);
+      return;
+    }
+    const vaultPda = vaultPdaRes.data;
     console.log(`Vault PDA: ${vaultPda.toBase58()}`);
 
     // Fund the vault
     const fundAmount = 0.2;
-    await ProposalService.fundTreasury(
+    const fundResult = await GovernanceService.fundTreasury(
       connection,
       keypair,
       vaultPda,
       fundAmount
     );
+
+    if (!fundResult.success) {
+      console.log("Failed to fund vault:", fundResult.error?.message);
+      return;
+    }
 
     // Verify vault was funded with retry logic
     let vaultBalance = 0;
@@ -148,18 +172,25 @@ async function runIntegratedTest() {
     console.log(`Transfer recipient: ${recipient.toBase58()}`);
     console.log(`Transfer amount: ${transferAmount} SOL`);
 
-    // Get fresh multisig info to know the current transaction index
-    const currentMultisigInfo =
-      await multisig.accounts.Multisig.fromAccountAddress(
-        connection,
-        multisigPda
+    // Get fresh multisig info
+    const multisigInfoRes = await MultisigService.getMultisigInfo(
+      connection,
+      multisigPda
+    );
+    if (!multisigInfoRes.success || !multisigInfoRes.data) {
+      console.log(
+        "Failed to get multisig info:",
+        multisigInfoRes.error?.message
       );
+      return;
+    }
+
     console.log(
-      `Current multisig transaction index before proposal: ${currentMultisigInfo.transactionIndex}`
+      `Current multisig transaction index before proposal: ${multisigInfoRes.data.transactionIndex}`
     );
 
     // Create transfer instruction for the multisig
-    const transferInstruction =
+    const transferInstructionRes =
       await ProposalService.getSquadsMultisigSolTransferInstruction(
         connection,
         multisigPda,
@@ -167,21 +198,35 @@ async function runIntegratedTest() {
         recipient
       );
 
+    if (!transferInstructionRes.success || !transferInstructionRes.data) {
+      console.log(
+        "Failed to create transfer instruction:",
+        transferInstructionRes.error?.message
+      );
+      return;
+    }
+
     // Create the integrated proposal
     const proposalTitle = "Integrated Transfer Test";
     const proposalDescription = `Transfer ${transferAmount} SOL to ${recipient.toBase58()}`;
 
     // Create proposal with enhanced debugging
-    const proposalAddress =
+    const proposalRes =
       await ProposalService.createIntegratedAssetTransferProposal(
         connection,
         keypair,
         realmAddress,
         proposalTitle,
         proposalDescription,
-        [transferInstruction]
+        [transferInstructionRes.data]
       );
 
+    if (!proposalRes.success || !proposalRes.data) {
+      console.log("Failed to create proposal:", proposalRes.error?.message);
+      return;
+    }
+
+    const proposalAddress = proposalRes.data;
     console.log(`Created integrated proposal: ${proposalAddress.toBase58()}`);
 
     // Wait a bit longer to ensure everything is processed
@@ -189,14 +234,23 @@ async function runIntegratedTest() {
 
     // Get fresh multisig state after proposal creation
     try {
-      const afterCreateMultisigInfo =
-        await multisig.accounts.Multisig.fromAccountAddress(
-          connection,
-          multisigPda
-        );
-      console.log(
-        `Multisig transaction index after proposal creation: ${afterCreateMultisigInfo.transactionIndex}`
+      const afterCreateMultisigInfoRes = await MultisigService.getMultisigInfo(
+        connection,
+        multisigPda
       );
+      if (
+        !afterCreateMultisigInfoRes.success ||
+        !afterCreateMultisigInfoRes.data
+      ) {
+        console.log(
+          "Failed to get updated multisig info:",
+          afterCreateMultisigInfoRes.error?.message
+        );
+      } else {
+        console.log(
+          `Multisig transaction index after proposal creation: ${afterCreateMultisigInfoRes.data.transactionIndex}`
+        );
+      }
 
       // Try to get the vault transaction and proposal that were just created
       const splGovernance = new SplGovernance(
@@ -206,6 +260,9 @@ async function runIntegratedTest() {
       const proposalData = await splGovernance.getProposalByPubkey(
         proposalAddress
       );
+
+      // This is a private method, access with caution
+      // @ts-ignore: Accessing private static method
       const multisigInfo = ProposalService["extractMultisigInfo"](
         proposalData.descriptionLink
       );
@@ -268,23 +325,27 @@ async function runIntegratedTest() {
       );
 
       console.log("Proposal data retrieved, extracting multisig info...");
+      // @ts-ignore: Accessing private static method
       const multisigInfo = ProposalService["extractMultisigInfo"](
         proposalData.descriptionLink
       );
       console.log("Extracted multisig info:", multisigInfo);
 
-      // Vote on the DAO proposal - this should create a record of your vote but NOT try to approve the multisig yet
-      console.log("Casting DAO vote only - will handle multisig separately");
-
-      // Create a modified castVote call that doesn't auto-approve the multisig
-      const signature = await ProposalService.castVote(
+      // Vote on the DAO proposal
+      console.log("Casting DAO vote");
+      const voteRes = await ProposalService.castVote(
         connection,
         keypair,
         realmAddress,
         proposalAddress,
         true // approve
       );
-      console.log(`Vote cast with signature: ${signature}`);
+
+      if (!voteRes.success) {
+        console.log("Failed to cast vote:", voteRes.error?.message);
+      } else {
+        console.log(`Vote cast with signature: ${voteRes.data}`);
+      }
 
       // Wait for vote recording
       await new Promise((resolve) => setTimeout(resolve, 3000));
@@ -330,6 +391,7 @@ async function runIntegratedTest() {
       );
 
       const proposal = await splGovernance.getProposalByPubkey(proposalAddress);
+      // @ts-ignore: Accessing private static method
       const multisigInfo = ProposalService["extractMultisigInfo"](
         proposal.descriptionLink
       );
@@ -343,22 +405,38 @@ async function runIntegratedTest() {
 
         try {
           // Approve the multisig transaction
-          await MultisigService.approveProposal(
+          const approveRes = await MultisigService.approveProposal(
             connection,
             keypair,
             multisigInfo.multisigAddress,
             multisigInfo.transactionIndex
           );
-          console.log("Manually approved multisig transaction");
+
+          if (!approveRes.success) {
+            console.log(
+              "Failed to approve multisig transaction:",
+              approveRes.error?.message
+            );
+          } else {
+            console.log("Manually approved multisig transaction");
+          }
 
           // Execute the multisig transaction
-          await MultisigService.executeMultisigTransaction(
+          const executeRes = await MultisigService.executeMultisigTransaction(
             connection,
             keypair,
             multisigInfo.multisigAddress,
             multisigInfo.transactionIndex
           );
-          console.log("Manually executed multisig transaction");
+
+          if (!executeRes.success) {
+            console.log(
+              "Failed to execute multisig transaction:",
+              executeRes.error?.message
+            );
+          } else {
+            console.log("Manually executed multisig transaction");
+          }
 
           // Wait for execution to complete and check balance again
           await new Promise((resolve) => setTimeout(resolve, 3000));

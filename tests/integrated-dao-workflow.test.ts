@@ -211,7 +211,6 @@ describe("Integrated DAO Workflow Test", function () {
     await new Promise((resolve) => setTimeout(resolve, 5000));
   });
 
-
   after(async () => {
     // Clean up config
     const configDir = path.join(process.env.HOME || "", ".config/daoCLI");

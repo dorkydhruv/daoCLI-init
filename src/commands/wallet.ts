@@ -14,9 +14,18 @@ export function registerWalletCommands(program: Command): void {
     .description("Create a new wallet")
     .action(async () => {
       try {
-        const wallet = await WalletService.createWallet();
+        const walletResponse = await WalletService.createWallet();
+
+        if (!walletResponse.success || !walletResponse.data) {
+          console.error(
+            chalk.red("Failed to create wallet:"),
+            walletResponse.error?.message || "Unknown error"
+          );
+          return;
+        }
+
         console.log(chalk.green("✓ Wallet created successfully!"));
-        console.log(chalk.yellow("Public Key:"), wallet.pubkey);
+        console.log(chalk.yellow("Public Key:"), walletResponse.data.pubkey);
         console.log(
           chalk.yellow(
             "⚠️  WARNING: Keep your secret key safe. Anyone with access to it can control your funds."
@@ -36,9 +45,18 @@ export function registerWalletCommands(program: Command): void {
     )
     .action(async (secretKey) => {
       try {
-        const wallet = await WalletService.importWallet(secretKey);
+        const walletResponse = await WalletService.importWallet(secretKey);
+
+        if (!walletResponse.success || !walletResponse.data) {
+          console.error(
+            chalk.red("Failed to import wallet:"),
+            walletResponse.error?.message || "Unknown error"
+          );
+          return;
+        }
+
         console.log(chalk.green("✓ Wallet imported successfully!"));
-        console.log(chalk.yellow("Public Key:"), wallet.pubkey);
+        console.log(chalk.yellow("Public Key:"), walletResponse.data.pubkey);
       } catch (error) {
         console.error(chalk.red("Failed to import wallet:"), error);
       }
@@ -49,10 +67,9 @@ export function registerWalletCommands(program: Command): void {
     .description("Display current wallet information")
     .action(async () => {
       try {
-        const wallet = await WalletService.loadWallet();
-        const config = await ConfigService.getConfig();
+        const walletResponse = await WalletService.loadWallet();
 
-        if (!wallet) {
+        if (!walletResponse.success || !walletResponse.data) {
           console.log(
             chalk.yellow(
               'No wallet configured. Use "dao wallet create" to create one.'
@@ -61,20 +78,47 @@ export function registerWalletCommands(program: Command): void {
           return;
         }
 
+        const configResponse = await ConfigService.getConfig();
+        const connectionResponse = await ConnectionService.getConnection();
+
+        if (!connectionResponse.success || !connectionResponse.data) {
+          console.error(
+            chalk.red("Failed to establish connection:"),
+            connectionResponse.error?.message || "Unknown error"
+          );
+          return;
+        }
+
         console.log(chalk.blue("Wallet Information:"));
-        console.log(chalk.yellow("Public Key:"), wallet.pubkey);
+        console.log(chalk.yellow("Public Key:"), walletResponse.data.pubkey);
 
         try {
-          const connection = await ConnectionService.getConnection();
-          const balance = await WalletService.getBalance(
+          const connection = connectionResponse.data;
+          const balanceResponse = await WalletService.getBalance(
             connection,
-            wallet.pubkey
+            walletResponse.data.pubkey
           );
-          console.log(chalk.yellow("Balance:"), `${balance} SOL`);
-          console.log(
-            chalk.yellow("Network:"),
-            config.dao?.cluster || "Not set"
-          );
+
+          if (balanceResponse.success && balanceResponse.data !== undefined) {
+            console.log(
+              chalk.yellow("Balance:"),
+              `${balanceResponse.data} SOL`
+            );
+
+            if (configResponse.success && configResponse.data?.dao?.cluster) {
+              console.log(
+                chalk.yellow("Network:"),
+                configResponse.data.dao.cluster
+              );
+            } else {
+              console.log(chalk.yellow("Network:"), "Not set");
+            }
+          } else {
+            console.log(
+              chalk.red("Could not fetch balance:"),
+              balanceResponse.error?.message || "Unknown error"
+            );
+          }
         } catch (error) {
           console.log(chalk.red("Could not fetch balance:"), error);
         }
