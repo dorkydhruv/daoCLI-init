@@ -6,7 +6,8 @@ import { registerProposalTools } from "./mcp/proposal";
 import { z } from "zod";
 import { ConnectionService } from "./services/connection-service";
 import { registerResource } from "./mcp/resource";
-import { registerAgentTools } from "./mcp/agent-tools";
+import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+// import { registerAgentTools } from "./mcp/agent-tools";
 
 const server = new McpServer({
   name: "DaoCLI",
@@ -17,8 +18,40 @@ registerConfigAndWalletTools(server);
 registerDaoTools(server);
 registerProposalTools(server);
 registerResource(server);
-registerAgentTools(server);
-// // Get Transaction
+
+// Get Balance
+server.tool(
+  "getBalance",
+  "Used to look up balance by public key (32 byte base58 encoded address)",
+  { publicKey: z.string() },
+  async ({ publicKey }) => {
+    try {
+      const connectionRes = await ConnectionService.getConnection();
+      if (!connectionRes.success || !connectionRes.data)
+        return {
+          content: [{ type: "text", text: "Connection not established" }],
+        };
+
+      const connection = connectionRes.data;
+      const pubkey = new PublicKey(publicKey);
+      const balance = await connection.getBalance(pubkey);
+      return {
+        content: [
+          {
+            type: "text",
+            text: `${balance / LAMPORTS_PER_SOL} SOL (${balance} lamports)`,
+          },
+        ],
+      };
+    } catch (error) {
+      return {
+        content: [{ type: "text", text: `Error: ${(error as Error).message}` }],
+      };
+    }
+  }
+);
+
+// Get Transaction
 server.tool(
   "getTransaction",
   "Used to look up transaction by signature (64 byte base58 encoded string)",
