@@ -7,7 +7,7 @@ import { z } from "zod";
 import { ConnectionService } from "./services/connection-service";
 import { registerResource } from "./mcp/resource";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
-// import { registerAgentTools } from "./mcp/agent-tools";
+import { registerAgentTools } from "./mcp/agent-tools";
 
 const server = new McpServer({
   name: "DaoCLI",
@@ -18,7 +18,7 @@ registerConfigAndWalletTools(server);
 registerDaoTools(server);
 registerProposalTools(server);
 registerResource(server);
-
+registerAgentTools(server);
 // Get Balance
 server.tool(
   "getBalance",
