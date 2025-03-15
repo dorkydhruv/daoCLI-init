@@ -1,6 +1,4 @@
-import {
-  McpServer,
-} from "@modelcontextprotocol/sdk/server/mcp.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConnectionService } from "../services/connection-service";
 import { ConfigService } from "../services/config-service";
@@ -8,9 +6,6 @@ import { WalletService } from "../services/wallet-service";
 import { PublicKey } from "@solana/web3.js";
 import { GovernanceService } from "../services/governance-service";
 import { MultisigService } from "../services/multisig-service";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
-import { SplGovernance } from "governance-idl-sdk";
 
 export function registerDaoTools(server: McpServer) {
   server.tool(
@@ -57,13 +52,27 @@ export function registerDaoTools(server: McpServer) {
           ],
         };
       }
-      const daoResult = await GovernanceService.initializeDAO(
-        connection,
-        keypair,
-        name,
-        membersPubkeys,
-        threshold
-      );
+
+      // Use different initialization functions based on integration mode
+      let daoResult;
+      if (integrated) {
+        // Use integrated DAO creation
+        daoResult = await GovernanceService.initializeIntegratedDAO(
+          connection,
+          keypair,
+          name,
+          membersPubkeys,
+          threshold
+        );
+      } else {
+        daoResult = await GovernanceService.initializeDAO(
+          connection,
+          keypair,
+          name,
+          membersPubkeys,
+          threshold
+        );
+      }
 
       if (!daoResult.success || !daoResult.data) {
         return {
@@ -72,38 +81,8 @@ export function registerDaoTools(server: McpServer) {
           ],
         };
       }
-      let result: {
-        dao: any;
-        squadMultisig: any;
-      } = {
-        dao: daoResult.data,
-        squadMultisig: null,
-      };
-      if (integrated) {
-        const multisigResult =
-          await MultisigService.createDaoControlledMultisig(
-            connection,
-            keypair,
-            threshold,
-            membersPubkeys,
-            name,
-            daoResult.data.realmAddress
-          );
-        if (!multisigResult.success || !multisigResult.data) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(multisigResult.error, null),
-              },
-            ],
-          };
-        }
-        result = {
-          ...result,
-          squadMultisig: multisigResult.data,
-        };
-      }
+
+      // Store the realm address in config
       const configResult = await ConfigService.setActiveRealm(
         daoResult.data.realmAddress.toBase58()
       );
@@ -114,6 +93,44 @@ export function registerDaoTools(server: McpServer) {
           ],
         };
       }
+
+      // Format response based on DAO type
+      let result;
+      if (integrated) {
+        result = {
+          success: true,
+          dao: {
+            realmAddress: daoResult.data.realmAddress.toBase58(),
+            governanceAddress: daoResult.data.governanceAddress.toBase58(),
+            treasuryAddress: daoResult.data.treasuryAddress.toBase58(),
+            communityMint: daoResult.data.communityMint.toBase58(),
+            councilMint: daoResult.data.councilMint.toBase58(),
+            //@ts-ignore
+            transaction: daoResult.data.daoTransaction,
+          },
+          squadMultisig: {
+            //@ts-ignore
+            multisigAddress: daoResult.data.multisigAddress.toBase58(),
+            //@ts-ignore
+            transaction: daoResult.data.squadsTransaction,
+          },
+        };
+      } else {
+        result = {
+          success: true,
+          dao: {
+            realmAddress: daoResult.data.realmAddress.toBase58(),
+            governanceAddress: daoResult.data.governanceAddress.toBase58(),
+            treasuryAddress: daoResult.data.treasuryAddress.toBase58(),
+            communityMint: daoResult.data.communityMint.toBase58(),
+            councilMint: daoResult.data.councilMint.toBase58(),
+            //@ts-ignore
+            transaction: daoResult.data.transactionSignature,
+          },
+          squadMultisig: null,
+        };
+      }
+
       return {
         content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
       };
@@ -399,31 +416,24 @@ export function registerDaoTools(server: McpServer) {
         const connection = connectionRes.data;
         const keypair = WalletService.getKeypair(walletRes.data);
 
-        // Find token accounts with council tokens
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-          keypair.publicKey,
-          { programId: TOKEN_PROGRAM_ID }
-        );
+        // Use the new getTokenOwnerRecords function to find all realms where the user is a member
+        const tokenOwnerRecordsRes =
+          await GovernanceService.getTokenOwnerRecords(connection, keypair);
 
-        const zeroDecimalTokens = tokenAccounts.value.filter((account) => {
-          const tokenAmount = account.account.data.parsed.info.tokenAmount;
-          return tokenAmount.uiAmount > 0;
-        });
+        if (!tokenOwnerRecordsRes.success || !tokenOwnerRecordsRes.data) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Failed to fetch token owner records: ${tokenOwnerRecordsRes.error?.message}`,
+              },
+            ],
+          };
+        }
 
-        // Get token mints
-        const communityMints = zeroDecimalTokens.map(
-          (token) => token.account.data.parsed.info.mint
-        );
+        const tokenOwnerRecords = tokenOwnerRecordsRes.data;
 
-        const splGovernance = new SplGovernance(
-          connection,
-          new PublicKey(SPL_GOVERNANCE_PROGRAM_ID)
-        );
-
-        // Get all realms and find matches
-        const allRealms = await splGovernance.getAllRealms();
-
-        if (allRealms.length === 0) {
+        if (tokenOwnerRecords.length === 0) {
           return {
             content: [
               { type: "text", text: JSON.stringify({ daos: [] }, null, 2) },
@@ -431,49 +441,52 @@ export function registerDaoTools(server: McpServer) {
           };
         }
 
-        // Filter realms where user has council tokens
-        const userRealms = allRealms.filter(
-          (realm) =>
-            realm.config.councilMint &&
-            communityMints.includes(realm.communityMint.toBase58())
-        );
+        // Get realm information for each token owner record
+        const realmDataPromises = tokenOwnerRecords.map(
+          async (record, index) => {
+            try {
+              // Get realm info
+              const realmInfoRes = await GovernanceService.getRealmInfo(
+                connection,
+                record.realmAddress
+              );
 
-        if (userRealms.length === 0) {
-          return {
-            content: [
-              { type: "text", text: JSON.stringify({ daos: [] }, null, 2) },
-            ],
-          };
-        }
+              if (!realmInfoRes.success || !realmInfoRes.data) {
+                return {
+                  index: index + 1,
+                  name: "Unknown",
+                  type: record.isIntegrated ? "Integrated" : "Standard",
+                  address: record.realmAddress.toBase58(),
+                  tokens:
+                    record.tokenOwnerRecords.governingTokenDepositAmount.toString(),
+                };
+              }
 
-        // Process realms to check if they are integrated DAOs
-        const realmPromises = userRealms.map(async (realm, index) => {
-          try {
-            const isIntegratedRes = await GovernanceService.isIntegratedDao(
-              connection,
-              realm.publicKey
-            );
-
-            return {
-              index: index + 1,
-              name: realm.name,
-              type:
-                isIntegratedRes.success && isIntegratedRes.data
-                  ? "Integrated"
-                  : "Standard",
-              address: realm.publicKey.toBase58(),
-            };
-          } catch (error) {
-            return {
-              index: index + 1,
-              name: realm.name,
-              type: "Standard",
-              address: realm.publicKey.toBase58(),
-            };
+              return {
+                index: index + 1,
+                name: realmInfoRes.data.name,
+                type: record.isIntegrated ? "Integrated" : "Standard",
+                address: record.realmAddress.toBase58(),
+                tokens:
+                  record.tokenOwnerRecords.governingTokenDepositAmount.toString(),
+                governance: realmInfoRes.data.governanceAddress.toBase58(),
+                treasury: realmInfoRes.data.treasuryAddress.toBase58(),
+                multisig: realmInfoRes.data.multisigAddress?.toBase58(),
+                vault: realmInfoRes.data.vaultAddress?.toBase58(),
+              };
+            } catch (error) {
+              return {
+                index: index + 1,
+                name: "Error",
+                type: "Unknown",
+                address: record.realmAddress.toBase58(),
+                tokens: "0",
+              };
+            }
           }
-        });
+        );
 
-        const processedRealms = await Promise.all(realmPromises);
+        const processedRealms = await Promise.all(realmDataPromises);
 
         return {
           content: [

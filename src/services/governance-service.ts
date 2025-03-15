@@ -2,8 +2,6 @@ import {
   Connection,
   Keypair,
   PublicKey,
-  sendAndConfirmTransaction,
-  Transaction,
   TransactionInstruction,
   SystemProgram,
   LAMPORTS_PER_SOL,
@@ -12,6 +10,7 @@ import {
   GovernanceConfig,
   ProposalV2,
   SplGovernance,
+  TokenOwnerRecord,
 } from "governance-idl-sdk";
 import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
 import { ServiceResponse, DaoData } from "../types/service-types";
@@ -23,8 +22,6 @@ import {
   createTransferInstruction,
   AuthorityType,
   createSetAuthorityInstruction,
-  mintTo,
-  getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
 import { MultisigService } from "./multisig-service";
 import { sendTx } from "../utils/send_tx";
@@ -208,9 +205,11 @@ export class GovernanceService {
       treasuryAddress: PublicKey;
       communityMint: PublicKey;
       councilMint: PublicKey;
+      transactionSignature: string;
     }>
   > {
     try {
+      const instructions: TransactionInstruction[] = [];
       const splGovernance = new SplGovernance(connection, this.programId);
 
       // Create token mints
@@ -252,12 +251,14 @@ export class GovernanceService {
         "membership"
       );
 
-      // Execute realm creation
-      const realmTx = new Transaction().add(createRealmIx);
-      realmTx.feePayer = keypair.publicKey;
-      const realmBlockhash = await connection.getLatestBlockhash();
-      realmTx.recentBlockhash = realmBlockhash.blockhash;
-      await sendAndConfirmTransaction(connection, realmTx, [keypair]);
+      instructions.push(createRealmIx);
+
+      // // Execute realm creation
+      // const realmTx = new Transaction().add(createRealmIx);
+      // realmTx.feePayer = keypair.publicKey;
+      // const realmBlockhash = await connection.getLatestBlockhash();
+      // realmTx.recentBlockhash = realmBlockhash.blockhash;
+      // await sendAndConfirmTransaction(connection, realmTx, [keypair]);
 
       // 2. Process members
       for (const member of members) {
@@ -282,24 +283,24 @@ export class GovernanceService {
             1
           );
 
-        // Mint community token
-        await mintTo(
-          connection,
-          keypair,
-          communityMint,
-          (
-            await getOrCreateAssociatedTokenAccount(
-              connection,
-              keypair,
-              communityMint,
-              member,
-              true
-            )
-          ).address,
-          keypair.publicKey,
-          1,
-          []
-        );
+        // // Mint community token
+        // await mintTo(
+        //   connection,
+        //   keypair,
+        //   communityMint,
+        //   (
+        //     await getOrCreateAssociatedTokenAccount(
+        //       connection,
+        //       keypair,
+        //       communityMint,
+        //       member,
+        //       true
+        //     )
+        //   ).address,
+        //   keypair.publicKey,
+        //   1,
+        //   []
+        // );
 
         // Adjust signer flags
         if (!member.equals(keypair.publicKey)) {
@@ -310,15 +311,16 @@ export class GovernanceService {
           });
         }
 
+        instructions.push(createTokenOwnerRecordIx, depositGovTokenIx);
         // Execute member setup
-        const memberTx = new Transaction().add(
-          createTokenOwnerRecordIx,
-          depositGovTokenIx
-        );
-        memberTx.feePayer = keypair.publicKey;
-        const memberBlockhash = await connection.getLatestBlockhash();
-        memberTx.recentBlockhash = memberBlockhash.blockhash;
-        await sendAndConfirmTransaction(connection, memberTx, [keypair]);
+        // const memberTx = new Transaction().add(
+        //   createTokenOwnerRecordIx,
+        //   depositGovTokenIx
+        // );
+        // memberTx.feePayer = keypair.publicKey;
+        // const memberBlockhash = await connection.getLatestBlockhash();
+        // memberTx.recentBlockhash = memberBlockhash.blockhash;
+        // await sendAndConfirmTransaction(connection, memberTx, [keypair]);
       }
 
       // 3. Create governance
@@ -352,12 +354,12 @@ export class GovernanceService {
           keypair.publicKey,
           realmId
         );
-
-      const governanceTx = new Transaction().add(createGovernanceIx);
-      governanceTx.feePayer = keypair.publicKey;
-      const governanceBlockhash = await connection.getLatestBlockhash();
-      governanceTx.recentBlockhash = governanceBlockhash.blockhash;
-      await sendAndConfirmTransaction(connection, governanceTx, [keypair]);
+      instructions.push(createGovernanceIx);
+      // const governanceTx = new Transaction().add(createGovernanceIx);
+      // governanceTx.feePayer = keypair.publicKey;
+      // const governanceBlockhash = await connection.getLatestBlockhash();
+      // governanceTx.recentBlockhash = governanceBlockhash.blockhash;
+      // await sendAndConfirmTransaction(connection, governanceTx, [keypair]);
 
       // 4. Setup treasury and finalize
       const createNativeTreasuryIx =
@@ -388,17 +390,35 @@ export class GovernanceService {
           governanceId
         );
 
-      const finalTx = new Transaction().add(
+      instructions.push(
         createNativeTreasuryIx,
         transferCommunityAuthIx,
         transferCouncilAuthIx,
         transferMultisigAuthIx
       );
 
-      finalTx.feePayer = keypair.publicKey;
-      const finalBlockhash = await connection.getLatestBlockhash();
-      finalTx.recentBlockhash = finalBlockhash.blockhash;
-      await sendAndConfirmTransaction(connection, finalTx, [keypair]);
+      // const finalTx = new Transaction().add(
+      //   createNativeTreasuryIx,
+      //   transferCommunityAuthIx,
+      //   transferCouncilAuthIx,
+      //   transferMultisigAuthIx
+      // );
+
+      // finalTx.feePayer = keypair.publicKey;
+      // const finalBlockhash = await connection.getLatestBlockhash();
+      // finalTx.recentBlockhash = finalBlockhash.blockhash;
+      // await sendAndConfirmTransaction(connection, finalTx, [keypair]);
+
+      // Execute all instructions
+      const txRes = await sendTx(connection, keypair, instructions);
+      if (!txRes.success || !txRes.data)
+        return {
+          success: false,
+          error: {
+            message: "Failed to initialize DAO",
+            details: txRes.error,
+          },
+        };
 
       return {
         success: true,
@@ -408,6 +428,7 @@ export class GovernanceService {
           treasuryAddress: nativeTreasuryId,
           communityMint,
           councilMint,
+          transactionSignature: txRes.data,
         },
       };
     } catch (error) {
@@ -419,6 +440,71 @@ export class GovernanceService {
         },
       };
     }
+  }
+
+  /**
+   * Intialize DAO and integrate with multisig
+   */
+  static async initializeIntegratedDAO(
+    connection: Connection,
+    keypair: Keypair,
+    name: string,
+    members: PublicKey[],
+    threshold: number
+  ): Promise<
+    ServiceResponse<{
+      realmAddress: PublicKey;
+      governanceAddress: PublicKey;
+      treasuryAddress: PublicKey;
+      communityMint: PublicKey;
+      councilMint: PublicKey;
+      multisigAddress: PublicKey;
+      daoTransaction: string;
+      squadsTransaction: string;
+    }>
+  > {
+    const daoRes = await this.initializeDAO(
+      connection,
+      keypair,
+      name,
+      members,
+      threshold
+    );
+    if (!daoRes.success || !daoRes.data)
+      return {
+        success: false,
+        error: {
+          message: "Failed to initialize DAO",
+          details: daoRes.error,
+        },
+      };
+    const sqdsMultisigRes = await MultisigService.createDaoControlledMultisig(
+      connection,
+      keypair,
+      threshold,
+      members,
+      `${name}-multisig`,
+      daoRes.data.realmAddress
+    );
+    if (!sqdsMultisigRes.success || !sqdsMultisigRes.data)
+      return {
+        success: false,
+        error: {
+          message: "Failed to create multisig",
+          details: sqdsMultisigRes.error,
+        },
+      };
+    const result = {
+      realmAddress: daoRes.data.realmAddress,
+      governanceAddress: daoRes.data.governanceAddress,
+      treasuryAddress: daoRes.data.treasuryAddress,
+      communityMint: daoRes.data.communityMint,
+      councilMint: daoRes.data.councilMint,
+      multisigAddress: sqdsMultisigRes.data.multisigPda,
+      daoTransaction: daoRes.data.transactionSignature,
+      squadsTransaction: sqdsMultisigRes.data.transactionSignature,
+    };
+    return { success: true, data: result };
   }
 
   /**
@@ -593,5 +679,37 @@ export class GovernanceService {
         },
       };
     }
+  }
+
+  /**
+   * Get all token owner record for a given publickey
+   */
+  static async getTokenOwnerRecords(
+    connection: Connection,
+    owner: Keypair
+  ): Promise<
+    ServiceResponse<
+      {
+        realmAddress: PublicKey;
+        isIntegrated: boolean;
+        tokenOwnerRecords: TokenOwnerRecord;
+      }[]
+    >
+  > {
+    const splGovernance = new SplGovernance(connection, this.programId);
+    const tokenOwnerRecords = await splGovernance.getTokenOwnerRecordsForOwner(
+      owner.publicKey
+    );
+    const result = [];
+    for (const tokenOwnerRecord of tokenOwnerRecords) {
+      const realmAddress = tokenOwnerRecord.realm;
+      const isIntegrated = await this.isIntegratedDao(connection, realmAddress);
+      result.push({
+        realmAddress,
+        isIntegrated: isIntegrated.data!,
+        tokenOwnerRecords: tokenOwnerRecord,
+      });
+    }
+    return { success: true, data: result };
   }
 }

@@ -28,7 +28,12 @@ export class MultisigService {
     members: PublicKey[],
     name: string,
     createKey: Keypair
-  ): Promise<ServiceResponse<{ multisigPda: PublicKey }>> {
+  ): Promise<
+    ServiceResponse<{
+      multisigPda: PublicKey;
+      transactionSignature: string;
+    }>
+  > {
     try {
       // Calculate the multisig PDA
       const [multisigPda] = multisig.getMultisigPda({
@@ -75,7 +80,7 @@ export class MultisigService {
 
         return {
           success: true,
-          data: { multisigPda },
+          data: { multisigPda, transactionSignature: res },
         };
       } catch (error) {
         return {
@@ -108,7 +113,9 @@ export class MultisigService {
     members: PublicKey[],
     name: string,
     realmAddress: PublicKey
-  ): Promise<ServiceResponse<{ multisigPda: PublicKey }>> {
+  ): Promise<
+    ServiceResponse<{ multisigPda: PublicKey; transactionSignature: string }>
+  > {
     try {
       // Generate a deterministic keypair based on the realm address
       // If treasury is provided, use it for even more determinism
@@ -131,11 +138,11 @@ export class MultisigService {
         derivedKeypair
       );
 
-      if (!multisigResult.success) {
+      if (!multisigResult.success || !multisigResult.data) {
         return multisigResult;
       }
 
-      const multisigPdaExecuted = multisigResult.data!.multisigPda;
+      const multisigPdaExecuted = multisigResult.data.multisigPda;
 
       if (!multisigPdaExecuted.equals(multisigPda)) {
         return {
@@ -148,7 +155,10 @@ export class MultisigService {
 
       return {
         success: true,
-        data: { multisigPda },
+        data: {
+          multisigPda,
+          transactionSignature: multisigResult.data.transactionSignature,
+        },
       };
     } catch (error) {
       return {
