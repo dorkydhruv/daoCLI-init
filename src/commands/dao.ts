@@ -6,11 +6,6 @@ import { WalletService } from "../services/wallet-service";
 import { MultisigService } from "../services/multisig-service";
 import { GovernanceService } from "../services/governance-service";
 import { ConfigService } from "../services/config-service";
-import * as multisig from "@sqds/multisig";
-import { ProposalService } from "../services/proposal-service";
-import { SplGovernance } from "governance-idl-sdk";
-import { SPL_GOVERNANCE_PROGRAM_ID } from "../utils/constants";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 
 export function registerDaoCommands(program: Command): void {
   const daoCommand = program
@@ -38,16 +33,22 @@ export function registerDaoCommands(program: Command): void {
     .action(async (options) => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const keypair = WalletService.getKeypair(walletRes.data);
 
         // Parse members
         let members: PublicKey[] = [keypair.publicKey]; // Start with own public key
@@ -77,12 +78,12 @@ export function registerDaoCommands(program: Command): void {
 
         // Check account balance first
         const balance = await connection.getBalance(keypair.publicKey);
-        if (balance < LAMPORTS_PER_SOL) {
+        if (balance < 0.1 * LAMPORTS_PER_SOL) {
           console.log(
             chalk.yellow(
               `⚠️  Low balance: ${
                 balance / LAMPORTS_PER_SOL
-              } SOL. You may need at least 1 SOL to create all accounts.`
+              } SOL. You may need at least 0.1 SOL to create all accounts.`
             )
           );
         }
@@ -90,105 +91,115 @@ export function registerDaoCommands(program: Command): void {
         // Initialize the entire DAO in one go
         console.log(chalk.blue("\nCreating DAO..."));
         const threshold = parseInt(options.threshold);
+        if (members.length < threshold) {
+          console.log(
+            chalk.red(
+              `Threshold should be less than or equal to number of members`
+            )
+          );
+          return;
+        }
 
         const integrated =
           (typeof options.integrated === "string"
             ? options.integrated.toLowerCase() === "true"
             : options.integrated) || false;
+
+        // Use different initialization functions based on integration mode
+        let daoResult;
         if (integrated) {
           console.log(
-            chalk.blue("Using integrated mode with Squads Multisig...")
+            chalk.blue("Creating integrated DAO with Squads Multisig...")
           );
-
-          // First create the DAO
-          const daoResult = await GovernanceService.initializeDAO(
+          daoResult = await GovernanceService.initializeIntegratedDAO(
             connection,
             keypair,
             options.name,
             members,
             threshold
-          );
-
-          // Then create the Squads multisig linked to the DAO using treasury as createKey
-          const multisigResult =
-            await MultisigService.createDaoControlledMultisig(
-              connection,
-              keypair,
-              threshold,
-              members,
-              `${options.name}-multisig`,
-              daoResult.realmAddress
-            );
-
-          // Only store the realm address in config
-          await ConfigService.setActiveRealm(daoResult.realmAddress.toBase58());
-
-          console.log(
-            chalk.green("\n✅ Integrated DAO initialized successfully!")
-          );
-          console.log(
-            chalk.green(`Realm: ${daoResult.realmAddress.toBase58()}`)
-          );
-          console.log(
-            chalk.green(`Governance: ${daoResult.governanceAddress.toBase58()}`)
-          );
-          console.log(
-            chalk.green(
-              `Native Treasury: ${daoResult.treasuryAddress.toBase58()}`
-            )
-          );
-          console.log(
-            chalk.green(
-              `Squads Multisig: ${multisigResult.multisigPda.toBase58()}`
-            )
-          );
-
-          // Create vault automatically
-          const [vaultPda] = multisig.getVaultPda({
-            multisigPda: multisigResult.multisigPda,
-            index: 0,
-          });
-          console.log(chalk.green(`Squads Vault: ${vaultPda.toBase58()}`));
-
-          console.log(chalk.blue("\nNext steps:"));
-          console.log("1. Fund your treasury and multisig vault:");
-          console.log(`   proposal fund --target treasury --amount 0.1`);
-          console.log(`   proposal fund --target multisig --amount 0.1`);
-          console.log("2. Create and vote on proposals:");
-          console.log(
-            `   proposal multisig-transfer --amount 0.01 --recipient [ADDRESS]`
           );
         } else {
-          // Standard DAO creation (existing code)
-          const result = await GovernanceService.initializeDAO(
+          console.log(chalk.blue("Creating standard DAO..."));
+          daoResult = await GovernanceService.initializeDAO(
             connection,
             keypair,
             options.name,
             members,
             threshold
-          );
-
-          // Save configuration
-          await ConfigService.setActiveRealm(result.realmAddress.toBase58());
-
-          console.log(chalk.green("\n✅ DAO initialized successfully!"));
-          console.log(chalk.green(`Realm: ${result.realmAddress.toBase58()}`));
-          console.log(
-            chalk.green(`Governance: ${result.governanceAddress.toBase58()}`)
-          );
-          console.log(
-            chalk.green(`Treasury: ${result.treasuryAddress.toBase58()}`)
-          );
-          console.log(
-            chalk.green(`Community Token: ${result.communityMint.toBase58()}`)
-          );
-          console.log(
-            chalk.green(`Council Token: ${result.councilMint.toBase58()}`)
           );
         }
 
+        if (!daoResult.success || !daoResult.data) {
+          console.log(
+            chalk.red("Failed to initialize DAO:"),
+            daoResult.error?.message,
+            daoResult.error?.details
+              ? JSON.stringify(daoResult.error.details, null, 2)
+              : ""
+          );
+          return;
+        }
+
+        // Only store the realm address in config
+        const configResult = await ConfigService.setActiveRealm(
+          daoResult.data.realmAddress.toBase58()
+        );
+        if (!configResult.success) {
+          console.log(
+            chalk.yellow("Warning: Failed to save configuration:"),
+            configResult.error?.message
+          );
+        }
+        console.log(chalk.green("\n✅ DAO initialized successfully!"));
+        console.log(
+          chalk.green(`Realm: ${daoResult.data.realmAddress.toBase58()}`)
+        );
+        console.log(
+          chalk.green(
+            `Governance: ${daoResult.data.governanceAddress.toBase58()}`
+          )
+        );
+        console.log(
+          chalk.green(`Treasury: ${daoResult.data.treasuryAddress.toBase58()}`)
+        );
+        console.log(
+          chalk.green(
+            `Community Token: ${daoResult.data.communityMint.toBase58()}`
+          )
+        );
+        console.log(
+          chalk.green(`Council Token: ${daoResult.data.councilMint.toBase58()}`)
+        );
+
+        // If integrated, display the multisig information
+        if (integrated && "multisigAddress" in daoResult.data) {
+          console.log(
+            chalk.green(
+              `\nSquads Multisig: ${daoResult.data.multisigAddress.toBase58()}`
+            )
+          );
+
+          // Get vault address
+          const vaultPda = MultisigService.getMultisigVaultPda(
+            daoResult.data.multisigAddress
+          ).data;
+          console.log(chalk.green(`Squads Vault: ${vaultPda!.toBase58()}`));
+
+          console.log(chalk.blue("\nTransactions:"));
+          console.log(`DAO: ${daoResult.data.daoTransaction}`);
+          console.log(`Multisig: ${daoResult.data.squadsTransaction}`);
+        } else if (!integrated) {
+          console.log(chalk.blue("\nTransaction:"));
+          //@ts-ignore
+          console.log(daoResult.data.transactionSignature);
+        }
+
         console.log(chalk.blue("\nNext steps:"));
-        console.log("1. Fund your treasury");
+        console.log("1. Fund your vault:");
+        console.log(` $ daocli dao fund --amount 0.1`);
+        console.log(` $ daocli dao fund-token --mint <mint> --amount <amount>`);
+        console.log("2. Create and vote on proposals:");
+        console.log(`   proposal transfer --amount 0.01 --recipient <address>`);
       } catch (error) {
         console.error(chalk.red("Failed to initialize DAO:"), error);
       }
@@ -199,8 +210,12 @@ export function registerDaoCommands(program: Command): void {
     .description("Show information about the current DAO")
     .action(async () => {
       try {
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
+        const configRes = await ConfigService.getConfig();
+        if (
+          !configRes.success ||
+          !configRes.data ||
+          !configRes.data.dao?.activeRealm
+        ) {
           console.log(
             chalk.yellow(
               'No DAO configured. Use "dao use <ADDRESS>" to select one.'
@@ -209,36 +224,56 @@ export function registerDaoCommands(program: Command): void {
           return;
         }
 
-        const realmAddress = new PublicKey(config.dao.activeRealm);
-        const connection = await ConnectionService.getConnection();
+        const realmAddress = new PublicKey(configRes.data.dao.activeRealm);
 
-        try {
-          // Get comprehensive information about the realm
-          const realmInfo = await GovernanceService.getRealmInfo(
-            connection,
-            realmAddress
-          );
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
 
-          console.log(chalk.blue("DAO Information:"));
-          console.log(chalk.yellow("Realm:"), realmAddress.toBase58());
-          console.log(chalk.yellow("Name:"), realmInfo.name);
-          console.log(
-            chalk.yellow("Governance:"),
-            realmInfo.governanceAddress.toBase58()
-          );
-          console.log(
-            chalk.yellow("Treasury:"),
-            realmInfo.treasuryAddress.toBase58()
-          );
-          console.log(
-            chalk.yellow("Type:"),
-            realmInfo.isIntegrated
-              ? "Integrated with Squads Multisig"
-              : "Standard DAO"
-          );
-          console.log(chalk.yellow("Network:"), config.dao.cluster);
+        const connection = connectionRes.data;
 
-          // Show treasury balance
+        const realmInfoRes = await GovernanceService.getRealmInfo(
+          connection,
+          realmAddress
+        );
+        if (!realmInfoRes.success || !realmInfoRes.data) {
+          console.log(
+            chalk.red("Failed to get DAO information:"),
+            realmInfoRes.error?.message
+          );
+          return;
+        }
+
+        const realmInfo = realmInfoRes.data;
+
+        console.log(chalk.blue("DAO Information:"));
+        console.log(chalk.yellow("Realm:"), realmAddress.toBase58());
+        console.log(chalk.yellow("Name:"), realmInfo.name);
+        console.log(
+          chalk.yellow("Governance:"),
+          realmInfo.governanceAddress.toBase58()
+        );
+        console.log(
+          chalk.yellow("Treasury:"),
+          realmInfo.treasuryAddress.toBase58()
+        );
+        console.log(
+          chalk.yellow("Type:"),
+          realmInfo.isIntegrated
+            ? "Integrated with Squads Multisig"
+            : "Standard DAO"
+        );
+        console.log(chalk.yellow("Network:"), configRes.data.dao.cluster);
+
+        // Show treasury balance
+        if (realmInfo.treasuryBalance !== undefined) {
+          console.log(
+            chalk.yellow("Treasury Balance:"),
+            `${realmInfo.treasuryBalance} SOL`
+          );
+        } else {
           const treasuryBalance = await connection.getBalance(
             realmInfo.treasuryAddress
           );
@@ -246,32 +281,47 @@ export function registerDaoCommands(program: Command): void {
             chalk.yellow("Treasury Balance:"),
             `${treasuryBalance / LAMPORTS_PER_SOL} SOL`
           );
+        }
 
-          // Show multisig info if integrated
-          if (
-            realmInfo.isIntegrated &&
-            realmInfo.multisigAddress &&
-            realmInfo.vaultAddress
-          ) {
-            console.log(chalk.blue("\nSquads Multisig Information:"));
+        // Show multisig info if integrated
+        if (
+          realmInfo.isIntegrated &&
+          realmInfo.multisigAddress &&
+          realmInfo.vaultAddress
+        ) {
+          console.log(chalk.blue("\nSquads Multisig Information:"));
+          console.log(
+            chalk.yellow("Multisig:"),
+            realmInfo.multisigAddress.toBase58()
+          );
+          console.log(
+            chalk.yellow("Vault:"),
+            realmInfo.vaultAddress.toBase58()
+          );
+
+          // Get multisig state
+          const multisigInfoRes = await MultisigService.getMultisigInfo(
+            connection,
+            realmInfo.multisigAddress
+          );
+          if (multisigInfoRes.success && multisigInfoRes.data) {
             console.log(
-              chalk.yellow("Multisig:"),
-              realmInfo.multisigAddress.toBase58()
+              chalk.yellow("Members:"),
+              multisigInfoRes.data.memberCount
             );
             console.log(
-              chalk.yellow("Vault:"),
-              realmInfo.vaultAddress.toBase58()
+              chalk.yellow("Threshold:"),
+              multisigInfoRes.data.threshold
             );
+          }
 
-            // Get multisig state
-            const multisigInfo = await MultisigService.getMultisigInfo(
-              connection,
-              realmInfo.multisigAddress
+          // Show vault balance
+          if (realmInfo.vaultBalance !== undefined) {
+            console.log(
+              chalk.yellow("Vault Balance:"),
+              `${realmInfo.vaultBalance} SOL`
             );
-            console.log(chalk.yellow("Members:"), multisigInfo.memberCount);
-            console.log(chalk.yellow("Threshold:"), multisigInfo.threshold);
-
-            // Show vault balance
+          } else {
             const vaultBalance = await connection.getBalance(
               realmInfo.vaultAddress
             );
@@ -280,8 +330,6 @@ export function registerDaoCommands(program: Command): void {
               `${vaultBalance / LAMPORTS_PER_SOL} SOL`
             );
           }
-        } catch (error) {
-          console.log(chalk.red("Failed to fetch DAO information:"), error);
         }
       } catch (error) {
         console.error(chalk.red("Failed to show DAO info:"), error);
@@ -303,18 +351,47 @@ export function registerDaoCommands(program: Command): void {
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
 
         try {
           // Get information about the realm
-          const realmInfo = await GovernanceService.getRealmInfo(
+          const realmInfoRes = await GovernanceService.getRealmInfo(
             connection,
             realmAddress
           );
+          if (!realmInfoRes.success || !realmInfoRes.data) {
+            console.log(
+              chalk.red(
+                `Could not find realm at address: ${realmAddress.toBase58()}`
+              )
+            );
+            console.log(
+              chalk.yellow(
+                "If this is a new realm, create it first with 'dao init'"
+              )
+            );
+            return;
+          }
 
           // Store only the realm address in config
-          await ConfigService.setActiveRealm(realmAddress.toBase58());
+          const configRes = await ConfigService.setActiveRealm(
+            realmAddress.toBase58()
+          );
+          if (!configRes.success) {
+            console.log(
+              chalk.red("Failed to save realm address to config:"),
+              configRes.error?.message
+            );
+            return;
+          }
 
+          const realmInfo = realmInfoRes.data;
           console.log(
             chalk.green(`✓ Active DAO set to: ${realmAddress.toBase58()}`)
           );
@@ -368,8 +445,8 @@ export function registerDaoCommands(program: Command): void {
     .action(async (options) => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
@@ -377,8 +454,12 @@ export function registerDaoCommands(program: Command): void {
         }
 
         // Check config
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
+        const configRes = await ConfigService.getConfig();
+        if (
+          !configRes.success ||
+          !configRes.data ||
+          !configRes.data.dao?.activeRealm
+        ) {
           console.log(
             chalk.yellow(
               'No DAO configured. Use "dao use <ADDRESS>" to select one.'
@@ -387,9 +468,15 @@ export function registerDaoCommands(program: Command): void {
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
-        const realmAddress = new PublicKey(config.dao.activeRealm);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const keypair = WalletService.getKeypair(walletRes.data);
+        const realmAddress = new PublicKey(configRes.data.dao.activeRealm);
 
         // Parse amount
         const amount = parseFloat(options.amount);
@@ -401,16 +488,25 @@ export function registerDaoCommands(program: Command): void {
         }
 
         // Get DAO info to determine where to send funds
-        const realmInfo = await GovernanceService.getRealmInfo(
+        const realmInfoRes = await GovernanceService.getRealmInfo(
           connection,
           realmAddress
         );
+        if (!realmInfoRes.success || !realmInfoRes.data) {
+          console.log(
+            chalk.red("Failed to get DAO information:"),
+            realmInfoRes.error?.message
+          );
+          return;
+        }
+
+        const realmInfo = realmInfoRes.data;
 
         // Determine target based on whether this is an integrated DAO
         let targetAddress: PublicKey;
 
         if (realmInfo.isIntegrated && realmInfo.vaultAddress) {
-          // For integrated DAOs, fund the multisig vault (with null check)
+          // For integrated DAOs, fund the multisig vault
           targetAddress = realmInfo.vaultAddress;
           console.log(
             chalk.blue(`\nFunding Squads multisig vault with ${amount} SOL:`)
@@ -433,16 +529,21 @@ export function registerDaoCommands(program: Command): void {
         }
 
         // Fund target
-        await ProposalService.fundTreasury(
+        const fundRes = await GovernanceService.fundTreasury(
           connection,
           keypair,
           targetAddress,
           amount
         );
+        if (!fundRes.success) {
+          console.log(chalk.red("Failed to fund:"), fundRes.error?.message);
+          return;
+        }
 
         console.log(
           chalk.green(`\n✅ Successfully funded with ${amount} SOL!`)
         );
+        console.log(chalk.blue(`Transaction: ${fundRes.data}`));
       } catch (error) {
         console.error(chalk.red("Failed to fund:"), error);
       }
@@ -454,110 +555,106 @@ export function registerDaoCommands(program: Command): void {
     .action(async () => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const keypair = WalletService.getKeypair(walletRes.data);
 
         console.log(chalk.blue("Searching for your DAOs..."));
         console.log(
           chalk.yellow("This may take some time depending on your connection.")
         );
 
-        // Two approaches to find DAOs:
-        // 1. Check token accounts with zero decimals (council tokens)
-        // 2. Find TokenOwnerRecords that reference this wallet
+        // Use the new getTokenOwnerRecords function to find all realms where the user is a member
+        const tokenOwnerRecordsRes =
+          await GovernanceService.getTokenOwnerRecords(connection, keypair);
 
-        const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
-          keypair.publicKey,
-          { programId: TOKEN_PROGRAM_ID }
-        );
-
-        const zeroDecimalTokens = tokenAccounts.value.filter((account) => {
-          const tokenAmount = account.account.data.parsed.info.tokenAmount;
-          return tokenAmount.uiAmount > 0;
-        });
-
-        // Get token mints
-        const communityMints = zeroDecimalTokens.map(
-          (token) => token.account.data.parsed.info.mint
-        );
-
-        console.log(
-          `Found ${communityMints.length} potential community token(s)`
-        );
-
-        const splGovernance = new SplGovernance(
-          connection,
-          new PublicKey(SPL_GOVERNANCE_PROGRAM_ID)
-        );
-
-        // Get all realms and find matches
-        console.log("Fetching realms from governance program...");
-        const allRealms = await splGovernance.getAllRealms();
-
-        if (allRealms.length === 0) {
-          console.log(chalk.yellow("No realms found in the current network."));
+        if (!tokenOwnerRecordsRes.success || !tokenOwnerRecordsRes.data) {
+          console.log(
+            chalk.red("Failed to fetch token owner records:"),
+            tokenOwnerRecordsRes.error?.message
+          );
           return;
         }
 
-        // Filter realms where user has council tokens
-        const userRealms = allRealms.filter(
-          (realm) =>
-            realm.config.councilMint &&
-            communityMints.includes(realm.communityMint.toBase58())
-        );
+        const tokenOwnerRecords = tokenOwnerRecordsRes.data;
 
-        if (userRealms.length === 0) {
+        if (tokenOwnerRecords.length === 0) {
           console.log(chalk.yellow("You are not a member of any DAOs"));
           return;
         }
 
+        // Get realm information for each token owner record
+        const realmDataPromises = tokenOwnerRecords.map(async (record) => {
+          try {
+            // Get realm info
+            const realmInfoRes = await GovernanceService.getRealmInfo(
+              connection,
+              record.realmAddress
+            );
+
+            if (!realmInfoRes.success || !realmInfoRes.data) {
+              return {
+                name: "Unknown",
+                address: record.realmAddress,
+                isIntegrated: record.isIntegrated,
+                governingTokens:
+                  record.tokenOwnerRecords.governingTokenDepositAmount.toString(),
+                isValid: false,
+              };
+            }
+
+            return {
+              name: realmInfoRes.data.name,
+              address: record.realmAddress,
+              isIntegrated: record.isIntegrated,
+              governingTokens:
+                record.tokenOwnerRecords.governingTokenDepositAmount.toString(),
+              isValid: true,
+              treasuryAddress: realmInfoRes.data.treasuryAddress,
+              governanceAddress: realmInfoRes.data.governanceAddress,
+              multisigAddress: realmInfoRes.data.multisigAddress,
+              vaultAddress: realmInfoRes.data.vaultAddress,
+            };
+          } catch (error) {
+            return {
+              name: "Error",
+              address: record.realmAddress,
+              isIntegrated: false,
+              governingTokens: "0",
+              isValid: false,
+            };
+          }
+        });
+
+        const realmsData = await Promise.all(realmDataPromises);
+        const validRealms = realmsData.filter((realm) => realm.isValid);
+
         console.log(
           chalk.green(
-            `\nFound ${userRealms.length} DAOs where you are a member:`
+            `\nFound ${validRealms.length} DAOs where you are a member:`
           )
         );
         console.log(chalk.bold("\nINDEX | NAME | TYPE | ADDRESS"));
         console.log(chalk.bold("--------------------------------------"));
 
-        // Process realms to check if they are integrated DAOs
-        const realmPromises = userRealms.map(async (realm, index) => {
-          try {
-            const isIntegrated = await GovernanceService.isIntegratedDao(
-              connection,
-              realm.publicKey
-            );
-
-            return {
-              index: index + 1,
-              name: realm.name,
-              isIntegrated,
-              address: realm.publicKey,
-            };
-          } catch (error) {
-            return {
-              index: index + 1,
-              name: realm.name,
-              isIntegrated: false,
-              address: realm.publicKey,
-            };
-          }
-        });
-
-        const processedRealms = await Promise.all(realmPromises);
-
         // Display results
-        processedRealms.forEach((realm) => {
+        validRealms.forEach((realm, index) => {
           const type = realm.isIntegrated ? "Integrated" : "Standard";
           console.log(
-            `${realm.index}. ${chalk.green(realm.name)} | ${chalk.blue(
+            `${index + 1}. ${chalk.green(realm.name)} | ${chalk.blue(
               type
             )} | ${realm.address.toBase58()}`
           );
@@ -589,8 +686,8 @@ export function registerDaoCommands(program: Command): void {
     .action(async (options) => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
@@ -598,8 +695,12 @@ export function registerDaoCommands(program: Command): void {
         }
 
         // Check config
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
+        const configRes = await ConfigService.getConfig();
+        if (
+          !configRes.success ||
+          !configRes.data ||
+          !configRes.data.dao?.activeRealm
+        ) {
           console.log(
             chalk.yellow(
               'No DAO configured. Use "dao use <ADDRESS>" to select one.'
@@ -619,9 +720,15 @@ export function registerDaoCommands(program: Command): void {
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
-        const realmAddress = new PublicKey(config.dao.activeRealm);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const keypair = WalletService.getKeypair(walletRes.data);
+        const realmAddress = new PublicKey(configRes.data.dao.activeRealm);
 
         // Parse token mint
         let tokenMint: PublicKey;
@@ -642,10 +749,19 @@ export function registerDaoCommands(program: Command): void {
         }
 
         // Get DAO info
-        const realmInfo = await GovernanceService.getRealmInfo(
+        const realmInfoRes = await GovernanceService.getRealmInfo(
           connection,
           realmAddress
         );
+        if (!realmInfoRes.success || !realmInfoRes.data) {
+          console.log(
+            chalk.red("Failed to get DAO information:"),
+            realmInfoRes.error?.message
+          );
+          return;
+        }
+
+        const realmInfo = realmInfoRes.data;
 
         // Determine recipient address
         let recipientAddress: PublicKey;
@@ -676,35 +792,25 @@ export function registerDaoCommands(program: Command): void {
           }
         }
 
-        // Get token information
-        try {
-          const tokenInfo = await connection.getParsedTokenAccountsByOwner(
-            keypair.publicKey,
-            { mint: tokenMint }
+        // Fund token account
+        const fundRes = await GovernanceService.fundTokenAccount(
+          connection,
+          keypair,
+          tokenMint,
+          recipientAddress,
+          amount
+        );
+
+        if (!fundRes.success) {
+          console.log(
+            chalk.red("Failed to fund token account:"),
+            fundRes.error?.message
           );
-
-          if (!tokenInfo.value || tokenInfo.value.length === 0) {
-            console.log(
-              chalk.red(
-                `You don't have any tokens for mint ${tokenMint.toBase58()}`
-              )
-            );
-            return;
-          }
-
-          // Get recipient token account (create if needed)
-          await ProposalService.fundTokenAccount(
-            connection,
-            keypair,
-            tokenMint,
-            recipientAddress,
-            amount
-          );
-
-          console.log(chalk.green(`\n✅ Successfully funded token account!`));
-        } catch (error) {
-          console.error(chalk.red("Failed to fund token account:"), error);
+          return;
         }
+
+        console.log(chalk.green(`\n✅ Successfully funded token account!`));
+        console.log(chalk.blue(`Transaction: ${fundRes.data}`));
       } catch (error) {
         console.error(chalk.red("Failed to fund token account:"), error);
       }

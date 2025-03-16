@@ -45,13 +45,13 @@ By default, the CLI connects to a local Solana validator. You can change the net
 
 ```bash
 # Set network to devnet
-yarn dev config set-cluster devnet
+daocli config set-cluster devnet
 
 # Set network to mainnet
-yarn dev config set-cluster mainnet-beta
+daocli config set-cluster mainnet
 
 # Set to local validator
-yarn dev config set-cluster localhost
+daocli config set-cluster localhost
 ```
 
 ## 🔑 Wallet Setup
@@ -60,13 +60,13 @@ Before using the DAO CLI, you need to set up a wallet:
 
 ```bash
 # Import an existing wallet
-yarn dev wallet import ~/.config/solana/id.json
+daocli wallet import ~/.config/solana/id.json
 
 # Create a new wallet
-yarn dev wallet create
+daocli wallet create
 
-# Check wallet balance
-yarn dev wallet balance
+# Check wallet config
+daocli wallet show
 ```
 
 ## 📘 Usage Guide
@@ -75,62 +75,59 @@ yarn dev wallet balance
 
 ```bash
 # Create an integrated DAO with Squads multisig
-yarn dev dao init --name "My DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3"
+daocli dao init --name "My DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3"
 
 # Create a standard DAO without multisig integration
-yarn dev dao init --name "Standard DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3" --integrated false
+daocli dao init --name "Standard DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3" --integrated false
 ```
 
 ### Managing Your DAOs
 
 ```bash
 # List all DAOs where you are a member
-yarn dev dao list
+daocli dao list
 
 # Switch to a specific DAO
-yarn dev dao use <REALM_ADDRESS>
+daocli dao use <REALM_ADDRESS>
 
 # Show details about the current active DAO
-yarn dev dao show
+daocli dao show
 ```
 
 ### Funding Your DAO
 
 ```bash
 # Fund with SOL (automatically detects if it's a treasury or multisig vault)
-yarn dev dao fund --amount 0.5
+daocli dao fund --amount 0.5
 
 # Fund with tokens
-yarn dev dao fund-token --mint <TOKEN_MINT_ADDRESS> --amount 100
+daocli dao fund-token --mint <TOKEN_MINT_ADDRESS> --amount 100
 ```
 
 ### Creating Proposals
 
 ```bash
 # Create a SOL transfer proposal
-yarn dev proposal transfer --amount 0.1 --recipient <RECIPIENT_ADDRESS> --name "Pay Developer" --description "Payment for UI work"
+daocli proposal transfer --amount 0.1 --recipient <RECIPIENT_ADDRESS> --name "Pay Developer" --description "Payment for UI work"
 
 # Create a token transfer proposal
-yarn dev proposal transfer --mint <TOKEN_MINT_ADDRESS> --amount 50 --recipient <RECIPIENT_ADDRESS>
-
-# For multisig transfers in integrated DAOs
-yarn dev proposal multisig-transfer --amount 0.1 --recipient <RECIPIENT_ADDRESS>
+daocli proposal transfer --mint <TOKEN_MINT_ADDRESS> --amount 50 --recipient <RECIPIENT_ADDRESS>
 ```
 
 ### Voting and Execution
 
 ```bash
 # List all proposals
-yarn dev proposal list
+daocli proposal list
 
 # Vote to approve a proposal
-yarn dev proposal vote --proposal <PROPOSAL_ADDRESS>
+daocli proposal vote --proposal <PROPOSAL_ADDRESS>
 
 # Vote to deny a proposal
-yarn dev proposal vote --proposal <PROPOSAL_ADDRESS> --deny
+daocli proposal vote --proposal <PROPOSAL_ADDRESS> --deny
 
 # Execute an approved proposal
-yarn dev proposal execute --proposal <PROPOSAL_ADDRESS>
+daocli proposal execute --proposal <PROPOSAL_ADDRESS>
 ```
 
 ## 🧪 Testing
@@ -161,7 +158,7 @@ chmod +x local-dev.sh
 solana config set localhost
 
 # Import your wallet
-yarn dev wallet import ~/.config/solana/id.json
+daocli wallet import ~/.config/solana/id.json
 
 # Airdrop SOL to your wallet
 solana airdrop 10
@@ -174,7 +171,7 @@ solana airdrop 10
 solana config set devnet
 
 # Import your wallet
-yarn dev wallet import ~/.config/solana/id.json
+daocli wallet import ~/.config/solana/id.json
 
 # Airdrop SOL to your wallet
 solana airdrop 2
@@ -187,41 +184,35 @@ Here's a step-by-step workflow to test all major features:
 1. **Initial setup**:
 
    ```bash
-   yarn dev wallet import ~/.config/solana/dev-wallet.json
-   yarn dev wallet balance
+   daocli wallet import ~/.config/solana/dev-wallet.json
+   daocli wallet balance
    ```
 
 2. **Create a DAO**:
 
    ```bash
-   yarn dev dao init --name "Test DAO" --threshold 1
+   daocli dao init --name "Test DAO" --threshold 1
    ```
 
 3. **Fund the DAO**:
 
    ```bash
-   yarn dev dao fund --amount 0.5
+   daocli dao fund --amount 0.5
    ```
 
 4. **Create a proposal**:
 
    ```bash
-   yarn dev proposal transfer --amount 0.1 --recipient <ADDRESS>
+   daocli proposal transfer --amount 0.1 --recipient <ADDRESS>
    ```
 
 5. **Vote on the proposal**:
 
    ```bash
-   yarn dev proposal vote --proposal <PROPOSAL_ADDRESS>
+   daocli proposal vote --proposal <PROPOSAL_ADDRESS>
    ```
 
-6. **Execute the proposal**:
-
-   ```bash
-   yarn dev proposal execute --proposal <PROPOSAL_ADDRESS>
-   ```
-
-7. **Verify the transfer**:
+6. **Verify the transfer**:
    ```bash
    solana balance -u <RECIPIENT_ADDRESS>
    ```

@@ -27,11 +27,11 @@ Integrated Workflow:
   3. Execute the proposal (automatically executes related multisig transaction if threshold is met)
 
 Examples:
-  $ dao init --name "My DAO" --threshold 2 --members "pub1,pub2,pub3"
-  $ dao fund --amount 0.2
-  $ proposal transfer --amount 0.05 --recipient <ADDRESS> --mint <MINT_ADDRESS>
-  $ proposal vote --proposal <ADDRESS>
-  $ proposal execute --proposal <ADDRESS>
+  $ daocli dao init --name "My DAO" --threshold 2 --members "pub1,pub2,pub3"
+  $ daocli dao fund --amount 0.2
+  $ daocli proposal transfer --amount 0.05 --recipient <ADDRESS> --mint <MINT_ADDRESS>
+  $ daocli proposal vote --proposal <ADDRESS>
+  $ daocli proposal execute --proposal <ADDRESS>
 `
     );
 
@@ -52,8 +52,8 @@ Examples:
     .action(async (options) => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
@@ -61,8 +61,12 @@ Examples:
         }
 
         // Check config
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
+        const configRes = await ConfigService.getConfig();
+        if (
+          !configRes.success ||
+          !configRes.data ||
+          !configRes.data.dao?.activeRealm
+        ) {
           console.log(
             chalk.yellow(
               'No DAO configured. Use "dao use <ADDRESS>" to select one.'
@@ -71,15 +75,29 @@ Examples:
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
-        const realmAddress = new PublicKey(config.dao.activeRealm);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const keypair = WalletService.getKeypair(walletRes.data);
+        const realmAddress = new PublicKey(configRes.data.dao.activeRealm);
 
         // Get DAO type (integrated or standard)
-        const realmInfo = await GovernanceService.getRealmInfo(
+        const realmInfoRes = await GovernanceService.getRealmInfo(
           connection,
           realmAddress
         );
+        if (!realmInfoRes.success || !realmInfoRes.data) {
+          console.log(
+            chalk.red("Failed to get DAO information:"),
+            realmInfoRes.error?.message
+          );
+          return;
+        }
+        const realmInfo = realmInfoRes.data;
         const isIntegrated = realmInfo.isIntegrated;
 
         // Parse recipient
@@ -115,7 +133,6 @@ Examples:
         let sourceBalance: number;
 
         if (isIntegrated && realmInfo.vaultAddress) {
-          // Make sure vaultAddress is defined
           sourceAddress = realmInfo.vaultAddress;
           sourceBalance = await connection.getBalance(sourceAddress);
           console.log(
@@ -157,8 +174,8 @@ Examples:
         console.log(`Recipient: ${recipientAddress.toBase58()}`);
 
         // Build instructions based on DAO type and transfer type (SOL or Token)
-        let instructions: TransactionInstruction[];
-        let proposalAddress: PublicKey;
+        let instructionsRes;
+        let proposalAddressRes;
 
         if (options.mint) {
           // Token transfer
@@ -166,7 +183,7 @@ Examples:
           console.log(`Token mint: ${tokenMint.toBase58()}`);
 
           if (isIntegrated && realmInfo.multisigAddress) {
-            instructions =
+            instructionsRes =
               await ProposalService.getSquadsMultisigTokenTransferInstruction(
                 connection,
                 realmInfo.multisigAddress,
@@ -175,17 +192,25 @@ Examples:
                 recipientAddress
               );
 
-            proposalAddress =
+            if (!instructionsRes.success || !instructionsRes.data) {
+              console.log(
+                chalk.red("Failed to create transfer instruction:"),
+                instructionsRes.error?.message
+              );
+              return;
+            }
+
+            proposalAddressRes =
               await ProposalService.createIntegratedAssetTransferProposal(
                 connection,
                 keypair,
                 realmAddress,
                 options.name,
                 options.description,
-                instructions
+                instructionsRes.data
               );
           } else {
-            instructions = await ProposalService.getTokenTransferInstruction(
+            instructionsRes = await ProposalService.getTokenTransferInstruction(
               connection,
               realmAddress,
               tokenMint,
@@ -193,20 +218,28 @@ Examples:
               recipientAddress
             );
 
-            proposalAddress = await ProposalService.createProposal(
+            if (!instructionsRes.success || !instructionsRes.data) {
+              console.log(
+                chalk.red("Failed to create transfer instruction:"),
+                instructionsRes.error?.message
+              );
+              return;
+            }
+
+            proposalAddressRes = await ProposalService.createProposal(
               connection,
               keypair,
               realmAddress,
               options.name,
               options.description,
-              instructions
+              instructionsRes.data
             );
           }
         } else {
           // SOL transfer
           if (isIntegrated && realmInfo.multisigAddress) {
             // For integrated DAO, create a multisig transfer
-            const transferIx =
+            const transferIxRes =
               await ProposalService.getSquadsMultisigSolTransferInstruction(
                 connection,
                 realmInfo.multisigAddress,
@@ -214,34 +247,61 @@ Examples:
                 recipientAddress
               );
 
-            proposalAddress =
+            if (!transferIxRes.success || !transferIxRes.data) {
+              console.log(
+                chalk.red("Failed to create transfer instruction:"),
+                transferIxRes.error?.message
+              );
+              return;
+            }
+
+            proposalAddressRes =
               await ProposalService.createIntegratedAssetTransferProposal(
                 connection,
                 keypair,
                 realmAddress,
                 options.name,
                 options.description,
-                [transferIx]
+                [transferIxRes.data]
               );
           } else {
             // For standard DAO, create a treasury transfer
-            const transferIx = await ProposalService.getSolTransferInstruction(
-              connection,
-              realmAddress,
-              amount,
-              recipientAddress
-            );
+            const transferIxRes =
+              await ProposalService.getSolTransferInstruction(
+                connection,
+                realmAddress,
+                amount,
+                recipientAddress
+              );
 
-            proposalAddress = await ProposalService.createProposal(
+            if (!transferIxRes.success || !transferIxRes.data) {
+              console.log(
+                chalk.red("Failed to create transfer instruction:"),
+                transferIxRes.error?.message
+              );
+              return;
+            }
+
+            proposalAddressRes = await ProposalService.createProposal(
               connection,
               keypair,
               realmAddress,
               options.name,
               options.description,
-              [transferIx]
+              [transferIxRes.data]
             );
           }
         }
+
+        if (!proposalAddressRes.success || !proposalAddressRes.data) {
+          console.log(
+            chalk.red("Failed to create proposal:"),
+            proposalAddressRes.error?.message
+          );
+          return;
+        }
+
+        const proposalAddress = proposalAddressRes.data;
 
         console.log(chalk.green(`\n✅ Proposal created successfully!`));
         console.log(
@@ -271,8 +331,8 @@ Examples:
     .action(async (options) => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
@@ -280,8 +340,12 @@ Examples:
         }
 
         // Check config
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
+        const configRes = await ConfigService.getConfig();
+        if (
+          !configRes.success ||
+          !configRes.data ||
+          !configRes.data.dao?.activeRealm
+        ) {
           console.log(
             chalk.yellow('No DAO configured. Use "dao init" to create one.')
           );
@@ -293,9 +357,15 @@ Examples:
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
-        const realmAddress = new PublicKey(config.dao.activeRealm);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const keypair = WalletService.getKeypair(walletRes.data);
+        const realmAddress = new PublicKey(configRes.data.dao.activeRealm);
 
         // Parse proposal address
         let proposalAddress: PublicKey;
@@ -315,7 +385,7 @@ Examples:
         console.log(`Proposal: ${proposalAddress.toBase58()}`);
 
         // Cast vote
-        await ProposalService.castVote(
+        const voteRes = await ProposalService.castVote(
           connection,
           keypair,
           realmAddress,
@@ -323,7 +393,16 @@ Examples:
           approve
         );
 
+        if (!voteRes.success) {
+          console.log(
+            chalk.red("Failed to cast vote:"),
+            voteRes.error?.message
+          );
+          return;
+        }
+
         console.log(chalk.green(`\n✅ Vote cast successfully!`));
+        console.log(chalk.blue(`Transaction: ${voteRes.data}`));
       } catch (error) {
         console.error(chalk.red("Failed to vote on proposal:"), error);
       }
@@ -337,8 +416,8 @@ Examples:
     .action(async (options) => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
@@ -346,8 +425,12 @@ Examples:
         }
 
         // Check config
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
+        const configRes = await ConfigService.getConfig();
+        if (
+          !configRes.success ||
+          !configRes.data ||
+          !configRes.data.dao?.activeRealm
+        ) {
           console.log(
             chalk.yellow('No DAO configured. Use "dao init" to create one.')
           );
@@ -359,8 +442,14 @@ Examples:
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const keypair = WalletService.getKeypair(wallet);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const keypair = WalletService.getKeypair(walletRes.data);
 
         // Parse proposal address
         let proposalAddress: PublicKey;
@@ -376,13 +465,22 @@ Examples:
         );
 
         // Execute the proposal
-        await ProposalService.executeProposal(
+        const executeRes = await ProposalService.executeProposal(
           connection,
           keypair,
           proposalAddress
         );
 
+        if (!executeRes.success) {
+          console.log(
+            chalk.red("Failed to execute proposal:"),
+            executeRes.error?.message
+          );
+          return;
+        }
+
         console.log(chalk.green(`\n✅ Proposal executed successfully!`));
+        console.log(chalk.blue(`Transaction: ${executeRes.data}`));
       } catch (error) {
         console.error(chalk.red("Failed to execute proposal:"), error);
       }
@@ -397,8 +495,8 @@ Examples:
     .action(async (options) => {
       try {
         // Load wallet and connection
-        const wallet = await WalletService.loadWallet();
-        if (!wallet) {
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
           console.log(
             chalk.red("No wallet configured. Please create a wallet first.")
           );
@@ -406,8 +504,12 @@ Examples:
         }
 
         // Check config
-        const config = await ConfigService.getConfig();
-        if (!config.dao?.activeRealm) {
+        const configRes = await ConfigService.getConfig();
+        if (
+          !configRes.success ||
+          !configRes.data ||
+          !configRes.data.dao?.activeRealm
+        ) {
           console.log(
             chalk.yellow(
               'No DAO configured. Use "dao use <ADDRESS>" to select one.'
@@ -416,87 +518,102 @@ Examples:
           return;
         }
 
-        const connection = await ConnectionService.getConnection();
-        const realmAddress = new PublicKey(config.dao.activeRealm);
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
+          console.log(chalk.red("Failed to establish connection"));
+          return;
+        }
+
+        const connection = connectionRes.data;
+        const realmAddress = new PublicKey(configRes.data.dao.activeRealm);
 
         // Get realm info
-        const realmInfo = await GovernanceService.getRealmInfo(
+        const realmInfoRes = await GovernanceService.getRealmInfo(
           connection,
           realmAddress
         );
+        if (!realmInfoRes.success || !realmInfoRes.data) {
+          console.log(
+            chalk.red("Failed to get DAO information:"),
+            realmInfoRes.error?.message
+          );
+          return;
+        }
 
         console.log(
-          chalk.blue(`\nFetching proposals for DAO: ${realmInfo.name}`)
+          chalk.blue(`\nFetching proposals for DAO: ${realmInfoRes.data.name}`)
         );
 
-        try {
-          // Use the new method in GovernanceService to fetch proposals for this realm
-          const { proposals } = await GovernanceService.getProposalsForRealm(
-            connection,
-            realmAddress
-          );
-
-          if (proposals.length === 0) {
-            console.log(chalk.yellow("No proposals found for this DAO"));
-            return;
-          }
-
-          // Filter proposals if --all is not specified
-          const limit = parseInt(options.limit) || 10;
-          const filteredProposals = options.all
-            ? proposals
-            : proposals.filter(
-                (p) =>
-                  !p.state.completed && !p.state.cancelled && !p.state.defeated
-              );
-
-          // Limit the number of proposals shown
-          const limitedProposals = filteredProposals.slice(0, limit);
-
+        // Use the new method in GovernanceService to fetch proposals for this realm
+        const proposalRes = await GovernanceService.getProposalsForRealm(
+          connection,
+          realmAddress
+        );
+        if (!proposalRes.success || !proposalRes.data) {
           console.log(
-            chalk.green(
-              `\nFound ${
-                filteredProposals.length
-              } proposals (showing ${Math.min(
-                limit,
-                filteredProposals.length
-              )}):`
-            )
+            chalk.red("Failed to fetch proposals:"),
+            proposalRes.error?.message
           );
+          return;
+        }
 
-          console.log(chalk.bold("\nID | STATE | TITLE | ADDRESS"));
-          console.log(chalk.bold("--------------------------------------"));
+        const proposals = proposalRes.data.proposals;
+        if (proposals.length === 0) {
+          console.log(chalk.yellow("No proposals found for this DAO"));
+          return;
+        }
 
-          // Show each proposal
-          limitedProposals.forEach((proposal: ProposalV2, index) => {
-            const { chalk: stateColor, text } = getStateColor(proposal);
-            console.log(
-              `${index + 1}. ${stateColor(text)} | ${chalk.cyan(
-                proposal.name
-              )} | ${proposal.publicKey.toBase58()}`
+        // Filter proposals if --all is not specified
+        const limit = parseInt(options.limit) || 10;
+        const filteredProposals = options.all
+          ? proposals
+          : proposals.filter(
+              (p) =>
+                !p.state.completed && !p.state.cancelled && !p.state.defeated
             );
-          });
 
+        // Limit the number of proposals shown
+        const limitedProposals = filteredProposals.slice(0, limit);
+
+        console.log(
+          chalk.green(
+            `\nFound ${filteredProposals.length} proposals (showing ${Math.min(
+              limit,
+              filteredProposals.length
+            )}):`
+          )
+        );
+
+        console.log(chalk.bold("\nID | STATE | TITLE | ADDRESS"));
+        console.log(chalk.bold("--------------------------------------"));
+
+        // Show each proposal
+        limitedProposals.forEach((proposal: ProposalV2, index) => {
+          const { chalk: stateColor, text } = getStateColor(proposal);
           console.log(
-            chalk.yellow(
-              "\nUse 'proposal vote --proposal <ADDRESS>' to vote on a proposal"
+            `${index + 1}. ${stateColor(text)} | ${chalk.cyan(
+              proposal.name
+            )} | ${proposal.publicKey.toBase58()}`
+          );
+        });
+
+        console.log(
+          chalk.yellow(
+            "\nUse 'proposal vote --proposal <ADDRESS>' to vote on a proposal"
+          )
+        );
+        console.log(
+          chalk.yellow(
+            "Use 'proposal execute --proposal <ADDRESS>' to execute an approved proposal"
+          )
+        );
+
+        if (options.all === false && filteredProposals.length > limit) {
+          console.log(
+            chalk.blue(
+              `\nShowing ${limit} of ${filteredProposals.length} proposals. Use --all to show all proposals.`
             )
           );
-          console.log(
-            chalk.yellow(
-              "Use 'proposal execute --proposal <ADDRESS>' to execute an approved proposal"
-            )
-          );
-
-          if (options.all === false && filteredProposals.length > limit) {
-            console.log(
-              chalk.blue(
-                `\nShowing ${limit} of ${filteredProposals.length} proposals. Use --all to show all proposals.`
-              )
-            );
-          }
-        } catch (error) {
-          console.error(chalk.red("Failed to fetch proposals:"), error);
         }
       } catch (error) {
         console.error(chalk.red("Failed to list proposals:"), error);

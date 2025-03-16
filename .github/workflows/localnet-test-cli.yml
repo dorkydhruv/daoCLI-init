@@ -2,7 +2,7 @@ name: Deploy contract on Localnet
 
 on:
   push:
-    branches: [cli-multisig, feb-25, main]
+    branches: [feb-25, main, mcp-impl]
 
 jobs:
   build-and-deploy:
