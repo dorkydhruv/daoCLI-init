@@ -12,15 +12,23 @@ A powerful command-line interface for creating and managing Decentralized Autono
 - **Voting System**: Vote to approve or deny proposals
 - **Execution**: Execute approved proposals
 - **Wallet Management**: Import, create, and fund wallets
+- **[Model Context Protocol (MCP)](https://modelcontextprotocol.github.io/)**: Natural language interaction with your DAOs
 
-## 📋 Prerequisites
+## Navigation
+
+- [CLI Interface](#cli-interface): Traditional command-line interface
+- [MCP Interface](#model-context-protocol-mcp-interface): Natural language AI-assisted interface
+
+## CLI Interface
+
+### 📋 Prerequisites
 
 - Node.js (v16+)
 - Yarn or npm
 - Solana CLI tools (for wallet management)
 - A Solana wallet with SOL for transaction fees
 
-## 🚀 Installation
+### 🚀 Installation
 
 Clone the repository and install dependencies:
 
@@ -39,7 +47,7 @@ yarn build
 npm link
 ```
 
-## ⚙️ Configuration
+### ⚙️ Configuration
 
 By default, the CLI connects to a local Solana validator. You can change the network:
 
@@ -54,7 +62,7 @@ daocli config set-cluster mainnet
 daocli config set-cluster localhost
 ```
 
-## 🔑 Wallet Setup
+### 🔑 Wallet Setup
 
 Before using the DAO CLI, you need to set up a wallet:
 
@@ -69,9 +77,9 @@ daocli wallet create
 daocli wallet show
 ```
 
-## 📘 Usage Guide
+### 📘 Usage Guide
 
-### Creating a DAO
+#### Creating a DAO
 
 ```bash
 # Create an integrated DAO with Squads multisig
@@ -81,7 +89,7 @@ daocli dao init --name "My DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3
 daocli dao init --name "Standard DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3" --integrated false
 ```
 
-### Managing Your DAOs
+#### Managing Your DAOs
 
 ```bash
 # List all DAOs where you are a member
@@ -94,7 +102,7 @@ daocli dao use <REALM_ADDRESS>
 daocli dao show
 ```
 
-### Funding Your DAO
+#### Funding Your DAO
 
 ```bash
 # Fund with SOL (automatically detects if it's a treasury or multisig vault)
@@ -104,7 +112,7 @@ daocli dao fund --amount 0.5
 daocli dao fund-token --mint <TOKEN_MINT_ADDRESS> --amount 100
 ```
 
-### Creating Proposals
+#### Creating Proposals
 
 ```bash
 # Create a SOL transfer proposal
@@ -114,7 +122,7 @@ daocli proposal transfer --amount 0.1 --recipient <RECIPIENT_ADDRESS> --name "Pa
 daocli proposal transfer --mint <TOKEN_MINT_ADDRESS> --amount 50 --recipient <RECIPIENT_ADDRESS>
 ```
 
-### Voting and Execution
+#### Voting and Execution
 
 ```bash
 # List all proposals
@@ -130,9 +138,9 @@ daocli proposal vote --proposal <PROPOSAL_ADDRESS> --deny
 daocli proposal execute --proposal <PROPOSAL_ADDRESS>
 ```
 
-## 🧪 Testing
+### 🧪 Testing the CLI
 
-### Automated Tests
+#### Automated Tests
 
 The project includes automated tests for both standard and integrated DAO workflows:
 
@@ -145,9 +153,9 @@ yarn test:integrated  # For integrated DAO tests
 yarn test:standard    # For standard DAO tests
 ```
 
-### Testing Environments
+#### Testing Environments
 
-#### Local Validator
+##### Local Validator
 
 ```bash
 # Start a local validator
@@ -164,7 +172,7 @@ daocli wallet import ~/.config/solana/id.json
 solana airdrop 10
 ```
 
-#### Devnet
+##### Devnet
 
 ```bash
 # Configure Solana to use devnet
@@ -177,7 +185,7 @@ daocli wallet import ~/.config/solana/id.json
 solana airdrop 2
 ```
 
-### Complete Testing Workflow
+#### Complete Testing Workflow
 
 Here's a step-by-step workflow to test all major features:
 
@@ -217,16 +225,169 @@ Here's a step-by-step workflow to test all major features:
    solana balance -u <RECIPIENT_ADDRESS>
    ```
 
+---
+
+## Model Context Protocol (MCP) Interface
+
+This tool also features a powerful [Model Context Protocol (MCP)](https://modelcontextprotocol.github.io/) interface that allows users to interact with DAOs using natural language commands through compatible AI clients like Claude Desktop.
+
+### Setting Up the MCP Interface
+
+#### Prerequisites
+
+- A compatible MCP client (e.g., [Claude Desktop](https://claude.ai/desktop), GPT-4 with MCP integration)
+- Node.js (v16+)
+
+### Configuration
+
+#### Setting up Claude Desktop MCP server
+
+1. Change the Claude Desktop MCP server settings:
+
+For MacOS:
+
+```bash
+code ~/Library/Application\ Support/Claude/claude_desktop_config.json
+```
+
+For Windows:
+
+```bash
+code $env:AppData\Claude\claude_desktop_config.json
+```
+
+The final configuration should look like the following (replace the path with your absolute project path):
+
+```json
+{
+  "mcpServers": {
+    "daoCLI": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/YOUR/PROJECT"]
+    }
+  }
+}
+```
+
+### Using Natural Language Commands
+
+The MCP interface supports natural language commands. Here are examples of what you can ask:
+
+#### Configuration and Setup
+
+```
+Set my cluster to devnet
+Import my wallet from ~/.config/solana/id.json
+Show me my wallet information
+What's the current configuration?
+```
+
+#### Creating and Managing DAOs
+
+```
+Create a new integrated DAO called "Community Fund" with 3 members and a threshold of 2
+Create a standard DAO named "Charity DAO" with these members: [pubkey1, pubkey2] and a threshold of 1
+Show me all the DAOs I'm a member of
+I want to use the DAO with address abc123...
+Tell me about my current DAO
+```
+
+#### Funding Operations
+
+```
+Fund my DAO treasury with 0.5 SOL
+Send 100 tokens to my multisig vault from the mint address xyz789...
+What's the balance of my DAO treasury?
+```
+
+#### Proposal Operations
+
+```
+Create a proposal to send 0.1 SOL to address abc123... with title "Web Development Fee"
+Make a token transfer proposal to send 50 USDC to our developer
+Show me all active proposals for my DAO
+I want to vote yes on proposal abc123...
+Vote against the proposal xyz789...
+Execute the approved proposal abc123...
+```
+
+#### Utility Operations
+
+```
+Get the balance of address abc123...
+Look up transaction signature xyz789...
+What happened in transaction abc123...?
+```
+
+### MCP Documentation Resources
+
+Access detailed documentation through the MCP interface:
+
+```
+GET daocli://docs/readme
+GET daocli://docs/dao-guide
+GET daocli://docs/proposal-guide
+GET daocli://docs/wallet-guide
+```
+
+### MCP Testing Workflow
+
+Test the MCP functionality with this step-by-step workflow:
+
+1. **Start the MCP server**:
+
+   ```bash
+   yarn start:mcp
+   ```
+
+2. **Connect with your MCP client** and set up your environment:
+
+   ```
+   Connect to the MCP server at http://localhost:3000
+   Set the cluster to devnet
+   Import my wallet from ~/.config/solana/dev-wallet.json
+   ```
+
+3. **Create and manage a DAO**:
+
+   ```
+   Create a new DAO called "Test DAO" with me as the only member and threshold of 1
+   Fund my DAO with 0.5 SOL
+   ```
+
+4. **Create and manage proposals**:
+   ```
+   Create a proposal to send 0.1 SOL to address abc123...
+   Vote yes on the proposal
+   Execute the proposal once it's approved
+   ```
+
+### Demo
+
+<!-- Insert Twitter post or video demo here -->
+<div align="center">
+  <h4>Watch the daoCLI in action with MCP-powered natural language commands</h4>
+  
+  <!-- Replace the placeholder below with your actual Twitter embed or video link -->
+  <a href="https://drive.google.com/file/your-demo-video-id/view">
+    <img src="./docs/images/demo-thumbnail.png" alt="daoCLI Demo Video" width="600"/>
+  </a>
+</div>
+
+---
+
 ## 🏗️ Project Structure
 
 ```
 daoCLI-init/
 ├── src/
 │   ├── commands/         # CLI command implementations
+│   ├── mcp/              # MCP tools and resources
 │   ├── services/         # Core business logic
 │   ├── utils/            # Utility functions
 │   ├── types/            # TypeScript type definitions
 │   ├── debug/            # Debug scripts for testing
+│   ├── mcp-server.ts     # MCP server implementation
 │   └── index.ts          # Entry point
 ├── tests/                # Test files
 ├── dist/                 # Compiled output
@@ -235,12 +396,19 @@ daoCLI-init/
 
 ## 🧩 Architecture
 
-The application integrates two key Solana programs:
+The application integrates multiple key components:
 
 1. **SPL Governance**: For DAO creation, proposal management, and voting
 2. **Squads Multisig**: For multi-signature transaction approval
+3. **[Model Context Protocol (MCP)](https://modelcontextprotocol.github.io/)**: For AI-assisted interactions and operations
 
 For integrated DAOs, the tool creates a governance structure where proposals can control a multisig vault, enabling more complex treasury management with the security of multisig approvals.
+
+The MCP integration provides:
+
+- Natural language processing for intuitive interactions
+- Documentation and help resources
+- AI-assisted operation suggestions
 
 ## 🛠️ Development
 
@@ -254,8 +422,11 @@ cd daoCLI-init
 # Install dependencies
 yarn install
 
-# Run in development mode
+# Run CLI in development mode
 yarn dev
+
+# Run MCP server in development mode
+yarn dev:mcp
 
 # Build the project
 yarn build
@@ -267,6 +438,8 @@ yarn build
 - **Transaction errors**: Verify that you're using correct account addresses
 - **"Account not found" errors**: The blockchain might be congested; try again
 - **Proposal execution failures**: Make sure the proposal has been approved
+- **MCP connection issues**: Verify the MCP server is running and accessible
+- **Natural language parsing errors**: Try using more specific language or make your request more explicit
 
 ## 🧹 Cleanup
 
@@ -285,6 +458,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - [Solana Foundation](https://solana.com)
 - [SPL Governance Program](https://github.com/solana-labs/solana-program-library/tree/master/governance)
 - [Squads Multisig](https://squads.so)
+- [Model Context Protocol](https://modelcontextprotocol.github.io/)
 
 ---
 

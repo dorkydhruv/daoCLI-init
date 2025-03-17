@@ -1,13 +1,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z } from "zod";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { registerDaoTools } from "./mcp/dao";
 import { registerConfigAndWalletTools } from "./mcp/config-and-wallet";
 import { registerProposalTools } from "./mcp/proposal";
-import { z } from "zod";
 import { ConnectionService } from "./services/connection-service";
 import { registerResource } from "./mcp/resource";
 import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+
 import { registerAgentTools } from "./mcp/agent-tools";
+import { registerTestTokenTools } from "./mcp/test-token";
 
 const server = new McpServer({
   name: "DaoCLI",
@@ -19,6 +21,7 @@ registerDaoTools(server);
 registerProposalTools(server);
 registerResource(server);
 registerAgentTools(server);
+registerTestTokenTools(server);
 // Get Balance
 server.tool(
   "getBalance",
