@@ -14,9 +14,18 @@ export function registerConfigCommands(program: Command): void {
     .description("Display current configuration")
     .action(async () => {
       try {
-        const config = await ConfigService.getConfig();
+        const configResponse = await ConfigService.getConfig();
+
+        if (!configResponse.success || !configResponse.data) {
+          console.error(
+            chalk.red("Failed to load configuration:"),
+            configResponse.error?.message || "Unknown error"
+          );
+          return;
+        }
+
         console.log(chalk.blue("Configuration:"));
-        console.log(JSON.stringify(config, null, 2));
+        console.log(JSON.stringify(configResponse.data, null, 2));
       } catch (error) {
         console.error(chalk.red("Failed to load configuration:"), error);
       }
@@ -43,7 +52,19 @@ export function registerConfigCommands(program: Command): void {
         const cluster = CLUSTERS[clusterName] as Cluster;
         const endpoint = options.endpoint || ENDPOINT_MAP[cluster];
 
-        await ConfigService.setCluster(cluster, endpoint);
+        const configResponse = await ConfigService.setCluster(
+          cluster,
+          endpoint
+        );
+
+        if (!configResponse.success) {
+          console.error(
+            chalk.red("Failed to set cluster:"),
+            configResponse.error?.message || "Unknown error"
+          );
+          return;
+        }
+
         console.log(
           chalk.green(
             `✓ Cluster set to ${clusterName} with endpoint: ${endpoint}`

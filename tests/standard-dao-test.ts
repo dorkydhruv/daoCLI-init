@@ -399,8 +399,8 @@ describe("Standard DAO Test", function () {
     expect(treasuryPubkey).to.not.be.null;
 
     // Verify the config file was updated with the realm
-    const config = await ConfigService.getConfig();
-    expect(config.dao?.activeRealm).to.equal(realmPubkey.toBase58());
+    const config = (await ConfigService.getConfig()).data;
+    expect(config?.dao?.activeRealm).to.equal(realmPubkey.toBase58());
 
     console.log("Standard DAO Addresses:");
     console.log(`Realm: ${realmPubkey.toBase58()}`);
