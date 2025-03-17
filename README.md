@@ -12,7 +12,7 @@ A powerful command-line interface for creating and managing Decentralized Autono
 - **Voting System**: Vote to approve or deny proposals
 - **Execution**: Execute approved proposals
 - **Wallet Management**: Import, create, and fund wallets
-- **[Model Context Protocol (MCP)](https://modelcontextprotocol.github.io/)**: Natural language interaction with your DAOs
+- **[Model Context Protocol (MCP)](https://www.claudemcp.com)**: Natural language interaction with your DAOs
 
 ## Navigation
 
@@ -34,14 +34,14 @@ Clone the repository and install dependencies:
 
 ```bash
 # Clone the repository
-git clone https://github.com/dorkydhruv/daoCLI-init.git
+git clone https://github.com/DaoCLI/daoCLI-init.git
 cd daoCLI-init
 
 # Install dependencies
-yarn install
+pnpm install
 
 # Build the project
-yarn build
+pnpm build
 
 # Link the CLI tool globally (optional)
 npm link
@@ -146,11 +146,11 @@ The project includes automated tests for both standard and integrated DAO workfl
 
 ```bash
 # Run all tests
-yarn test
+pnpm test
 
 # Run specific test suites
-yarn test:integrated  # For integrated DAO tests
-yarn test:standard    # For standard DAO tests
+pnpm test:integrated  # For integrated DAO tests
+pnpm test:standard    # For standard DAO tests
 ```
 
 #### Testing Environments
@@ -229,13 +229,13 @@ Here's a step-by-step workflow to test all major features:
 
 ## Model Context Protocol (MCP) Interface
 
-This tool also features a powerful [Model Context Protocol (MCP)](https://modelcontextprotocol.github.io/) interface that allows users to interact with DAOs using natural language commands through compatible AI clients like Claude Desktop.
+This tool also features a powerful [Model Context Protocol (MCP)](https://www.claudemcp.com/) interface that allows users to interact with DAOs using natural language commands through compatible AI clients like Claude Desktop.
 
 ### Setting Up the MCP Interface
 
 #### Prerequisites
 
-- A compatible MCP client (e.g., [Claude Desktop](https://claude.ai/desktop), GPT-4 with MCP integration)
+- A compatible MCP client (e.g., [Claude Desktop](https://claude.ai/desktop))
 - Node.js (v16+)
 
 ### Configuration
@@ -330,47 +330,13 @@ GET daocli://docs/proposal-guide
 GET daocli://docs/wallet-guide
 ```
 
-### MCP Testing Workflow
-
-Test the MCP functionality with this step-by-step workflow:
-
-1. **Start the MCP server**:
-
-   ```bash
-   yarn start:mcp
-   ```
-
-2. **Connect with your MCP client** and set up your environment:
-
-   ```
-   Connect to the MCP server at http://localhost:3000
-   Set the cluster to devnet
-   Import my wallet from ~/.config/solana/dev-wallet.json
-   ```
-
-3. **Create and manage a DAO**:
-
-   ```
-   Create a new DAO called "Test DAO" with me as the only member and threshold of 1
-   Fund my DAO with 0.5 SOL
-   ```
-
-4. **Create and manage proposals**:
-   ```
-   Create a proposal to send 0.1 SOL to address abc123...
-   Vote yes on the proposal
-   Execute the proposal once it's approved
-   ```
-
 ### Demo
 
 <!-- Insert Twitter post or video demo here -->
 <div align="center">
   <h4>Watch the daoCLI in action with MCP-powered natural language commands</h4>
-  
-  <!-- Replace the placeholder below with your actual Twitter embed or video link -->
-  <a href="https://drive.google.com/file/your-demo-video-id/view">
-    <img src="./docs/images/demo-thumbnail.png" alt="daoCLI Demo Video" width="600"/>
+    <a href="https://x.com/dorkydhruv/status/1901066331400925538">
+    <img src="./docs/images/embed.png" alt="daoCLI Demo Video" width="600"/>
   </a>
 </div>
 
@@ -400,7 +366,7 @@ The application integrates multiple key components:
 
 1. **SPL Governance**: For DAO creation, proposal management, and voting
 2. **Squads Multisig**: For multi-signature transaction approval
-3. **[Model Context Protocol (MCP)](https://modelcontextprotocol.github.io/)**: For AI-assisted interactions and operations
+3. **[Model Context Protocol (MCP)](https://www.claudemcp.com/)**: For AI-assisted interactions and operations
 
 For integrated DAOs, the tool creates a governance structure where proposals can control a multisig vault, enabling more complex treasury management with the security of multisig approvals.
 
@@ -420,16 +386,13 @@ git clone https://github.com/DaoCLI/daoCLI-init.git
 cd daoCLI-init
 
 # Install dependencies
-yarn install
+pnpm install
 
 # Run CLI in development mode
-yarn dev
-
-# Run MCP server in development mode
-yarn dev:mcp
+pnpm dev
 
 # Build the project
-yarn build
+pnpm build
 ```
 
 ## 🔍 Troubleshooting
@@ -456,9 +419,9 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - [Solana Foundation](https://solana.com)
-- [SPL Governance Program](https://github.com/solana-labs/solana-program-library/tree/master/governance)
+- [SPL Governance Program](https://github.com/Mythic-Project/governance-sdk)
 - [Squads Multisig](https://squads.so)
-- [Model Context Protocol](https://modelcontextprotocol.github.io/)
+- [Model Context Protocol](https://www.claudemcp.com/)
 
 ---
 

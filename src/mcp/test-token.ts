@@ -24,13 +24,15 @@ export function registerTestTokenTools(server: McpServer) {
         const connectionRes = await ConnectionService.getConnection();
         if (!connectionRes.success || !connectionRes.data) {
           return {
-            content: [{ type: "text", text: "Connection not established" }],
+            content: [
+              { type: "text" as const, text: "Connection not established" },
+            ],
           };
         }
         const walletRes = await WalletService.loadWallet();
         if (!walletRes.success || !walletRes.data) {
           return {
-            content: [{ type: "text", text: "Wallet not loaded" }],
+            content: [{ type: "text" as const, text: "Wallet not loaded" }],
           };
         }
         const connection = connectionRes.data;
@@ -45,7 +47,7 @@ export function registerTestTokenTools(server: McpServer) {
           decimalsOfToken
         );
         const amountToMintToken = amountToMint ? amountToMint : 10;
-        const tokenAccount = await createAssociatedTokenAccount(
+        const receipientTokenAccount = await createAssociatedTokenAccount(
           connection,
           keypair,
           testToken,
@@ -55,18 +57,18 @@ export function registerTestTokenTools(server: McpServer) {
           connection,
           keypair,
           testToken,
-          tokenAccount,
+          receipientTokenAccount,
           keypair.publicKey,
           amountToMintToken * 10 ** decimalsOfToken
         );
         return {
           content: [
             {
-              type: "text",
+              type: "text" as const,
               text: JSON.stringify(
                 {
                   mint: testToken,
-                  tokenAccount,
+                  receipientTokenAccount,
                   transaction: tx,
                   amountMinted: amountToMintToken,
                   decimals: decimalsOfToken,
@@ -123,7 +125,7 @@ export function registerTestTokenTools(server: McpServer) {
         const receipintPubkey = receipint
           ? new PublicKey(receipint)
           : keypair.publicKey;
-        const tokenAccountPubkey = await getOrCreateAssociatedTokenAccount(
+        const receipientTokenAccount = await getOrCreateAssociatedTokenAccount(
           connection,
           keypair,
           mintPubkey,
@@ -135,7 +137,7 @@ export function registerTestTokenTools(server: McpServer) {
           connection,
           keypair,
           mintPubkey,
-          tokenAccountPubkey.address,
+          receipientTokenAccount.address,
           keypair.publicKey,
           amountToMint * 10 ** mintInfo.decimals
         );
@@ -146,7 +148,11 @@ export function registerTestTokenTools(server: McpServer) {
               text: JSON.stringify(
                 {
                   mint: mint,
-                  tokenAccount: tokenAccountPubkey,
+                  receipient: receipintPubkey.toBase58(),
+                  receipientTokenAccount:
+                    receipientTokenAccount.address.toBase58(),
+                  amountInReceipientTokenAccount:
+                    receipientTokenAccount.amount.toString(),
                   transaction: tx,
                   amountMinted: amountToMint,
                 },
