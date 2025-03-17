@@ -5,7 +5,6 @@ import { ConfigService } from "../services/config-service";
 import { WalletService } from "../services/wallet-service";
 import { PublicKey } from "@solana/web3.js";
 import { GovernanceService } from "../services/governance-service";
-import { MultisigService } from "../services/multisig-service";
 
 export function registerDaoTools(server: McpServer) {
   server.tool(
