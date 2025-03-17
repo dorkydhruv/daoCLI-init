@@ -5,6 +5,7 @@ import { registerWalletCommands } from "./commands/wallet";
 import { registerConfigCommands } from "./commands/config";
 import { registerDaoCommands } from "./commands/dao";
 import { registerProposalCommands } from "./commands/proposal";
+import { sendFirstUseGATelemetry } from "./utils/googleAnalytics";
 
 async function main() {
   const program = new Command();
@@ -12,7 +13,12 @@ async function main() {
   program
     .name("dao")
     .description("Multisig DAO CLI Management Tool")
-    .version("1.0.0");
+    .version("1.0.0")
+    .option("--noga", "Disable Google Analytics telemetry");
+
+  program.parse(process.argv);
+  const options = program.opts();
+  await sendFirstUseGATelemetry(options.noga);
 
   // Register commands
   registerWalletCommands(program);
