@@ -1,8 +1,9 @@
-name: Deploy contract on Localnet
+name: Localnet Test CLI
 
 on:
   push:
-    branches: [feb-25, main, mcp-impl]
+    branches:
+      - "**"
 
 jobs:
   build-and-deploy:

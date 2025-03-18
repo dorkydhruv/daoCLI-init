@@ -253,12 +253,6 @@ export class GovernanceService {
 
       instructions.push(createRealmIx);
 
-      // // Execute realm creation
-      // const realmTx = new Transaction().add(createRealmIx);
-      // realmTx.feePayer = keypair.publicKey;
-      // const realmBlockhash = await connection.getLatestBlockhash();
-      // realmTx.recentBlockhash = realmBlockhash.blockhash;
-      // await sendAndConfirmTransaction(connection, realmTx, [keypair]);
 
       // 2. Process members
       for (const member of members) {
@@ -282,26 +276,6 @@ export class GovernanceService {
             keypair.publicKey,
             1
           );
-
-        // // Mint community token
-        // await mintTo(
-        //   connection,
-        //   keypair,
-        //   communityMint,
-        //   (
-        //     await getOrCreateAssociatedTokenAccount(
-        //       connection,
-        //       keypair,
-        //       communityMint,
-        //       member,
-        //       true
-        //     )
-        //   ).address,
-        //   keypair.publicKey,
-        //   1,
-        //   []
-        // );
-
         // Adjust signer flags
         if (!member.equals(keypair.publicKey)) {
           depositGovTokenIx.keys.forEach((key) => {
@@ -312,15 +286,6 @@ export class GovernanceService {
         }
 
         instructions.push(createTokenOwnerRecordIx, depositGovTokenIx);
-        // Execute member setup
-        // const memberTx = new Transaction().add(
-        //   createTokenOwnerRecordIx,
-        //   depositGovTokenIx
-        // );
-        // memberTx.feePayer = keypair.publicKey;
-        // const memberBlockhash = await connection.getLatestBlockhash();
-        // memberTx.recentBlockhash = memberBlockhash.blockhash;
-        // await sendAndConfirmTransaction(connection, memberTx, [keypair]);
       }
 
       // 3. Create governance
@@ -355,11 +320,6 @@ export class GovernanceService {
           realmId
         );
       instructions.push(createGovernanceIx);
-      // const governanceTx = new Transaction().add(createGovernanceIx);
-      // governanceTx.feePayer = keypair.publicKey;
-      // const governanceBlockhash = await connection.getLatestBlockhash();
-      // governanceTx.recentBlockhash = governanceBlockhash.blockhash;
-      // await sendAndConfirmTransaction(connection, governanceTx, [keypair]);
 
       // 4. Setup treasury and finalize
       const createNativeTreasuryIx =
@@ -396,18 +356,6 @@ export class GovernanceService {
         transferCouncilAuthIx,
         transferMultisigAuthIx
       );
-
-      // const finalTx = new Transaction().add(
-      //   createNativeTreasuryIx,
-      //   transferCommunityAuthIx,
-      //   transferCouncilAuthIx,
-      //   transferMultisigAuthIx
-      // );
-
-      // finalTx.feePayer = keypair.publicKey;
-      // const finalBlockhash = await connection.getLatestBlockhash();
-      // finalTx.recentBlockhash = finalBlockhash.blockhash;
-      // await sendAndConfirmTransaction(connection, finalTx, [keypair]);
 
       // Execute all instructions
       const txRes = await sendTx(connection, keypair, instructions);
