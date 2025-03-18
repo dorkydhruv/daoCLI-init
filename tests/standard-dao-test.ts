@@ -8,7 +8,7 @@ import { spawnSync } from "child_process";
 import path from "path";
 import fs from "fs-extra";
 import { expect } from "chai";
-import { SplGovernance } from "governance-idl-sdk";
+import { ProposalV2, SplGovernance } from "governance-idl-sdk";
 import {
   SPL_GOVERNANCE_PROGRAM_ID,
   SQDS_PROGRAM_ID,
@@ -185,18 +185,12 @@ describe("Standard DAO Test", function () {
       connection,
       new PublicKey(SPL_GOVERNANCE_PROGRAM_ID)
     );
-    const proposals = await splGovernance.getAllProposals();
+    const proposals: ProposalV2[] = await splGovernance.getAllProposals();
 
     // Filter proposals for this specific governance and get the most recent one
     const governanceProposals = proposals
       .filter((p) => p.governance.equals(governancePubkey))
-      .sort((a, b) => {
-        // Sort by creation time, newest first
-        if (a.votingAt && b.votingAt) {
-          return b.votingAt.toNumber() - a.votingAt.toNumber();
-        }
-        return 0;
-      });
+      .sort();
 
     if (governanceProposals.length === 0) {
       console.log(
