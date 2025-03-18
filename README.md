@@ -256,14 +256,14 @@ For Windows:
 code $env:AppData\Claude\claude_desktop_config.json
 ```
 
-The final configuration should look like the following (replace the path with your absolute project path):
+The final configuration should look like the following :
 
 ```json
 {
   "mcpServers": {
     "daoCLI": {
       "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/YOUR/PROJECT"]
+      "args": ["$(pwd)/dist/mcp-server.js"]
     }
   }
 }
@@ -404,6 +404,38 @@ pnpm build
 - **MCP connection issues**: Verify the MCP server is running and accessible
 - **Natural language parsing errors**: Try using more specific language or make your request more explicit
 
+## 📊 Telemetry
+
+This tool collects anonymous telemetry data to help improve future development. Here's what you should know:
+
+### What We Collect
+
+- **First-use event only**: We only send telemetry once, on the first time you run the CLI
+- **Platform information**: Basic details about your operating system (platform, release, architecture)
+- **Anonymous client ID**: A hashed identifier generated from your system information and a random salt
+
+### What We Don't Collect
+
+- **Personal information**: No personal data, wallet addresses, or keys
+- **Command usage**: No commands or queries you run are tracked
+- **DAO information**: No data about your DAOs or proposals
+
+### How It's Stored
+
+- A configuration file at `~/.config/dao-cli/machine_salt.json` contains a random salt
+- A telemetry flag file at `~/.config/dao-cli/ga_telemetry_flag.json` tracks whether telemetry has already been sent
+
+### Opting Out
+
+You can disable telemetry completely by using the `--noga` flag:
+
+```bash
+# Disable telemetry permanentaly
+daocli --noga <command>
+```
+
+Once you use the `--noga` flag, your preference will be saved and no telemetry will ever be sent, even on future runs.
+
 ## 🧹 Cleanup
 
 To reset your local configuration:
@@ -415,13 +447,6 @@ rm -rf ~/.config/dao-cli
 ## 📜 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- [Solana Foundation](https://solana.com)
-- [SPL Governance Program](https://github.com/Mythic-Project/governance-sdk)
-- [Squads Multisig](https://squads.so)
-- [Model Context Protocol](https://www.claudemcp.com/)
 
 ---
 

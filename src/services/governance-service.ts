@@ -27,7 +27,6 @@ import { MultisigService } from "./multisig-service";
 import { sendTx } from "../utils/send_tx";
 import BN from "bn.js";
 
-// Constants moved from class to top level
 const DISABLED_VOTER_WEIGHT = new BN("18446744073709551615");
 const DEFAULT_VOTING_TIME = 86400; // 1 day in seconds
 
