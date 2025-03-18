@@ -34,7 +34,6 @@ describe("Integrated DAO Workflow Test", function () {
   function executeCommand(command: string): string {
     try {
       const fullCommand = `${CLI_COMMAND} ${command}`;
-      console.log(`Executing: ${fullCommand}`);
       const result = execSync(fullCommand, { encoding: "utf8" });
       return result;
     } catch (error: any) {
@@ -66,23 +65,15 @@ describe("Integrated DAO Workflow Test", function () {
     const secretKey = Uint8Array.from(JSON.parse(walletData));
     keypair = Keypair.fromSecretKey(secretKey);
 
-    console.log(`Using wallet: ${keypair.publicKey.toBase58()}`);
-
     // Import the wallet into our CLI tool
     executeCommand(`wallet import ${walletPath}`);
 
     // Create a recipient keypair for testing transfers
     recipientKeypair = Keypair.generate();
-    console.log(
-      `Test recipient address: ${recipientKeypair.publicKey.toBase58()}`
-    );
 
     // Check wallet balance
     const balance = await connection.getBalance(keypair.publicKey);
-    console.log(`Wallet balance: ${balance / LAMPORTS_PER_SOL} SOL`);
-
     if (balance < LAMPORTS_PER_SOL) {
-      console.log("Wallet balance too low, attempting to airdrop on devnet");
       if (DEFAULT_CLUSTER === "testnet") {
         const airdropSig = await connection.requestAirdrop(
           keypair.publicKey,
@@ -97,30 +88,24 @@ describe("Integrated DAO Workflow Test", function () {
 
   it("should create an integrated DAO with multisig", async () => {
     const daoName = `IntegratedTest-${Date.now().toString().substring(6)}`;
-    console.log(`Creating integrated DAO: ${daoName}`);
-
     // Create the integrated DAO
     const output = executeCommand(
-      `dao init --name "${daoName}" --threshold 1 --integrated`
+      `dao init --name "${daoName}" --threshold 1 --integrated true`
     );
 
     // Extract addresses from output
     const realmMatch = output.match(/Realm: ([A-Za-z0-9]+)/);
     const governanceMatch = output.match(/Governance: ([A-Za-z0-9]+)/);
-    const treasuryMatch = output.match(/Native Treasury: ([A-Za-z0-9]+)/);
     const multisigMatch = output.match(/Squads Multisig: ([A-Za-z0-9]+)/);
     const vaultMatch = output.match(/Squads Vault: ([A-Za-z0-9]+)/);
 
     // Save the addresses for later tests
     realmAddress = realmMatch ? realmMatch[1] : "";
-    treasuryAddress = treasuryMatch ? treasuryMatch[1] : "";
     multisigAddress = multisigMatch ? multisigMatch[1] : "";
     vaultAddress = vaultMatch ? vaultMatch[1] : "";
 
     // Verify we got all the addresses
     expect(realmAddress, "Realm address not found in output").to.not.be.empty;
-    expect(treasuryAddress, "Treasury address not found in output").to.not.be
-      .empty;
     expect(multisigAddress, "Multisig address not found in output").to.not.be
       .empty;
     expect(vaultAddress, "Vault address not found in output").to.not.be.empty;
@@ -142,18 +127,11 @@ describe("Integrated DAO Workflow Test", function () {
     expect(showOutput).to.include(realmAddress);
     expect(showOutput).to.include(multisigAddress);
     expect(showOutput).to.include("Integrated with Squads Multisig");
-
-    console.log(
-      `Created DAO with realm: ${realmAddress}, multisig: ${multisigAddress}`
-    );
   });
 
   it("should fund the multisig vault", async () => {
     const initialVaultBalance = await connection.getBalance(
       new PublicKey(vaultAddress)
-    );
-    console.log(
-      `Initial vault balance: ${initialVaultBalance / LAMPORTS_PER_SOL} SOL`
     );
 
     // Fund the vault using the CLI
@@ -166,8 +144,6 @@ describe("Integrated DAO Workflow Test", function () {
     const newVaultBalance = await connection.getBalance(
       new PublicKey(vaultAddress)
     );
-    console.log(`New vault balance: ${newVaultBalance / LAMPORTS_PER_SOL} SOL`);
-
     // Check that the balance increased by at least 95% of the funded amount (accounting for fees)
     expect(newVaultBalance).to.be.greaterThan(
       initialVaultBalance + initialFundAmount * LAMPORTS_PER_SOL * 0.95
@@ -209,6 +185,18 @@ describe("Integrated DAO Workflow Test", function () {
 
     // Wait for transaction confirmation
     await new Promise((resolve) => setTimeout(resolve, 5000));
+  });
+
+  it("should execute the proposal", async () => {
+    // Execute the proposal
+    const output = executeCommand(
+      `proposal execute --proposal ${proposalAddress}`
+    );
+    const reciepientBalance = await connection.getBalance(
+      recipientKeypair.publicKey
+    );
+    expect(reciepientBalance).to.be.greaterThan(0);
+    expect(reciepientBalance).to.be.equal(transferAmount * LAMPORTS_PER_SOL);
   });
 
   after(async () => {

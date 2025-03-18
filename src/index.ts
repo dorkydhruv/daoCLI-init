@@ -16,10 +16,6 @@ async function main() {
     .version("1.0.0")
     .option("--noga", "Disable Google Analytics telemetry");
 
-  program.parse(process.argv);
-  const options = program.opts();
-  await sendFirstUseGATelemetry(options.noga);
-
   // Register commands
   registerWalletCommands(program);
   registerConfigCommands(program);
@@ -32,6 +28,11 @@ async function main() {
     .action(() => {
       program.help();
     });
+
+  // Get options without executing commands
+  program.parseOptions(process.argv);
+  const options = program.opts();
+  await sendFirstUseGATelemetry(options.noga);
 
   try {
     await program.parseAsync(process.argv);

@@ -14,8 +14,6 @@
     "test:standard": "mocha -r ts-node/register tests/standard-dao-test.ts"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.28.0",
-    "@metaplex-foundation/umi": "^1.1.1",
     "@modelcontextprotocol/sdk": "^1.6.1",
     "@solana/spl-token": "^0.4.9",
     "@solana/web3.js": "^1.98.0",
@@ -32,7 +30,6 @@
     "fs-extra": "^11.2.0",
     "governance-idl-sdk": "^0.0.4",
     "solana-agent-kit": "^1.4.9",
-    "solana-bankrun": "^0.2.0",
     "ws": "^8.18.0",
     "zod": "^3.24.2"
   },
@@ -52,15 +49,5 @@
   },
   "bin": {
     "daocli": "dist/index.js"
-  },
-  "resolutions": {
-    "@metaplex-foundation/umi": "^1.1.1",
-    "typescript": "^5.8.2",
-    "borsh": "^2.0.0",
-    "buffer": "^6.0.3",
-    "ws": "^8.18.0",
-    "@solana/web3.js": "^1.98.0",
-    "@coral-xyz/anchor": "^0.28.0",
-    "solana-bankrun": "^0.2.0"
   }
 }
