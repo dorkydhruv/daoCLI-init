@@ -23,6 +23,7 @@ impl<'info> Initialize<'info> {
         self.global.update_settings(params);
         self.global.global_authority = *self.admin.key;
         self.global.initialized = true;
+        require_gt!(self.global.mint_decimals, 0, ContractError::InvalidArgument);
         Ok(())
     }
 }
