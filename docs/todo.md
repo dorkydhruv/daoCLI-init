@@ -54,6 +54,10 @@
 
 - **Public Fair Launch**: Instantly tradeable bonding curve for price discovery
 - **Always Liquid**: Participants can buy and sell anytime on the curve before migration
+- **Fundraising Target**: Configurable SOL fundraising goal (like DAOS.FUN)
+- **Token Supply Management**:
+  - When fundraising target is reached, remaining unsold tokens are burned
+  - This increases token scarcity and value for early participants
 - **Dual-Pool Migration**: 50% to Raydium + 50% to DAOS.FUN pool upon reaching target
 - **Treasury Control**: Unlike DAOS.FUN, funds remain in DAO treasury controlled by governance
 - **Party Round Invitations**: Ability to create exclusive invite links for early participants
@@ -65,9 +69,11 @@
 - Circuit breakers to pause trading if price moves >10% in 5 minutes
 - Parameters configurable via CLI
 - All funds flow to DAO treasury, accessible only through governance proposals
-- **Migration Trigger**:
-  - Primary: Target market cap reached (configurable)
+- **Migration Triggers**:
+  - Primary: SOL fundraising target reached (configurable)
+  - Secondary: Target market cap reached (configurable)
   - Alternative: Fundraising time window expired (configurable, default 7 days)
+- **Token Supply Adjustment**: Burn all unsold tokens when fundraising target is reached
 - **Dual Migration**: 50% liquidity to Raydium, 50% to DAOS.FUN pool
 - 10% token burn during migration for deflationary effect
 
@@ -163,8 +169,8 @@ daocli agent deploy --name "TradingBot" --params "frequency=2,max-trade=5" --exe
 # Configure bonding curve (simplified linear option)
 daocli token setup-curve --type linear --params "m=0.0000001,b=0.1" --circuit-breaker true --always-liquid true
 
-# Configure bonding curve (advanced sigmoid with floor)
-daocli token setup-curve --type sigmoid --params "a=1,k=0.5,m=20000000,b=0.1,floor=0.1" --circuit-breaker true --always-liquid true
+# Configure fundraising target (DAOS.FUN style)
+daocli token setup-fundraise --target 1000 --burn-unsold true --min-raise 100
 
 # Configure fair launch
 daocli token setup-launch --target-cap 10000000 --fundraise-window 7d
@@ -174,6 +180,12 @@ daocli token create-invite --amount-cap 100000 --expires 48h --max-participants 
 
 # Launch token sale with dry-run simulation
 daocli token launch-sale --min-purchase 0.1 --max-purchase 100 --agent-handle "@AIBot_Trading" --simulate
+
+# Check fundraising status
+daocli token fundraise-status
+
+# Force fundraise completion (if conditions met)
+daocli token complete-fundraise --burn-unsold true --timelock 48h
 
 # Configure dual pool migration
 daocli token setup-migration --raydium-pct 50 --daosfun-pct 50 --lock-duration 180d
