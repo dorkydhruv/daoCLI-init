@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-use crate::{ error::ContractError, state::{ Global, GlobalSettingsInput } };
+use crate::{ errors::ContractError, state::{ Global, GlobalSettingsInput } };
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {

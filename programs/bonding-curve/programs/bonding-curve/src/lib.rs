@@ -1,9 +1,9 @@
-use anchor_lang::prelude::*;
+#![allow(unexpected_cfgs)]
 
 declare_id!("6X3W2VTp8EuLwmAQu15EL1xrXGuHLeEwi17WTPsPVMKj");
 mod instructions;
 mod state;
-mod error;
+mod errors;
 
 pub use instructions::*;
 pub use state::*;
@@ -15,5 +15,10 @@ pub mod bonding_curve {
         ctx.accounts.process(params)
     }
 
-    
+    pub fn create_bonding_curve(
+        ctx: Context<CreateBondingCurve>,
+        params: CreateBondingCurveParams
+    ) -> Result<()> {
+        ctx.accounts.process(params, &ctx.bumps)
+    }
 }
