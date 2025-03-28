@@ -84,7 +84,7 @@ impl<'info> CreateBondingCurve<'info> {
     pub fn validate(&self, params: &CreateBondingCurveParams) -> Result<()> {
         let clock = Clock::get()?;
         if let Some(start_time) = params.start_time {
-            require!(start_time <= clock.unix_timestamp, ContractError::InvalidStartTime);
+            require!(start_time >= clock.unix_timestamp, ContractError::InvalidStartTime);
         }
         // add more validations here
         Ok(())

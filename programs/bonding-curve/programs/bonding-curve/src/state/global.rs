@@ -22,6 +22,7 @@ pub struct Global {
     pub token_total_supply: u64,
     pub mint_decimals: u8,
     pub whitelist_enabled: bool,
+    pub bump: u8,
 }
 
 impl Default for Global {
@@ -38,6 +39,7 @@ impl Default for Global {
             token_total_supply: 100_000_000_000_000,
             mint_decimals: 6,
             whitelist_enabled: false,
+            bump: 0,
         }
     }
 }
@@ -45,9 +47,9 @@ impl Default for Global {
 impl Global {
     pub const SEED_PREFIX: &'static str = "global";
 
-    pub fn get_signer<'a>(bump: &'a u8) -> [&'a [u8]; 2] {
+    pub fn get_signer(&self) -> [&[u8]; 2] {
         let prefix_bytes = Self::SEED_PREFIX.as_bytes();
-        let bump_slice: &'a [u8] = std::slice::from_ref(bump);
+        let bump_slice = std::slice::from_ref(&self.bump);
         [prefix_bytes, bump_slice]
     }
     pub fn update_settings(&mut self, params: GlobalSettingsInput) {

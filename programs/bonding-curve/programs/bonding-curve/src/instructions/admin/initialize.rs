@@ -19,10 +19,11 @@ pub struct Initialize<'info> {
 }
 
 impl<'info> Initialize<'info> {
-    pub fn process(&mut self, params: GlobalSettingsInput) -> Result<()> {
+    pub fn process(&mut self, params: GlobalSettingsInput, bumps: &InitializeBumps) -> Result<()> {
         self.global.update_settings(params);
         self.global.global_authority = *self.admin.key;
         self.global.initialized = true;
+        self.global.bump = bumps.global;
         require_gt!(self.global.mint_decimals, 0, ContractError::InvalidArgument);
         Ok(())
     }
