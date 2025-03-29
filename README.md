@@ -1,6 +1,6 @@
 # assetCLI - Goldman Sachs for AI Agents
 
- Running your entire governance, multisig and funding lifecycle (including bonding curves, DEX integrations, etc) through an AI-assisted  agent.
+running your entire governance, multisig and funding lifecycle (including bonding curves, DEX integrations, etc) through an AI-assisted agent.
 
 ![assetCLI](./docs/images/banner.png)
 
