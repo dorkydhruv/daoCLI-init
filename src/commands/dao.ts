@@ -196,8 +196,10 @@ export function registerDaoCommands(program: Command): void {
 
         console.log(chalk.blue("\nNext steps:"));
         console.log("1. Fund your vault:");
-        console.log(` $ daocli dao fund --amount 0.1`);
-        console.log(` $ daocli dao fund-token --mint <mint> --amount <amount>`);
+        console.log(` $ assetCLI dao fund --amount 0.1`);
+        console.log(
+          ` $ assetCLI dao fund-token --mint <mint> --amount <amount>`
+        );
         console.log("2. Create and vote on proposals:");
         console.log(`   proposal transfer --amount 0.01 --recipient <address>`);
       } catch (error) {

@@ -4,15 +4,15 @@ import {
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerResource(server: McpServer) {
-  // README resource for daoCLI
+  // README resource for assetCLI
   server.resource(
-    "daoCLIReadme",
-    new ResourceTemplate("daocli://docs/readme", { list: undefined }),
+    "assetCLIReadme",
+    new ResourceTemplate("assetCLI://docs/readme", { list: undefined }),
     async (uri) => {
-      const readmeContent = `# daoCLI
+      const readmeContent = `# assetCLI
   
   ## Overview
-  daoCLI is a command-line interface tool for creating and managing DAOs (Decentralized Autonomous Organizations) on the Solana blockchain. It provides a streamlined experience for creating DAOs, managing proposals, executing treasury operations, and more.
+  assetCLI is a command-line interface tool for creating and managing DAOs (Decentralized Autonomous Organizations) on the Solana blockchain. It provides a streamlined experience for creating DAOs, managing proposals, executing treasury operations, and more.
   
   ## Features
   - Create integrated or standard DAOs
@@ -51,7 +51,7 @@ export function registerResource(server: McpServer) {
   // DAO Documentation Resource
   server.resource(
     "daoDocumentation",
-    new ResourceTemplate("daocli://docs/dao-guide", { list: undefined }),
+    new ResourceTemplate("assetCLI://docs/dao-guide", { list: undefined }),
     async (uri) => {
       const content = `# DAO Management Guide
   
@@ -87,7 +87,7 @@ export function registerResource(server: McpServer) {
   // Proposal Documentation Resource
   server.resource(
     "proposalDocumentation",
-    new ResourceTemplate("daocli://docs/proposal-guide", { list: undefined }),
+    new ResourceTemplate("assetCLI://docs/proposal-guide", { list: undefined }),
     async (uri) => {
       const content = `# Proposal Management Guide
   
@@ -135,7 +135,7 @@ export function registerResource(server: McpServer) {
   // Wallet Documentation Resource
   server.resource(
     "walletDocumentation",
-    new ResourceTemplate("daocli://docs/wallet-guide", { list: undefined }),
+    new ResourceTemplate("assetCLI://docs/wallet-guide", { list: undefined }),
     async (uri) => {
       const content = `# Wallet Management Guide
   
