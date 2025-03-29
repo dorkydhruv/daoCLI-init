@@ -1,6 +1,6 @@
 # assetCLI - Goldman Sachs for AI Agents
 
-running your entire governance, multisig and funding lifecycle (including bonding curves, DEX integrations, etc) through an AI-assisted agent.
+ running your entire governance, multisig and funding lifecycle (including bonding curves, DEX integrations, etc) through an AI-assisted  agent.
 
 ![assetCLI](./docs/images/banner.png)
 
@@ -422,8 +422,8 @@ This tool collects anonymous telemetry data to help improve future development. 
 
 ### How It's Stored
 
-- A configuration file at `~/.config/asset-cli/machine_salt.json` contains a random salt
-- A telemetry flag file at `~/.config/asset-cli/ga_telemetry_flag.json` tracks whether telemetry has already been sent
+- A configuration file at `~/.config/dao-cli/machine_salt.json` contains a random salt
+- A telemetry flag file at `~/.config/dao-cli/ga_telemetry_flag.json` tracks whether telemetry has already been sent
 
 ### Opting Out
 
@@ -431,7 +431,7 @@ You can disable telemetry completely by using the `--noga` flag:
 
 ```bash
 # Disable telemetry permanentaly
-assetCLI --noga <command>
+daocli --noga <command>
 ```
 
 Once you use the `--noga` flag, your preference will be saved and no telemetry will ever be sent, even on future runs.
@@ -441,7 +441,7 @@ Once you use the `--noga` flag, your preference will be saved and no telemetry w
 To reset your local configuration:
 
 ```bash
-rm -rf ~/.config/asset-cli
+rm -rf ~/.config/dao-cli
 ```
 
 ## 📜 License
