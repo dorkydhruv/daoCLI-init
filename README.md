@@ -1,8 +1,8 @@
-# Solana DAO CLI Tool
+# assetCLI - Goldman Sachs for AI Agents
 
-A powerful command-line interface for creating and managing Decentralized Autonomous Organizations (DAOs) on the Solana blockchain. This tool enables seamless integration between SPL Governance and Squads multisig, offering a complete solution for DAO management directly from your terminal.
+ running your entire governance, multisig and funding lifecycle (including bonding curves, DEX integrations, etc) through an AI-assisted  agent.
 
-![Solana DAO CLI Tool](./docs/images/banner.png)
+![assetCLI](./docs/images/banner.png)
 
 ## 🌟 Features
 
@@ -34,8 +34,8 @@ Clone the repository and install dependencies:
 
 ```bash
 # Clone the repository
-git clone https://github.com/DaoCLI/daoCLI-init.git
-cd daoCLI-init
+git clone https://github.com/assetCLI/assetCLI-init.git
+cd assetCLI-init
 
 # Install dependencies
 pnpm install
@@ -53,13 +53,13 @@ By default, the CLI connects to a local Solana validator. You can change the net
 
 ```bash
 # Set network to devnet
-daocli config set-cluster devnet
+assetCLI config set-cluster devnet
 
 # Set network to mainnet
-daocli config set-cluster mainnet
+assetCLI config set-cluster mainnet
 
 # Set to local validator
-daocli config set-cluster localhost
+assetCLI config set-cluster localhost
 ```
 
 ### 🔑 Wallet Setup
@@ -68,13 +68,13 @@ Before using the DAO CLI, you need to set up a wallet:
 
 ```bash
 # Import an existing wallet
-daocli wallet import ~/.config/solana/id.json
+assetCLI wallet import ~/.config/solana/id.json
 
 # Create a new wallet
-daocli wallet create
+assetCLI wallet create
 
 # Check wallet config
-daocli wallet show
+assetCLI wallet show
 ```
 
 ### 📘 Usage Guide
@@ -83,59 +83,59 @@ daocli wallet show
 
 ```bash
 # Create an integrated DAO with Squads multisig
-daocli dao init --name "My DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3"
+assetCLI dao init --name "My DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3"
 
 # Create a standard DAO without multisig integration
-daocli dao init --name "Standard DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3" --integrated false
+assetCLI dao init --name "Standard DAO" --threshold 2 --members "pubkey1,pubkey2,pubkey3" --integrated false
 ```
 
 #### Managing Your DAOs
 
 ```bash
 # List all DAOs where you are a member
-daocli dao list
+assetCLI dao list
 
 # Switch to a specific DAO
-daocli dao use <REALM_ADDRESS>
+assetCLI dao use <REALM_ADDRESS>
 
 # Show details about the current active DAO
-daocli dao show
+assetCLI dao show
 ```
 
 #### Funding Your DAO
 
 ```bash
 # Fund with SOL (automatically detects if it's a treasury or multisig vault)
-daocli dao fund --amount 0.5
+assetCLI dao fund --amount 0.5
 
 # Fund with tokens
-daocli dao fund-token --mint <TOKEN_MINT_ADDRESS> --amount 100
+assetCLI dao fund-token --mint <TOKEN_MINT_ADDRESS> --amount 100
 ```
 
 #### Creating Proposals
 
 ```bash
 # Create a SOL transfer proposal
-daocli proposal transfer --amount 0.1 --recipient <RECIPIENT_ADDRESS> --name "Pay Developer" --description "Payment for UI work"
+assetCLI proposal transfer --amount 0.1 --recipient <RECIPIENT_ADDRESS> --name "Pay Developer" --description "Payment for UI work"
 
 # Create a token transfer proposal
-daocli proposal transfer --mint <TOKEN_MINT_ADDRESS> --amount 50 --recipient <RECIPIENT_ADDRESS>
+assetCLI proposal transfer --mint <TOKEN_MINT_ADDRESS> --amount 50 --recipient <RECIPIENT_ADDRESS>
 ```
 
 #### Voting and Execution
 
 ```bash
 # List all proposals
-daocli proposal list
+assetCLI proposal list
 
 # Vote to approve a proposal
-daocli proposal vote --proposal <PROPOSAL_ADDRESS>
+assetCLI proposal vote --proposal <PROPOSAL_ADDRESS>
 
 # Vote to deny a proposal
-daocli proposal vote --proposal <PROPOSAL_ADDRESS> --deny
+assetCLI proposal vote --proposal <PROPOSAL_ADDRESS> --deny
 
 # Execute an approved proposal
-daocli proposal execute --proposal <PROPOSAL_ADDRESS>
+assetCLI proposal execute --proposal <PROPOSAL_ADDRESS>
 ```
 
 ### 🧪 Testing the CLI
@@ -166,7 +166,7 @@ chmod +x local-dev.sh
 solana config set localhost
 
 # Import your wallet
-daocli wallet import ~/.config/solana/id.json
+assetCLI wallet import ~/.config/solana/id.json
 
 # Airdrop SOL to your wallet
 solana airdrop 10
@@ -179,7 +179,7 @@ solana airdrop 10
 solana config set devnet
 
 # Import your wallet
-daocli wallet import ~/.config/solana/id.json
+assetCLI wallet import ~/.config/solana/id.json
 
 # Airdrop SOL to your wallet
 solana airdrop 2
@@ -192,32 +192,32 @@ Here's a step-by-step workflow to test all major features:
 1. **Initial setup**:
 
    ```bash
-   daocli wallet import ~/.config/solana/dev-wallet.json
-   daocli wallet balance
+   assetCLI wallet import ~/.config/solana/dev-wallet.json
+   assetCLI wallet balance
    ```
 
 2. **Create a DAO**:
 
    ```bash
-   daocli dao init --name "Test DAO" --threshold 1
+   assetCLI dao init --name "Test DAO" --threshold 1
    ```
 
 3. **Fund the DAO**:
 
    ```bash
-   daocli dao fund --amount 0.5
+   assetCLI dao fund --amount 0.5
    ```
 
 4. **Create a proposal**:
 
    ```bash
-   daocli proposal transfer --amount 0.1 --recipient <ADDRESS>
+   assetCLI proposal transfer --amount 0.1 --recipient <ADDRESS>
    ```
 
 5. **Vote on the proposal**:
 
    ```bash
-   daocli proposal vote --proposal <PROPOSAL_ADDRESS>
+   assetCLI proposal vote --proposal <PROPOSAL_ADDRESS>
    ```
 
 6. **Verify the transfer**:
@@ -261,7 +261,7 @@ The final configuration should look like the following (replace the path with yo
 ```json
 {
   "mcpServers": {
-    "daoCLI": {
+    "assetCLI": {
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/YOUR/PROJECT"]
     }
@@ -324,19 +324,19 @@ What happened in transaction abc123...?
 Access detailed documentation through the MCP interface:
 
 ```
-GET daocli://docs/readme
-GET daocli://docs/dao-guide
-GET daocli://docs/proposal-guide
-GET daocli://docs/wallet-guide
+GET assetCLI://docs/readme
+GET assetCLI://docs/dao-guide
+GET assetCLI://docs/proposal-guide
+GET assetCLI://docs/wallet-guide
 ```
 
 ### Demo
 
 <!-- Insert Twitter post or video demo here -->
 <div align="center">
-  <h4>Watch the daoCLI in action with MCP-powered natural language commands</h4>
+  <h4>Watch the assetCLI in action with MCP-powered natural language commands</h4>
     <a href="https://x.com/dorkydhruv/status/1901066331400925538">
-    <img src="./docs/images/embed.png" alt="daoCLI Demo Video" width="600"/>
+    <img src="./docs/images/embed.png" alt="assetCLI Demo Video" width="600"/>
   </a>
 </div>
 
@@ -345,7 +345,7 @@ GET daocli://docs/wallet-guide
 ## 🏗️ Project Structure
 
 ```
-daoCLI-init/
+assetCLI-init/
 ├── src/
 │   ├── commands/         # CLI command implementations
 │   ├── mcp/              # MCP tools and resources
@@ -382,8 +382,8 @@ To set up a development environment:
 
 ```bash
 # Clone the repository
-git clone https://github.com/DaoCLI/daoCLI-init.git
-cd daoCLI-init
+git clone https://github.com/assetCLI/assetCLI-init.git
+cd assetCLI-init
 
 # Install dependencies
 pnpm install
