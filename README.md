@@ -1,8 +1,8 @@
-# Solana Asset CLI Tool
+# assetCLI - Goldman Sachs for AI Agents
 
-A powerful command-line interface for creating and managing Decentralized Autonomous Organizations (DAOs) on the Solana blockchain. This tool enables seamless integration between SPL Governance and Squads multisig, offering a complete solution for DAO management directly from your terminal.
+ Running your entire governance, multisig and funding lifecycle (including bonding curves, DEX integrations, etc) through an AI-assisted  agent.
 
-![Solana Asset CLI Tool](./docs/images/banner.png)
+![assetCLI](./docs/images/banner.png)
 
 ## 🌟 Features
 
@@ -64,7 +64,7 @@ assetCLI config set-cluster localhost
 
 ### 🔑 Wallet Setup
 
-Before using the Asset CLI, you need to set up a wallet:
+Before using the DAO CLI, you need to set up a wallet:
 
 ```bash
 # Import an existing wallet
