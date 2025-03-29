@@ -287,22 +287,8 @@ impl<'info> Swap<'info> {
         msg!("Token transfer complete");
 
         // Transfer SOL to user
-        let signer = BondingCurve::get_signer(&self.bonding_curve.bump, &self.bonding_curve.mint);
-        let signer_seeds = &[&signer[..]];
-        let transfer_instruction = system_instruction::transfer(
-            &self.bonding_curve.key(),
-            self.user.key,
-            sell_amount_minus_fee
-        );
-        solana_program::program::invoke_signed(
-            &transfer_instruction,
-            &[
-                self.bonding_curve.to_account_info(),
-                self.user.to_account_info(),
-                self.system_program.to_account_info(),
-            ],
-            signer_seeds
-        )?;
+        self.bonding_curve.sub_lamports(sell_amount_minus_fee).unwrap();
+        self.user.add_lamports(sell_amount_minus_fee).unwrap();
         msg!("SOL transfer complete");
 
         self.bonding_curve.sub_lamports(fee_lamports).unwrap();

@@ -244,6 +244,12 @@ impl BondingCurve {
 
         self.treasury_allocation = self.treasury_allocation.checked_add(treasury_portion)?;
 
+        // IMPORTANT: Reduce virtual_sol_reserves by the treasury portion to maintain the correct product
+        // This ensures virtual SOL reserves only represent SOL available for trading
+        let new_virtual_sol_reserves = new_virtual_sol_reserves.checked_sub(
+            treasury_portion as u128
+        )?;
+
         self.virtual_token_reserves = new_virtual_token_reserves.try_into().ok()?;
         self.real_token_reserves = new_real_token_reserves.try_into().ok()?;
         self.virtual_sol_reserves = new_virtual_sol_reserves.try_into().ok()?;
@@ -372,6 +378,8 @@ impl BondingCurve {
             return None;
         }
         msg!("GetSolForSellTokens: token_amount: {}", token_amount);
+        msg!("GetSolForSellTokens: virtual sol reserves: {}", self.virtual_sol_reserves);
+        msg!("GetSolForSellTokens: virtual token reserves: {}", self.virtual_token_reserves);
 
         // Calculate the product of the reserves (decimal adjusted)
         let product_of_reserves = (self.virtual_sol_reserves as u128)
