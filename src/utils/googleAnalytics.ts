@@ -12,7 +12,7 @@ function getHomeDir(): string {
 }
 
 function getConfigDir(): string {
-  return path.join(getHomeDir(), ".config", "dao-cli");
+  return path.join(getHomeDir(), ".config", "asset-cli");
 }
 
 function getGAFlagFile(): string {

@@ -12,7 +12,7 @@ import fs from "fs-extra";
 
 import { DEFAULT_CLUSTER, ENDPOINT_MAP } from "../src/utils/constants";
 
-describe("Integrated DAO Workflow Test", function () {
+describe("Integrated Multisig Workflow Test", function () {
   this.timeout(300000); // 5 minutes timeout for the entire test suite
 
   let connection: Connection;
@@ -47,7 +47,7 @@ describe("Integrated DAO Workflow Test", function () {
 
   before(async () => {
     // Clear existing config
-    const configDir = path.join(process.env.HOME || "", ".config/daoCLI");
+    const configDir = path.join(process.env.HOME || "", ".config/asset-cli");
     if (fs.existsSync(configDir)) {
       fs.removeSync(configDir);
     }
@@ -201,7 +201,7 @@ describe("Integrated DAO Workflow Test", function () {
 
   after(async () => {
     // Clean up config
-    const configDir = path.join(process.env.HOME || "", ".config/daoCLI");
+    const configDir = path.join(process.env.HOME || "", ".config/asset-cli");
     if (fs.existsSync(configDir)) {
       fs.removeSync(configDir);
     }

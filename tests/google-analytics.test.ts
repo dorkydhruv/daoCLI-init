@@ -11,7 +11,7 @@ dotenv.config();
 describe("Google Analytics Telemetry", () => {
   const originalHome = process.env.HOME;
   const testHome = path.join(os.tmpdir(), "dao-cli-test-home");
-  const CONFIG_DIR = path.join(testHome, ".config", "dao-cli");
+  const CONFIG_DIR = path.join(testHome, ".config", "asset-cli");
   const GA_FLAG_FILE = path.join(CONFIG_DIR, "ga_telemetry_flag.json");
 
   before(async () => {
