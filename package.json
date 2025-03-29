@@ -1,8 +1,8 @@
 {
-  "name": "daocli",
+  "name": "assetCLI",
   "version": "1.0.0",
   "main": "index.js",
-  "repository": "https://github.com/DaoCLI/daoCLI-init.git",
+  "repository": "https://github.com/assetCLI/assetCLI-init.git",
   "author": "",
   "license": "MIT",
   "scripts": {
@@ -48,6 +48,6 @@
     "typescript": "^5.8.2"
   },
   "bin": {
-    "daocli": "dist/index.js"
+    "assetCLI": "dist/index.js"
   }
 }

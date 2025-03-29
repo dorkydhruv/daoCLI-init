@@ -12,11 +12,11 @@ describe("Salt Module", () => {
   before(async () => {
     process.env.HOME = testHome;
     // Remove any previous config so tests start fresh.
-    await fs.remove(path.join(testHome, ".config", "dao-cli"));
+    await fs.remove(path.join(testHome, ".config", "asset-cli"));
   });
 
   after(async () => {
-    await fs.remove(path.join(testHome, ".config", "dao-cli"));
+    await fs.remove(path.join(testHome, ".config", "asset-cli"));
     process.env.HOME = originalHome;
   });
 

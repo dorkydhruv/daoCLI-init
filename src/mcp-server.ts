@@ -12,7 +12,7 @@ import { registerAgentTools } from "./mcp/agent-tools";
 import { registerTestTokenTools } from "./mcp/test-token";
 
 const server = new McpServer({
-  name: "DaoCLI",
+  name: "AssetCLI",
   version: "0.0.1",
 });
 

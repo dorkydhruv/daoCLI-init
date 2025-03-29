@@ -28,7 +28,7 @@ describe("Integrated DAO with Squads Multisig Test", function () {
 
   const CLI_PATH = path.resolve(__dirname, "../src/index.ts");
   const CLI_CMD = "ts-node";
-  const CONFIG_DIR = path.join(process.env.HOME || "", ".config", "dao-cli");
+  const CONFIG_DIR = path.join(process.env.HOME || "", ".config", "asset-cli");
   const WALLET_PATH = path.join(CONFIG_DIR, "wallet.json");
   const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 

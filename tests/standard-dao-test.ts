@@ -15,13 +15,13 @@ import {
 } from "../src/utils/constants";
 import { ConfigService } from "../src/services/config-service";
 
-describe("Standard DAO Test", function () {
+describe("Standard Multisig Test", function () {
   // Extend mocha timeout since blockchain operations take time
   this.timeout(300000); // 5 minutes to handle slow CI environments
 
   const CLI_PATH = path.resolve(__dirname, "../src/index.ts");
   const CLI_CMD = "ts-node";
-  const CONFIG_DIR = path.join(process.env.HOME || "", ".config", "dao-cli");
+  const CONFIG_DIR = path.join(process.env.HOME || "", ".config", "asset-cli");
   const WALLET_PATH = path.join(CONFIG_DIR, "wallet.json");
   const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 
