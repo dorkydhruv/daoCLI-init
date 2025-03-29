@@ -2,27 +2,8 @@ import { Cluster } from "@solana/web3.js";
 import path from "path";
 import os from "os";
 
-// Platform-agnostic config directory
-// function getConfigDirectory(): string {
-//   const homeDir = os.homedir();
-//   const platform = process.platform;
-
-//   // Windows: %APPDATA%\dao-cli
-//   if (platform === "win32") {
-//     return path.join(homeDir, "AppData", "Roaming", "dao-cli");
-//   }
-
-//   // macOS: ~/Library/Application Support/dao-cli
-//   if (platform === "darwin") {
-//     return path.join(homeDir, "Library", "Application Support", "dao-cli");
-//   }
-
-//   // Linux/Unix: ~/.config/dao-cli
-//   return path.join(homeDir, ".config", "dao-cli");
-// }
-
 // Config paths
-export const CONFIG_DIR = path.join(os.homedir(), ".config", "dao-cli");
+export const CONFIG_DIR = path.join(os.homedir(), ".config", "asset-cli");
 export const WALLET_PATH = path.join(CONFIG_DIR, "wallet.json");
 export const CONFIG_PATH = path.join(CONFIG_DIR, "config.json");
 

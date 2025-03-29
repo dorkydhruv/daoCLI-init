@@ -11,7 +11,7 @@ async function main() {
   const program = new Command();
 
   program
-    .name("dao")
+    .name("assetCLI")
     .description("Multisig DAO CLI Management Tool")
     .version("1.0.0")
     .option("--noga", "Disable Google Analytics telemetry");
