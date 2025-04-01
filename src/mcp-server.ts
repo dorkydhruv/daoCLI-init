@@ -17,13 +17,13 @@ const server = new McpServer({
   version: "0.0.1",
 });
 
-// registerConfigAndWalletTools(server);
-// registerDaoTools(server);
-// registerProposalTools(server);
-// registerResource(server);
-// registerAgentTools(server);
+registerConfigAndWalletTools(server);
+registerDaoTools(server);
+registerProposalTools(server);
+registerResource(server);
+registerAgentTools(server);
 registerMultisigTools(server);
-// registerTestTokenTools(server);
+registerTestTokenTools(server);
 // Get Balance
 server.tool(
   "getBalance",

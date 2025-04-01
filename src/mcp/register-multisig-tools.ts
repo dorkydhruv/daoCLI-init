@@ -1,10 +1,9 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { ConnectionService } from "../services/connection-service";
 import { ConfigService } from "../services/config-service";
-import { WalletService } from "../services/wallet-service";
 import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { MultisigService } from "../services/multisig-service";
+import { useMcpContext } from "../utils/mcp-hooks";
 
 // Standalone Squads Multisig Tool
 export function registerMultisigTools(server: McpServer) {
@@ -66,15 +65,20 @@ export function registerMultisigTools(server: McpServer) {
           };
         }
 
-        // Make sure this is actually a multisig
-        const connectionRes = await ConnectionService.getConnection();
-        if (!connectionRes.success || !connectionRes.data) {
+        // Get connection using the context hook
+        const context = await useMcpContext({ requireWallet: false });
+        if (!context.success) {
           return {
-            content: [{ type: "text", text: "Failed to establish connection" }],
+            content: [
+              {
+                type: "text",
+                text: context.error || "Failed to establish connection",
+              },
+            ],
           };
         }
 
-        const connection = connectionRes.data;
+        const connection = context.connection;
 
         // Verify this is a valid multisig
         const multisigInfoRes = await MultisigService.getMultisigInfo(
@@ -130,34 +134,25 @@ export function registerMultisigTools(server: McpServer) {
     {},
     async () => {
       try {
-        // Get currently configured multisig
-        const multisigRes = await ConfigService.getActiveSquadsMultisig();
-        if (!multisigRes.success || !multisigRes.data) {
+        // Use context hook to get connection and multisig address
+        const context = await useMcpContext({ requireMultisig: true });
+        if (!context.success) {
           return {
             content: [
               {
                 type: "text",
-                text: "No standalone multisig configured. Use setMultisigAddress to configure one.",
+                text: context.error || "Failed to get multisig context",
               },
             ],
           };
         }
 
-        // Get connection
-        const connectionRes = await ConnectionService.getConnection();
-        if (!connectionRes.success || !connectionRes.data) {
-          return {
-            content: [{ type: "text", text: "Failed to establish connection" }],
-          };
-        }
-
-        const connection = connectionRes.data;
-        const multisigAddress = new PublicKey(multisigRes.data);
+        const { connection, multisigAddress } = context;
 
         // Get multisig info
         const multisigInfoRes = await MultisigService.getMultisigInfo(
           connection,
-          multisigAddress
+          multisigAddress!
         );
 
         if (!multisigInfoRes.success || !multisigInfoRes.data) {
@@ -172,8 +167,9 @@ export function registerMultisigTools(server: McpServer) {
         }
 
         // Get vault info
-        const vaultPdaRes =
-          MultisigService.getMultisigVaultPda(multisigAddress);
+        const vaultPdaRes = MultisigService.getMultisigVaultPda(
+          multisigAddress!
+        );
         if (!vaultPdaRes.success || !vaultPdaRes.data) {
           return {
             content: [
@@ -191,7 +187,7 @@ export function registerMultisigTools(server: McpServer) {
         // Format the response
         const info = multisigInfoRes.data;
         const result = {
-          address: multisigAddress.toBase58(),
+          address: multisigAddress!.toBase58(),
           vault: vaultPdaRes.data.toBase58(),
           vaultBalance: `${vaultBalance / LAMPORTS_PER_SOL} SOL`,
           members: (info.members || []).map((m) => m.toBase58()),
@@ -223,31 +219,24 @@ export function registerMultisigTools(server: McpServer) {
     },
     async ({ recipient, amount, title }) => {
       try {
-        // Validate inputs
-        const walletRes = await WalletService.loadWallet();
-        if (!walletRes.success || !walletRes.data) {
+        // Use context hook to get connection, wallet and multisig address
+        const context = await useMcpContext({
+          requireWallet: true,
+          requireMultisig: true,
+        });
+
+        if (!context.success) {
           return {
             content: [
               {
                 type: "text",
-                text: "No wallet configured. Please create a wallet first.",
+                text: context.error || "Failed to get multisig context",
               },
             ],
           };
         }
 
-        // Get currently configured multisig
-        const multisigRes = await ConfigService.getActiveSquadsMultisig();
-        if (!multisigRes.success || !multisigRes.data) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "No standalone multisig configured. Use setMultisigAddress to configure one.",
-              },
-            ],
-          };
-        }
+        const { connection, keypair, multisigAddress } = context;
 
         // Parse recipient
         let recipientAddress: PublicKey;
@@ -259,23 +248,11 @@ export function registerMultisigTools(server: McpServer) {
           };
         }
 
-        // Get connection and other necessities
-        const connectionRes = await ConnectionService.getConnection();
-        if (!connectionRes.success || !connectionRes.data) {
-          return {
-            content: [{ type: "text", text: "Failed to establish connection" }],
-          };
-        }
-
-        const connection = connectionRes.data;
-        const keypair = WalletService.getKeypair(walletRes.data);
-        const multisigAddress = new PublicKey(multisigRes.data);
-
         // Create SOL transfer instruction
         const transferIxRes =
           await MultisigService.getSquadsMultisigSolTransferInstruction(
             connection,
-            multisigAddress,
+            multisigAddress!,
             amount,
             recipientAddress
           );
@@ -294,7 +271,7 @@ export function registerMultisigTools(server: McpServer) {
         // Create the transaction with proposal
         const txResult = await MultisigService.createTransactionWithProposal(
           connection,
-          multisigAddress,
+          multisigAddress!,
           keypair,
           [transferIxRes.data],
           title
@@ -313,7 +290,7 @@ export function registerMultisigTools(server: McpServer) {
 
         const result = {
           success: true,
-          multisigAddress: multisigAddress.toBase58(),
+          multisigAddress: multisigAddress!.toBase58(),
           transactionIndex: txResult.data.transactionIndex,
           title: title,
           recipient: recipientAddress.toBase58(),
@@ -344,49 +321,30 @@ export function registerMultisigTools(server: McpServer) {
     },
     async ({ transactionIndex }) => {
       try {
-        // Validate inputs
-        const walletRes = await WalletService.loadWallet();
-        if (!walletRes.success || !walletRes.data) {
+        // Use context hook to get connection, wallet and multisig address
+        const context = await useMcpContext({
+          requireWallet: true,
+          requireMultisig: true,
+        });
+
+        if (!context.success) {
           return {
             content: [
               {
                 type: "text",
-                text: "No wallet configured. Please create a wallet first.",
+                text: context.error || "Failed to get multisig context",
               },
             ],
           };
         }
 
-        // Get currently configured multisig
-        const multisigRes = await ConfigService.getActiveSquadsMultisig();
-        if (!multisigRes.success || !multisigRes.data) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "No standalone multisig configured. Use setMultisigAddress to configure one.",
-              },
-            ],
-          };
-        }
-
-        // Get connection and keypair
-        const connectionRes = await ConnectionService.getConnection();
-        if (!connectionRes.success || !connectionRes.data) {
-          return {
-            content: [{ type: "text", text: "Failed to establish connection" }],
-          };
-        }
-
-        const connection = connectionRes.data;
-        const keypair = WalletService.getKeypair(walletRes.data);
-        const multisigAddress = new PublicKey(multisigRes.data);
+        const { connection, keypair, multisigAddress } = context;
 
         // Approve the transaction
         const approveRes = await MultisigService.approveProposal(
           connection,
           keypair,
-          multisigAddress,
+          multisigAddress!,
           transactionIndex
         );
 
@@ -404,7 +362,7 @@ export function registerMultisigTools(server: McpServer) {
         // Get status after approval
         const statusRes = await MultisigService.getProposalStatus(
           connection,
-          multisigAddress,
+          multisigAddress!,
           transactionIndex
         );
 
@@ -442,49 +400,30 @@ export function registerMultisigTools(server: McpServer) {
     },
     async ({ transactionIndex }) => {
       try {
-        // Validate inputs
-        const walletRes = await WalletService.loadWallet();
-        if (!walletRes.success || !walletRes.data) {
+        // Use context hook to get connection, wallet and multisig address
+        const context = await useMcpContext({
+          requireWallet: true,
+          requireMultisig: true,
+        });
+
+        if (!context.success) {
           return {
             content: [
               {
                 type: "text",
-                text: "No wallet configured. Please create a wallet first.",
+                text: context.error || "Failed to get multisig context",
               },
             ],
           };
         }
 
-        // Get currently configured multisig
-        const multisigRes = await ConfigService.getActiveSquadsMultisig();
-        if (!multisigRes.success || !multisigRes.data) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "No standalone multisig configured. Use setMultisigAddress to configure one.",
-              },
-            ],
-          };
-        }
-
-        // Get connection and keypair
-        const connectionRes = await ConnectionService.getConnection();
-        if (!connectionRes.success || !connectionRes.data) {
-          return {
-            content: [{ type: "text", text: "Failed to establish connection" }],
-          };
-        }
-
-        const connection = connectionRes.data;
-        const keypair = WalletService.getKeypair(walletRes.data);
-        const multisigAddress = new PublicKey(multisigRes.data);
+        const { connection, keypair, multisigAddress } = context;
 
         // Execute the transaction
         const executeRes = await MultisigService.executeMultisigTransaction(
           connection,
           keypair,
-          multisigAddress,
+          multisigAddress!,
           transactionIndex
         );
 

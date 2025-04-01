@@ -7,9 +7,8 @@ import {
 } from "solana-agent-kit";
 import pkg from "bs58";
 const { encode } = pkg;
-import { ConnectionService } from "../services/connection-service";
-import { WalletService } from "../services/wallet-service";
 import { z } from "zod";
+import { useMcpContext } from "../utils/mcp-hooks";
 
 /**
  * Creates and registers Solana agent tools on the MCP server
@@ -29,30 +28,24 @@ export function registerAgentTools(server: McpServer) {
 
     server.tool(action.name, action.description, result, async (params) => {
       try {
-        // Get connection and wallet for each request to ensure they're fresh
-        const connectionRes = await ConnectionService.getConnection();
-        if (!connectionRes.success || !connectionRes.data) {
+        // Get required context using the hook
+        const context = await useMcpContext({ requireWallet: true });
+
+        if (!context.success) {
           return {
             isError: true,
-            content: [{ type: "text", text: "Connection failed" }],
+            content: [
+              { type: "text", text: context.error || "Failed to get context" },
+            ],
           };
         }
 
-        const walletRes = await WalletService.loadWallet();
-        if (!walletRes.success || !walletRes.data) {
-          return {
-            isError: true,
-            content: [{ type: "text", text: "Wallet not loaded" }],
-          };
-        }
-
-        const wallet = walletRes.data;
-        const keypair = WalletService.getKeypair(wallet);
+        const { connection, keypair } = context;
 
         // Create SolanaAgentKit for each action to ensure fresh state
         const solanaAgentKit = new SolanaAgentKit(
           encode(keypair.secretKey),
-          connectionRes.data.rpcEndpoint,
+          connection.rpcEndpoint,
           {}
         );
 
