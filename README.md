@@ -1,7 +1,8 @@
 <div align="center">
   <!-- Tweet Screenshot -->
-  <h3>Winner of the Solana MCP AI Agent Competition</h3>
-  <img src="https://github.com/user-attachments/assets/a3d93722-ce5e-4922-980a-df42f9a7be20" alt="Tweet screenshot" width="300" />
+  <h3>Winner of the Solana MCP AI Agent Competition</h3>  <a href="https://x.com/sendaifun/status/1902788122552963460">
+    <img src="https://github.com/user-attachments/assets/a3d93722-ce5e-4922-980a-df42f9a7be20" alt="Tweet screenshot" width="300" />
+  </a>
 </div>
 
 # assetCLI - Goldman Sachs for AI Agents
