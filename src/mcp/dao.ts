@@ -185,7 +185,7 @@ export function registerDaoTools(server: McpServer) {
   );
 
   server.tool(
-    "fundSolana",
+    "fundSolanaToDaoTreasury",
     "Fund native Solana to the current multisig DAO treasury. This is used to fund the DAO",
     {
       amount: z.number(),
@@ -485,7 +485,7 @@ export function registerDaoTools(server: McpServer) {
   );
 
   server.tool(
-    "fundToken",
+    "fundTokenToDAOTreasury",
     "Fund token accounts for the active DAO",
     {
       mint: z.string(),

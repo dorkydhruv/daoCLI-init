@@ -171,6 +171,73 @@ export function registerMultisigTools(server: McpServer) {
   );
 
   server.tool(
+    "fundSolanaToMultisig",
+    "Fund the multisig with SOL",
+    {
+      amount: z.number(),
+    },
+    async ({ amount }) => {
+      try {
+        // Use context hook to get connection and multisig address
+        const context = await useMcpContext({
+          requireWallet: true,
+          requireMultisig: true,
+        });
+
+        if (!context.success) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: context.error || "Failed to get multisig context",
+              },
+            ],
+          };
+        }
+
+        const { connection, keypair, multisigAddress } = context;
+
+        // Fund the multisig with SOL
+        const fundRes = await MultisigService.fundSolanaToMultisig(
+          connection,
+          keypair,
+          multisigAddress!,
+          amount
+        );
+
+        if (!fundRes.success) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Failed to fund multisig: ${fundRes.error?.message}\n\nSuggestion: Ensure you have enough SOL in your wallet to cover both the amount and transaction fees`,
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Successfully funded multisig with ${amount} SOL!\n\nSuggestion: Use 'multisigInfo' to view the updated balance of your multisig vault`,
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to fund multisig: ${error}\n\nSuggestion: Check your network connection and wallet balance. You must have more SOL than the amount you're trying to fund plus fees.`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  server.tool(
     "setMultisigAddress",
     "Sets the active standalone multisig address",
     {

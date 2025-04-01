@@ -908,4 +908,50 @@ export class MultisigService {
       };
     }
   }
+
+  /**
+   * Funds a multisig vault with SOL
+   */
+  static async fundSolanaToMultisig(
+    connection: Connection,
+    keypair: Keypair,
+    multisigAddress: PublicKey,
+    amount: number
+  ): Promise<ServiceResponse<string>> {
+    try {
+      // Get the vault PDA of the multisig
+      const vaultPdaResult = this.getMultisigVaultPda(multisigAddress);
+      if (!vaultPdaResult.success) {
+        return {
+          success: false,
+          error: vaultPdaResult.error ?? {
+            message: "Failed to get multisig vault PDA",
+          },
+        };
+      }
+
+      const vaultPda = vaultPdaResult.data!;
+
+      // Calculate lamports
+      const lamports = amount * LAMPORTS_PER_SOL;
+
+      // Create transfer instruction
+      const transferInstruction = SystemProgram.transfer({
+        fromPubkey: keypair.publicKey,
+        toPubkey: vaultPda,
+        lamports,
+      });
+
+      // Send the transaction
+      return await sendTx(connection, keypair, [transferInstruction]);
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: "Failed to fund multisig vault",
+          details: error,
+        },
+      };
+    }
+  }
 }
