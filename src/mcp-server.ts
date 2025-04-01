@@ -10,18 +10,20 @@ import { LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
 import { registerAgentTools } from "./mcp/agent-tools";
 import { registerTestTokenTools } from "./mcp/test-token";
+import { registerMultisigTools } from "./mcp/register-multisig-tools";
 
 const server = new McpServer({
   name: "AssetCLI",
   version: "0.0.1",
 });
 
-registerConfigAndWalletTools(server);
-registerDaoTools(server);
-registerProposalTools(server);
-registerResource(server);
-registerAgentTools(server);
-registerTestTokenTools(server);
+// registerConfigAndWalletTools(server);
+// registerDaoTools(server);
+// registerProposalTools(server);
+// registerResource(server);
+// registerAgentTools(server);
+registerMultisigTools(server);
+// registerTestTokenTools(server);
 // Get Balance
 server.tool(
   "getBalance",

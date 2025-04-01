@@ -67,4 +67,40 @@ export function registerConfigAndWalletTools(server: McpServer) {
       content: [{ type: "text", text: JSON.stringify(wallet, null, 2) }],
     };
   });
+
+  server.tool("createWallet", "Creates a new wallet", {}, async () => {
+    const connection = await ConnectionService.getConnection();
+    if (!connection.success || !connection.data) {
+      return {
+        content: [{ type: "text", text: "Connection not established" }],
+      };
+    }
+    const wallet = await WalletService.createWallet();
+    if (!wallet.success || !wallet.data) {
+      return {
+        content: [{ type: "text", text: "Failed to create wallet" }],
+      };
+    }
+    const walletInfo = await WalletService.getWalletInfo(connection.data);
+    return {
+      content: [{ type: "text", text: JSON.stringify(walletInfo, null, 2) }],
+    };
+  });
+
+  server.tool(
+    "resetConfig",
+    "Resets the config to default values",
+    {},
+    async () => {
+      const response = await ConfigService.resetConfig();
+      if (!response.success) {
+        return {
+          content: [{ type: "text", text: "Failed to reset config" }],
+        };
+      }
+      return {
+        content: [{ type: "text", text: "Config reset to default values" }],
+      };
+    }
+  );
 }

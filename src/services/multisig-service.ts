@@ -6,6 +6,8 @@ import {
   Transaction,
   TransactionMessage,
   VersionedTransaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import * as multisig from "@sqds/multisig";
 import { KeypairUtil } from "../utils/keypair-util";
@@ -186,6 +188,47 @@ export class MultisigService {
       success: true,
       data: vaultPda,
     };
+  }
+
+  /**
+   * Creates an instruction for transferring SOL from a multisig vault
+   */
+  static async getSquadsMultisigSolTransferInstruction(
+    connection: Connection,
+    multisigAddress: PublicKey,
+    amount: number | bigint,
+    recipientAddress: PublicKey
+  ): Promise<ServiceResponse<TransactionInstruction>> {
+    try {
+      // Get the Squads vault PDA for index 0
+      const vaultPda = this.getMultisigVaultPda(multisigAddress).data!;
+
+      // Calculate lamports
+      const lamports =
+        typeof amount === "number"
+          ? amount * LAMPORTS_PER_SOL
+          : amount * BigInt(LAMPORTS_PER_SOL);
+
+      // Create the inner transfer instruction that will be executed by the vault
+      const transferInstruction = SystemProgram.transfer({
+        fromPubkey: vaultPda,
+        toPubkey: recipientAddress,
+        lamports: typeof lamports === "bigint" ? Number(lamports) : lamports,
+      });
+
+      return {
+        success: true,
+        data: transferInstruction,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: "Failed to create multisig SOL transfer instruction",
+          details: error,
+        },
+      };
+    }
   }
 
   /**
