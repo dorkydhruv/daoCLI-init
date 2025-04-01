@@ -1,8 +1,17 @@
+<div align="center">
+  <!-- Tweet Screenshot -->
+  <h3>Winner of the Solana MCP AI Agent Competition</h3>
+  <img src="https://github.com/user-attachments/assets/a3d93722-ce5e-4922-980a-df42f9a7be20" alt="Tweet screenshot" width="300" />
+</div>
+
 # assetCLI - Goldman Sachs for AI Agents
 
  running your entire governance, multisig and funding lifecycle (including bonding curves, DEX integrations, etc) through an AI-assisted  agent.
 
 ![assetCLI](./docs/images/banner.png)
+
+
+
 
 ## 🌟 Features
 
@@ -449,5 +458,3 @@ rm -rf ~/.config/dao-cli
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
-
-Built with ❤️ for the Solana ecosystem
