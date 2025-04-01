@@ -1,12 +1,135 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { ConfigService } from "../services/config-service";
-import { PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { PublicKey, LAMPORTS_PER_SOL, Keypair } from "@solana/web3.js";
 import { MultisigService } from "../services/multisig-service";
 import { useMcpContext } from "../utils/mcp-hooks";
 
 // Standalone Squads Multisig Tool
 export function registerMultisigTools(server: McpServer) {
+  // Add createMultisig tool
+  server.tool(
+    "createMultisig",
+    "Create a new standalone Squads multisig",
+    {
+      name: z.string(),
+      members: z.array(z.string()),
+      threshold: z.number(),
+    },
+    async ({ name, members, threshold }) => {
+      try {
+        const context = await useMcpContext({ requireWallet: true });
+        if (!context.success) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `${context.error}\n\nSuggestion: ${
+                  context.suggestion ||
+                  "Create a wallet with 'createWallet' first"
+                }`,
+              },
+            ],
+          };
+        }
+
+        const { connection, keypair } = context;
+        const membersPubkeys: PublicKey[] = [keypair.publicKey];
+        const invalidMembers: string[] = [];
+
+        for (const member of members) {
+          try {
+            if (member !== keypair.publicKey.toBase58()) {
+              membersPubkeys.push(new PublicKey(member));
+            }
+          } catch (e) {
+            invalidMembers.push(member);
+          }
+        }
+
+        if (invalidMembers.length > 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Invalid member addresses: ${invalidMembers.join(
+                  ", "
+                )}\n\nSuggestion: Member addresses should be valid Solana public keys. Example format: ${keypair.publicKey.toBase58()}`,
+              },
+            ],
+          };
+        }
+
+        if (threshold < 1 || threshold > membersPubkeys.length) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Invalid threshold (${threshold}). Must be between 1 and ${membersPubkeys.length}\n\nSuggestion: Set threshold to a value that represents the minimum number of required approvals`,
+              },
+            ],
+          };
+        }
+
+        const createKey = Keypair.generate();
+        const createResult = await MultisigService.createMultisig(
+          connection,
+          keypair,
+          threshold,
+          membersPubkeys,
+          name,
+          createKey
+        );
+
+        if (!createResult.success || !createResult.data) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Failed to create multisig: ${createResult.error?.message}\n\nSuggestion: Ensure you have enough SOL to pay for transaction fees and try again`,
+              },
+            ],
+          };
+        }
+
+        await ConfigService.setActiveSquadsMultisig(
+          createResult.data.multisigPda.toBase58()
+        );
+
+        return {
+          content: [
+            {
+              type: "text",
+              text:
+                JSON.stringify(
+                  {
+                    success: true,
+                    multisigAddress: createResult.data.multisigPda.toBase58(),
+                    name,
+                    threshold,
+                    members: membersPubkeys.map((m) => m.toBase58()),
+                    transaction: createResult.data.transactionSignature,
+                  },
+                  null,
+                  2
+                ) +
+                "\n\nSuggestion: Use 'multisigInfo' to view details about your new multisig",
+            },
+          ],
+        };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Failed to create multisig: ${error}\n\nSuggestion: Check your network connection and wallet balance`,
+            },
+          ],
+        };
+      }
+    }
+  );
+
   server.tool(
     "getMultisigAddress",
     "Gets the currently configured standalone multisig address",
@@ -61,7 +184,12 @@ export function registerMultisigTools(server: McpServer) {
           multisigAddress = new PublicKey(address);
         } catch (e) {
           return {
-            content: [{ type: "text", text: "Invalid multisig address." }],
+            content: [
+              {
+                type: "text",
+                text: "Invalid multisig address.\n\nSuggestion: Use a valid Solana address, or create a new multisig with 'createMultisig'",
+              },
+            ],
           };
         }
 
@@ -121,7 +249,10 @@ export function registerMultisigTools(server: McpServer) {
       } catch (error) {
         return {
           content: [
-            { type: "text", text: `Failed to set multisig address: ${error}` },
+            {
+              type: "text",
+              text: `Failed to set multisig address: ${error}\n\nSuggestion: Try 'createMultisig' to create a new multisig instead`,
+            },
           ],
         };
       }

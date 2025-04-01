@@ -7,8 +7,9 @@ import {
 } from "solana-agent-kit";
 import pkg from "bs58";
 const { encode } = pkg;
+import { ConnectionService } from "../services/connection-service";
+import { WalletService } from "../services/wallet-service";
 import { z } from "zod";
-import { useMcpContext } from "../utils/mcp-hooks";
 
 /**
  * Creates and registers Solana agent tools on the MCP server
@@ -28,24 +29,28 @@ export function registerAgentTools(server: McpServer) {
 
     server.tool(action.name, action.description, result, async (params) => {
       try {
-        // Get required context using the hook
-        const context = await useMcpContext({ requireWallet: true });
-
-        if (!context.success) {
+        // Get connection and wallet for each request to ensure they're fresh
+        const connectionRes = await ConnectionService.getConnection();
+        if (!connectionRes.success || !connectionRes.data) {
           return {
-            isError: true,
-            content: [
-              { type: "text", text: context.error || "Failed to get context" },
-            ],
+            content: [{ type: "text", text: "Connection failed" }],
           };
         }
 
-        const { connection, keypair } = context;
+        const walletRes = await WalletService.loadWallet();
+        if (!walletRes.success || !walletRes.data) {
+          return {
+            content: [{ type: "text", text: "Wallet not loaded" }],
+          };
+        }
+
+        const wallet = walletRes.data;
+        const keypair = WalletService.getKeypair(wallet);
 
         // Create SolanaAgentKit for each action to ensure fresh state
         const solanaAgentKit = new SolanaAgentKit(
           encode(keypair.secretKey),
-          connection.rpcEndpoint,
+          connectionRes.data.rpcEndpoint,
           {}
         );
 
@@ -61,15 +66,8 @@ export function registerAgentTools(server: McpServer) {
           ],
         };
       } catch (e) {
-        console.error("Error executing agent tool:", e);
         return {
-          isError: true,
-          content: [
-            {
-              type: "text",
-              text: e instanceof Error ? e.message : `Error: ${e}`,
-            },
-          ],
+          content: [{ type: "text", text: `Error: ${e}` }],
         };
       }
     });
@@ -91,11 +89,7 @@ export function registerAgentTools(server: McpServer) {
             : undefined;
           const examples = action.examples.flat();
           const selectedExamples =
-            typeof showIndex === "number" &&
-            showIndex >= 0 &&
-            showIndex < examples.length
-              ? [examples[showIndex]]
-              : examples;
+            typeof showIndex === "number" ? [examples[showIndex]] : examples;
 
           const exampleText = selectedExamples
             .map(

@@ -13,6 +13,7 @@ type McpHookOptions = {
 type McpHookResult = {
   success: boolean;
   error?: string;
+  suggestion?: string;
   connection?: any;
   keypair?: any;
   config?: any;
@@ -40,6 +41,8 @@ export async function useMcpContext(
     return {
       success: false,
       error: "Failed to establish connection",
+      suggestion:
+        "Use 'setCluster' command to set a valid cluster (devnet, testnet, or mainnet)",
     };
   }
   const connection = connectionRes.data;
@@ -51,7 +54,9 @@ export async function useMcpContext(
     if (!walletRes.success || !walletRes.data) {
       return {
         success: false,
-        error: "No wallet configured. Please create a wallet first.",
+        error: "No wallet configured. Please create or import a wallet first.",
+        suggestion:
+          "Use 'createWallet' to create a new wallet or 'importWallet' to import an existing one",
       };
     }
     keypair = WalletService.getKeypair(walletRes.data);
@@ -65,6 +70,7 @@ export async function useMcpContext(
       return {
         success: false,
         error: "Failed to load configuration",
+        suggestion: "Use 'setCluster' to initialize your configuration",
       };
     }
     config = configRes.data;
@@ -76,7 +82,9 @@ export async function useMcpContext(
     if (!config?.dao?.activeRealm) {
       return {
         success: false,
-        error: "No DAO configured. Use useDao to select one.",
+        error: "No DAO configured.",
+        suggestion:
+          "Use 'createDao' to create a new DAO or 'useDao' to select an existing one. You can also use 'listDaos' to see available DAOs.",
       };
     }
     realmAddress = new PublicKey(config.dao.activeRealm);
@@ -89,8 +97,9 @@ export async function useMcpContext(
     if (!multisigRes.success || !multisigRes.data) {
       return {
         success: false,
-        error:
-          "No standalone multisig configured. Use setMultisigAddress to configure one.",
+        error: "No standalone multisig configured.",
+        suggestion:
+          "Use 'createMultisig' to create a new multisig or 'setMultisigAddress' to configure an existing one.",
       };
     }
     multisigAddress = new PublicKey(multisigRes.data);
@@ -103,5 +112,20 @@ export async function useMcpContext(
     config,
     realmAddress,
     multisigAddress,
+  };
+}
+
+/**
+ * Helper function to create standardized MCP error responses
+ * with optional suggestions
+ */
+export function mcpError(message: string, suggestion?: string) {
+  let text = message;
+  if (suggestion) {
+    text += `\n\nSuggestion: ${suggestion}`;
+  }
+
+  return {
+    content: [{ type: "text", text }],
   };
 }
