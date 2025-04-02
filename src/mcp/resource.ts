@@ -9,7 +9,6 @@ export function registerResource(server: McpServer) {
     "assetCLIReadme",
     new ResourceTemplate("assetCLI://docs/readme", { list: undefined }),
     async (uri) => {
-      // Existing readme content
       const readmeContent = `# assetCLI
   
   ## Overview
