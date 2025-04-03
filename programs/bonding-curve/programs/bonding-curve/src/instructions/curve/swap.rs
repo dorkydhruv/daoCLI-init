@@ -9,10 +9,11 @@ use crate::{
     BondingCurve,
     BondingCurveLockerCtx,
     BuyResult,
+    DAOProposal,
     Global,
     IntoBondingCurveLockerCtx,
     SellResult,
-    TokensPurchased, // Event
+    TokensPurchased,
     TokensSold, // Event
 };
 
@@ -64,6 +65,13 @@ pub struct Swap<'info> {
         associated_token::authority = user
     )]
     pub user_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
+
+    // Add DAO proposal access when needed
+    #[account(
+        seeds = [DAOProposal::SEED_PREFIX.as_bytes(), mint.to_account_info().key.as_ref()],
+        bump
+    )]
+    pub dao_proposal: Box<Account<'info, DAOProposal>>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,

@@ -29,17 +29,28 @@ pub struct BondingCurve {
     pub complete: bool,
     pub bump: u8,
     pub sol_raise_target: u64,
-    pub realm_pubkey: Pubkey,
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct CreateBondingCurveParams {
+    // Token metadata
     pub name: String,
     pub symbol: String,
     pub uri: String,
     pub start_time: Option<i64>,
     pub sol_raise_target: u64,
-    pub realm_pubkey: Pubkey,
+
+    // DAO Proposal metadata
+    pub dao_name: String,
+    pub dao_description: String,
+    pub realm_address: Pubkey,
+    pub twitter_handle: Option<String>,
+    pub discord_link: Option<String>,
+    pub website_url: Option<String>,
+    pub logo_uri: Option<String>,
+    pub founder_name: Option<String>,
+    pub founder_twitter: Option<String>,
+    pub bullish_thesis: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -133,7 +144,6 @@ impl BondingCurve {
         let complete = false;
 
         let sol_raise_target = params.sol_raise_target;
-        let realm_pubkey = params.realm_pubkey;
 
         // Important: Use full token supply for virtual reserves (100M),
         // but only 50% is actually tradable
@@ -153,7 +163,6 @@ impl BondingCurve {
                 complete,
                 bump,
                 sol_raise_target,
-                realm_pubkey,
             })
         );
         self
