@@ -1,5 +1,6 @@
 node_modules
 dist
 test-ledger
-
+idls
 src/services/squads-multisig
+src/types/bonding_curve.ts
