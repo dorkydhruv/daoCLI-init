@@ -1,5 +1,6 @@
 export const getExplorerTx = (txId: string, network: string) => {
   const baseUrl = "https://explorer.solana.com";
+
   const newNetwork = () => {
     if (network === "mainnet-beta") {
       return "";
@@ -8,5 +9,5 @@ export const getExplorerTx = (txId: string, network: string) => {
     }
     return "custom";
   };
-  return `${baseUrl}/tx/${txId}?cluster=${newNetwork}`;
+  return `${baseUrl}/tx/${txId}?cluster=${newNetwork()}`;
 };

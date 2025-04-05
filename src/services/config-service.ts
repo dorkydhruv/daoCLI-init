@@ -42,7 +42,7 @@ export class ConfigService {
     try {
       await fs.ensureDir(CONFIG_DIR);
       await fs.writeJSON(CONFIG_PATH, config, { spaces: 2 });
-      return { success: true };
+      return { success: true }; 
     } catch (error) {
       return {
         success: false,
@@ -226,6 +226,83 @@ export class ConfigService {
         success: false,
         error: {
           message: "Failed to get active Squads multisig",
+          details: error,
+        },
+      };
+    }
+  }
+
+  static async setBondingCurveConfig(
+    bondingCurveAddress: string,
+    mintAddress: string
+  ): Promise<ServiceResponse<Config>> {
+    try {
+      const configResponse = await this.getConfig();
+      if (!configResponse.success || !configResponse.data) {
+        return configResponse;
+      }
+
+      const config = configResponse.data;
+      // Initialize bondingCurve if it doesn't exist
+      if (!config.bondingCurve) {
+        config.bondingCurve = {};
+      }
+
+      config.bondingCurve.bondingCurveAddress = bondingCurveAddress;
+      config.bondingCurve.mint = mintAddress;
+
+      const saveResponse = await this.saveConfig(config);
+      if (!saveResponse.success) {
+        return {
+          success: false,
+          error: {
+            message: "Failed to set bonding curve config",
+            details: saveResponse.error,
+          },
+          data: config,
+        };
+      }
+
+      return { success: true, data: config };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: "Failed to set bonding curve config",
+          details: error,
+        },
+      };
+    }
+  }
+
+  static async getBondingCurveConfig(): Promise<
+    ServiceResponse<{
+      bondingCurveAddress?: string | undefined;
+      mint?: string | undefined;
+    }>
+  > {
+    try {
+      const configResponse = await this.getConfig();
+      if (!configResponse.success || !configResponse.data) {
+        return {
+          success: false,
+          error: { message: "No bonding curve config found" },
+        };
+      }
+
+      const config = configResponse.data;
+      return {
+        success: true,
+        data: {
+          bondingCurveAddress: config.bondingCurve?.bondingCurveAddress,
+          mint: config.bondingCurve?.mint,
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          message: "Failed to get bonding curve config",
           details: error,
         },
       };

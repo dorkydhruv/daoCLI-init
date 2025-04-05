@@ -12,10 +12,19 @@ import {
   Commitment,
   Transaction,
 } from "@solana/web3.js";
+import os from "os";
+import fs from "fs";
 import { BondingCurve } from "../types/bonding_curve";
 import { findMetadataPda } from "@metaplex-foundation/mpl-token-metadata";
 import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
-import { publicKey } from "@metaplex-foundation/umi";
+import {
+  createGenericFile,
+  createSignerFromKeypair,
+  publicKey,
+  signerIdentity,
+} from "@metaplex-foundation/umi";
+import { irysUploader } from "@metaplex-foundation/umi-uploader-irys";
+
 import {
   TOKEN_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
@@ -28,6 +37,7 @@ import {
   CreateBondingCurveParams,
   SwapParams,
 } from "../types";
+import path from "path";
 
 export class BondingCurveService {
   private program: Program<BondingCurve>;
@@ -96,6 +106,21 @@ export class BondingCurveService {
   }
 
   /**
+   * Find Mint address
+   */
+  private findMintAddress(name: string, pubkey: PublicKey): PublicKey {
+    const [mintAddress] = web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bonding_curve_token"),
+        Buffer.from(name),
+        pubkey.toBuffer(),
+      ],
+      new PublicKey(this.idl.address)
+    );
+    return mintAddress;
+  }
+
+  /**
    * Get Associated Token Address
    */
   private async getAssociatedTokenAddress(
@@ -142,7 +167,7 @@ export class BondingCurveService {
         success: true,
         data: tx,
       };
-    } catch (error) {
+    } catch (error: any) {
       return {
         success: false,
         error: {
@@ -157,17 +182,44 @@ export class BondingCurveService {
    * Create a new bonding curve
    */
   async createBondingCurve(
-    params: CreateBondingCurveParams,
-    mintKeypair: web3.Keypair
-  ): Promise<ServiceResponse<string>> {
+    params: CreateBondingCurveParams
+  ): Promise<
+    ServiceResponse<{ tx: string; mintAddress: string; uploadErrors?: any }>
+  > {
     try {
-      const mintKey = mintKeypair.publicKey;
+      const mintKey = this.findMintAddress(
+        params.name,
+        this.provider.wallet.publicKey
+      );
+
+      console.log(
+        `Creating bonding curve with deterministic mint: ${mintKey.toString()}`
+      );
 
       // Find all necessary PDAs using helper methods
       const metadataAddress = this.findMetadataAddress(mintKey);
       const bondingCurvePda = this.findBondingCurvePda(mintKey);
       const daoProposalPda = this.findDaoProposalPda(mintKey);
       const globalStateAddress = this.findGlobalStatePda();
+      let uploadErrors;
+      let uri = "https://avatars.githubusercontent.com/u/84874526?v=4";
+      try {
+        // Upload to Irys
+        const bufferFile = fs.readFileSync(
+          path.join(os.homedir(), params.path)
+        );
+        const file = createGenericFile(bufferFile, mintKey.toString());
+
+        const umi = createUmi(this.provider.connection).use(irysUploader());
+        const umiKeypair = umi.eddsa.createKeypairFromSecretKey(
+          this.provider.wallet.payer?.secretKey!
+        );
+        const umiSigner = createSignerFromKeypair(umi, umiKeypair);
+        umi.use(signerIdentity(umiSigner));
+        [uri] = await umi.uploader.upload([file]);
+      } catch (error) {
+        uploadErrors = error;
+      }
 
       // Find bonding curve token account
       const bondingCurveTokenAccount = await this.getAssociatedTokenAddress(
@@ -176,50 +228,89 @@ export class BondingCurveService {
         true
       );
 
-      // Handle startTime - use null instead of undefined for the API
-      const startTime = params.startTime ? new BN(params.startTime) : null;
+      // IMPORTANT: Set start time to at least 2 minutes in the future to avoid validation errors
+      // This gives enough time for transaction processing
+      const currentTime = Math.floor(Date.now() / 1000);
+      const startTime = new BN(
+        Math.max(
+          params.startTime || 0,
+          currentTime + 120 // Add 2 minutes buffer to ensure it's in the future
+        )
+      );
 
-      // Send the transaction with correct parameters
+      console.log(
+        `Using start time: ${startTime.toString()} (${new Date(
+          startTime.toNumber() * 1000
+        )})`
+      );
+
+      // Construct parameters exactly as expected by the contract
+      const bondingCurveParams = {
+        name: params.name,
+        symbol: params.symbol,
+        uri: uri,
+        startTime: startTime,
+        solRaiseTarget: params.solRaiseTarget,
+        daoName: params.daoName || params.name,
+        daoDescription:
+          params.daoDescription || "DAO created from bonding curve",
+        realmAddress: params.realmAddress,
+        // Use null (not empty strings) for optional fields
+        twitterHandle: params.twitterHandle || null,
+        discordLink: params.discordLink || null,
+        websiteUrl: params.websiteUrl || null,
+        logoUri: params.logoUri || null,
+        founderName: params.founderName || null,
+        founderTwitter: params.founderTwitter || null,
+        bullishThesis: params.bullishThesis || null,
+      };
+
+      // Just use the .rpc() method directly like in the tests
       const tx = await this.program.methods
-        .createBondingCurve({
-          name: params.name,
-          symbol: params.symbol,
-          uri: params.uri,
-          startTime: startTime,
-          solRaiseTarget: params.solRaiseTarget,
-          daoName: params.daoName,
-          daoDescription: params.daoDescription,
-          realmAddress: params.realmAddress,
-          twitterHandle: params.twitterHandle || null,
-          discordLink: params.discordLink || null,
-          websiteUrl: params.websiteUrl || null,
-          logoUri: params.logoUri || null,
-          founderName: params.founderName || null,
-          founderTwitter: params.founderTwitter || null,
-          bullishThesis: params.bullishThesis || null,
-        })
+        .createBondingCurve(bondingCurveParams)
         .accountsPartial({
           mint: mintKey,
-          creator: this.provider.wallet.publicKey,
           bondingCurve: bondingCurvePda,
-          daoProposal: daoProposalPda,
-          bondingCurveTokenAccount: bondingCurveTokenAccount,
-          global: globalStateAddress,
           metadata: metadataAddress,
-          rent: web3.SYSVAR_RENT_PUBKEY,
+          bondingCurveTokenAccount: bondingCurveTokenAccount,
+          daoProposal: daoProposalPda,
+          global: globalStateAddress,
+          creator: this.provider.wallet.publicKey,
           systemProgram: web3.SystemProgram.programId,
           tokenProgram: TOKEN_PROGRAM_ID,
-          tokenMetadataProgram: new PublicKey(METADATA_PROGRAM_ID),
+          tokenMetadataProgram: METADATA_PROGRAM_ID,
+          rent: web3.SYSVAR_RENT_PUBKEY,
           associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         })
-        .signers([mintKeypair])
         .rpc({ skipPreflight: true });
 
       return {
         success: true,
-        data: tx,
+        data: {
+          tx,
+          mintAddress: mintKey.toString(),
+          uploadErrors,
+        },
       };
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Error creating bonding curve:", error);
+
+      // Enhanced error logging for better debugging
+      if (error.logs) {
+        console.error("Transaction logs:", error.logs);
+
+        // Extract and display the specific error from Anchor program
+        const errorLog = error.logs.find(
+          (log: any) =>
+            log.includes("AnchorError") ||
+            log.includes("Error Code") ||
+            log.includes("Error Message")
+        );
+        if (errorLog) {
+          console.error("Specific error:", errorLog);
+        }
+      }
+
       return {
         success: false,
         error: {

@@ -76,6 +76,7 @@ pub struct SellResult {
 impl BondingCurve {
     // Change this to match the seed used in CreateBondingCurve account initialization
     pub const SEED_PREFIX: &'static str = "bonding_curve";
+    pub const TOKEN_PREFIX: &'static str = "bonding_curve_token";
 
     pub fn calculate_fee(&self, amount: u64, time_now: i64) -> Result<u64> {
         let start_time = self.start_time;

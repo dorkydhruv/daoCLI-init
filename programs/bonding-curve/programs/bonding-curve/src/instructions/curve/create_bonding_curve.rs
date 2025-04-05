@@ -22,13 +22,20 @@ use crate::{
 };
 
 #[derive(Accounts)]
+#[instruction(params: CreateBondingCurveParams)]
 pub struct CreateBondingCurve<'info> {
     #[account(
         init,
         payer = creator,
         mint::decimals = global.mint_decimals,
         mint::authority = dao_proposal, // Change authority to dao_proposal
-        mint::freeze_authority = bonding_curve // Keep freeze authority with bonding curve for now
+        mint::freeze_authority = bonding_curve, // Keep freeze authority with bonding curve for now,
+        seeds = [
+            BondingCurve::TOKEN_PREFIX.as_bytes(),
+            params.name.as_bytes(),
+            creator.key().as_ref(),
+        ],
+        bump
     )]
     pub mint: Box<InterfaceAccount<'info, Mint>>,
 

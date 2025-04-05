@@ -49,8 +49,14 @@ describe("bonding-curve", () => {
     "11111111111111111111111111111111"
   );
   const solRaiseTarget = new anchor.BN(1000 * anchor.web3.LAMPORTS_PER_SOL);
-  const mintKeyPair = anchor.web3.Keypair.generate();
-  const mintKey = mintKeyPair.publicKey;
+  const [mintKey, mintKeyBump] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("bonding_curve_token"),
+      Buffer.from(metadataOfToken.name),
+      wallet.publicKey.toBuffer(),
+    ],
+    program.programId
+  );
   // Find metadata PDA
   const metadataAddress = new anchor.web3.PublicKey(
     findMetadataPda(umi, {
@@ -210,7 +216,7 @@ describe("bonding-curve", () => {
           ),
           associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
         })
-        .signers([mintKeyPair])
+        .signers([wallet.payer]) // Use the wallet's payer as the signer
         .rpc({ skipPreflight: true });
 
       console.log(
@@ -488,36 +494,37 @@ describe("bonding-curve", () => {
 
   it("Mark bonding curve complete when reaching SOL target", async () => {
     // Create a new bonding curve with small target
-    const smallTargetMintKeypair = anchor.web3.Keypair.generate();
+    const [smallTargetMint] = anchor.web3.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bonding_curve_token"),
+        Buffer.from(metadataOfToken.name + "_small_target"),
+        wallet.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
 
     const [smallTargetBondingCurvePda] =
       anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("bonding_curve"),
-          smallTargetMintKeypair.publicKey.toBuffer(),
-        ],
+        [Buffer.from("bonding_curve"), smallTargetMint.toBuffer()],
         program.programId
       );
 
     const smallTargetMetadataAddress = new anchor.web3.PublicKey(
       findMetadataPda(umi, {
-        mint: publicKey(smallTargetMintKeypair.publicKey),
+        mint: publicKey(smallTargetMint),
       })[0].toString()
     );
 
     const smallTargetBondingCurveTokenAccount =
       anchor.utils.token.associatedAddress({
-        mint: smallTargetMintKeypair.publicKey,
+        mint: smallTargetMint,
         owner: smallTargetBondingCurvePda,
       });
 
     // Find DAO proposal PDA for this new bonding curve
     const [smallTargetDaoProposalPda] =
       anchor.web3.PublicKey.findProgramAddressSync(
-        [
-          Buffer.from("dao_proposal"),
-          smallTargetMintKeypair.publicKey.toBuffer(),
-        ],
+        [Buffer.from("dao_proposal"), smallTargetMint.toBuffer()],
         program.programId
       );
 
@@ -529,7 +536,7 @@ describe("bonding-curve", () => {
     // Create the bonding curve with the small target - include DAO proposal params
     await program.methods
       .createBondingCurve({
-        name: metadataOfToken.name,
+        name: metadataOfToken.name + "_small_target",
         symbol: metadataOfToken.symbol,
         uri: metadataOfToken.uri,
         startTime: new anchor.BN(Math.floor(Date.now() / 1000)),
@@ -549,7 +556,7 @@ describe("bonding-curve", () => {
           "This DAO will test completion when SOL target is reached",
       })
       .accountsPartial({
-        mint: smallTargetMintKeypair.publicKey,
+        mint: smallTargetMint,
         creator: wallet.publicKey,
         bondingCurve: smallTargetBondingCurvePda,
         daoProposal: smallTargetDaoProposalPda, // Add dao proposal account
@@ -564,7 +571,7 @@ describe("bonding-curve", () => {
         ),
         associatedTokenProgram: anchor.utils.token.ASSOCIATED_PROGRAM_ID,
       })
-      .signers([smallTargetMintKeypair])
+      .signers([])
       .rpc();
 
     console.log("Created bonding curve with small SOL target");
@@ -598,11 +605,10 @@ describe("bonding-curve", () => {
     );
 
     // Create user token account for this test
-    const smallTargetUserTokenAccount =
-      await anchor.utils.token.associatedAddress({
-        mint: smallTargetMintKeypair.publicKey,
-        owner: wallet.publicKey,
-      });
+    const smallTargetUserTokenAccount = anchor.utils.token.associatedAddress({
+      mint: smallTargetMint,
+      owner: wallet.publicKey,
+    });
 
     // Buy parameters - exceed the target
     const buyAmount = new anchor.BN(0.2 * anchor.web3.LAMPORTS_PER_SOL);
@@ -627,7 +633,7 @@ describe("bonding-curve", () => {
         user: wallet.publicKey,
         global: globalStateAddress,
         feeReceiver: wallet.publicKey,
-        mint: smallTargetMintKeypair.publicKey,
+        mint: smallTargetMint,
         bondingCurve: smallTargetBondingCurvePda,
         bondingCurveTokenAccount: smallTargetBondingCurveTokenAccount,
         userTokenAccount: smallTargetUserTokenAccount,

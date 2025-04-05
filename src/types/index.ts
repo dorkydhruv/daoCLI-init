@@ -19,10 +19,16 @@ export interface SquadsMultisigConfig {
   // Could add more multisig-specific config options in the future
 }
 
+export interface BondingCurveConfig {
+  bondingCurveAddress?: string;
+  mint?: string;
+}
+
 export interface Config {
   wallet?: WalletConfig;
   dao?: DaoConfig;
   squadsMultisig?: SquadsMultisigConfig; // Separate top-level config
+  bondingCurve?: BondingCurveConfig; // Separate top-level config
 }
 
 export interface CommandOptions {
@@ -64,7 +70,7 @@ export interface BondingCurveInitParams {
 export interface CreateBondingCurveParams {
   name: string;
   symbol: string;
-  uri: string;
+  path: string;
   startTime?: number; // Optional timestamp
   solRaiseTarget: BN;
   // DAO proposal data

@@ -20,6 +20,9 @@ importers:
       '@metaplex-foundation/umi-bundle-defaults':
         specifier: ^1.1.1
         version: 1.1.1(@metaplex-foundation/umi@1.1.1)(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+      '@metaplex-foundation/umi-uploader-irys':
+        specifier: ^1.1.1
+        version: 1.1.1(@metaplex-foundation/umi@1.1.1)(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(arweave@1.15.5)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)(utf-8-validate@5.0.10)
       '@modelcontextprotocol/sdk':
         specifier: ^1.6.1
         version: 1.7.0
@@ -34,7 +37,7 @@ importers:
         version: 2.1.3(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)(utf-8-validate@5.0.10)
       axios:
         specifier: ^1.8.3
-        version: 1.8.3(debug@4.4.0)
+        version: 1.8.3
       bn.js:
         specifier: ^5.2.1
         version: 5.2.1
@@ -5354,7 +5357,7 @@ snapshots:
 
   '@aptos-labs/aptos-client@1.1.0(axios@1.8.3)(got@11.8.6)':
     dependencies:
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       got: 11.8.6
 
   '@aptos-labs/aptos-dynamic-transaction-composer@0.1.3': {}
@@ -5723,7 +5726,7 @@ snapshots:
       '@cosmjs/socket': 0.32.4(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@cosmjs/stream': 0.32.4
       '@cosmjs/utils': 0.32.4
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       readonly-date: 1.0.0
       xstream: 11.14.0
     transitivePeerDependencies:
@@ -6333,7 +6336,7 @@ snapshots:
       '@injectivelabs/utils': 1.14.41(google-protobuf@3.21.4)
       '@metamask/eth-sig-util': 4.0.1
       '@noble/curves': 1.8.1
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       bech32: 2.0.0
       bip39: 3.1.0
       cosmjs-types: 0.9.0
@@ -6363,7 +6366,7 @@ snapshots:
       '@injectivelabs/networks': 1.14.41(google-protobuf@3.21.4)
       '@injectivelabs/ts-types': 1.14.41
       '@injectivelabs/utils': 1.14.41(google-protobuf@3.21.4)
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       bignumber.js: 9.1.2
       shx: 0.3.4
       snakecase-keys: 5.5.0
@@ -6380,7 +6383,7 @@ snapshots:
     dependencies:
       '@injectivelabs/exceptions': 1.14.41(google-protobuf@3.21.4)
       '@injectivelabs/ts-types': 1.14.41
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       bignumber.js: 9.1.2
       http-status-codes: 2.3.0
       shx: 0.3.4
@@ -6389,6 +6392,16 @@ snapshots:
     transitivePeerDependencies:
       - debug
       - google-protobuf
+
+  '@irys/arweave@0.0.2':
+    dependencies:
+      asn1.js: 5.4.1
+      async-retry: 1.3.3
+      axios: 1.8.3
+      base64-js: 1.5.1
+      bignumber.js: 9.1.2
+    transitivePeerDependencies:
+      - debug
 
   '@irys/arweave@0.0.2(debug@4.4.0)':
     dependencies:
@@ -6408,7 +6421,7 @@ snapshots:
       '@ethersproject/signing-key': 5.8.0
       '@ethersproject/transactions': 5.8.0
       '@ethersproject/wallet': 5.8.0
-      '@irys/arweave': 0.0.2(debug@4.4.0)
+      '@irys/arweave': 0.0.2
       '@noble/ed25519': 1.7.3
       base64url: 3.0.1
       bs58: 4.0.1
@@ -6435,7 +6448,7 @@ snapshots:
       '@ethersproject/signing-key': 5.8.0
       '@ethersproject/transactions': 5.8.0
       '@ethersproject/wallet': 5.8.0
-      '@irys/arweave': 0.0.2(debug@4.4.0)
+      '@irys/arweave': 0.0.2
       '@noble/ed25519': 1.7.3
       base64url: 3.0.1
       bs58: 4.0.1
@@ -6465,14 +6478,14 @@ snapshots:
   '@irys/query@0.0.8':
     dependencies:
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
     transitivePeerDependencies:
       - debug
 
   '@irys/query@0.0.9':
     dependencies:
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
     transitivePeerDependencies:
       - debug
 
@@ -6527,7 +6540,7 @@ snapshots:
       algosdk: 1.24.1
       arbundles: 0.11.2(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       base64url: 3.0.1
       bignumber.js: 9.1.2
       bs58: 5.0.0
@@ -6552,7 +6565,7 @@ snapshots:
       '@irys/query': 0.0.9
       '@supercharge/promise-pool': 3.2.0
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       base64url: 3.0.1
       bignumber.js: 9.1.2
     transitivePeerDependencies:
@@ -6568,7 +6581,7 @@ snapshots:
       '@irys/query': 0.0.9
       '@supercharge/promise-pool': 3.2.0
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       base64url: 3.0.1
       bignumber.js: 9.1.2
     transitivePeerDependencies:
@@ -6603,7 +6616,7 @@ snapshots:
       '@irys/bundles': 0.0.1(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@irys/upload-core': 0.0.9(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       base64url: 3.0.1
       bignumber.js: 9.1.2
       csv-parse: 5.6.0
@@ -6622,7 +6635,7 @@ snapshots:
       '@irys/bundles': 0.0.3(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@irys/upload-core': 0.0.10(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       base64url: 3.0.1
       bignumber.js: 9.1.2
       csv-parse: 5.6.0
@@ -6661,7 +6674,7 @@ snapshots:
       '@irys/bundles': 0.0.1(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@irys/upload-core': 0.0.9(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       base64url: 3.0.1
       bignumber.js: 9.1.2
       mime-types: 2.1.35
@@ -6677,7 +6690,7 @@ snapshots:
       '@irys/bundles': 0.0.3(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@irys/upload-core': 0.0.10(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       async-retry: 1.3.3
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       base64url: 3.0.1
       bignumber.js: 9.1.2
       mime-types: 2.1.35
@@ -7464,6 +7477,27 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  '@metaplex-foundation/umi-uploader-irys@1.1.1(@metaplex-foundation/umi@1.1.1)(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(arweave@1.15.5)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@irys/upload': 0.0.14(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      '@irys/upload-solana': 0.1.8(arweave@1.15.5)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)(utf-8-validate@5.0.10)
+      '@irys/web-upload': 0.0.14(arweave@1.15.5)(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      '@irys/web-upload-solana': 0.1.8(arweave@1.15.5)(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)(utf-8-validate@5.0.10)
+      '@metaplex-foundation/umi': 1.1.1
+      '@metaplex-foundation/umi-web3js-adapters': 1.1.1(@metaplex-foundation/umi@1.1.1)(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))
+      '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
+      '@supercharge/promise-pool': 3.2.0
+      bignumber.js: 9.1.2
+      buffer: 6.0.3
+    transitivePeerDependencies:
+      - arweave
+      - bufferutil
+      - debug
+      - encoding
+      - fastestsmallesttextencoderdecoder
+      - typescript
+      - utf-8-validate
+
   '@metaplex-foundation/umi-web3js-adapters@0.9.2(@metaplex-foundation/umi@0.9.2)(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))':
     dependencies:
       '@metaplex-foundation/umi': 0.9.2
@@ -8038,7 +8072,7 @@ snapshots:
     dependencies:
       '@pythnetwork/price-service-sdk': 1.8.0
       '@types/ws': 8.18.0
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       axios-retry: 3.9.1
       isomorphic-ws: 4.0.1(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
       ts-log: 2.2.7
@@ -8092,7 +8126,7 @@ snapshots:
       '@solana/buffer-layout': 4.0.1
       '@solana/spl-token': 0.4.13(@solana/web3.js@1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10))(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)(utf-8-validate@5.0.10)
       '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       big.js: 6.2.2
       bn.js: 5.2.1
       dayjs: 1.11.13
@@ -8955,7 +8989,7 @@ snapshots:
     dependencies:
       '@jup-ag/api': 6.0.40
       '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       typescript: 5.8.2
     transitivePeerDependencies:
       - bufferutil
@@ -9013,7 +9047,7 @@ snapshots:
   '@switchboard-xyz/common@2.5.19(bufferutil@4.0.9)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       big.js: 6.2.2
       bn.js: 5.2.1
       bs58: 6.0.0
@@ -9036,7 +9070,7 @@ snapshots:
       '@solana/web3.js': 1.98.0(bufferutil@4.0.9)(utf-8-validate@5.0.10)
       '@solworks/soltoolkit-sdk': 0.0.23(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(utf-8-validate@5.0.10)
       '@switchboard-xyz/common': 2.5.19(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       big.js: 6.2.2
       bs58: 5.0.0
       js-yaml: 4.1.0
@@ -9397,7 +9431,7 @@ snapshots:
     dependencies:
       '@wormhole-foundation/sdk-base': 1.13.2
       '@wormhole-foundation/sdk-definitions': 1.13.2
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
     transitivePeerDependencies:
       - debug
 
@@ -9690,7 +9724,7 @@ snapshots:
 
   '@zodios/core@10.9.6(axios@1.8.3)(zod@3.24.2)':
     dependencies:
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       zod: 3.24.2
 
   JSONStream@1.3.5:
@@ -9874,7 +9908,7 @@ snapshots:
       '@ethersproject/signing-key': 5.8.0
       '@ethersproject/transactions': 5.8.0
       '@ethersproject/wallet': 5.8.0
-      '@irys/arweave': 0.0.2(debug@4.4.0)
+      '@irys/arweave': 0.0.2
       '@noble/ed25519': 1.7.3
       base64url: 3.0.1
       bs58: 4.0.1
@@ -9972,7 +10006,15 @@ snapshots:
 
   axios@0.28.1:
     dependencies:
-      follow-redirects: 1.15.9(debug@4.4.0)
+      follow-redirects: 1.15.9(debug@4.3.4)
+      form-data: 4.0.2
+      proxy-from-env: 1.1.0
+    transitivePeerDependencies:
+      - debug
+
+  axios@1.8.3:
+    dependencies:
+      follow-redirects: 1.15.9(debug@4.3.4)
       form-data: 4.0.2
       proxy-from-env: 1.1.0
     transitivePeerDependencies:
@@ -11541,7 +11583,7 @@ snapshots:
       zod-to-json-schema: 3.24.4(zod@3.24.2)
     optionalDependencies:
       '@langchain/groq': 0.1.3(@langchain/core@0.3.42(openai@4.87.3(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))(zod@3.24.2)))(ws@8.18.1(bufferutil@4.0.9)(utf-8-validate@5.0.10))
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
     transitivePeerDependencies:
       - encoding
       - openai
@@ -12581,7 +12623,7 @@ snapshots:
       '@voltr/vault-sdk': 0.1.6(bufferutil@4.0.9)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.8.2)(utf-8-validate@5.0.10)
       '@wormhole-foundation/sdk': 1.13.2(axios@1.8.3)(bufferutil@4.0.9)(got@11.8.6)(react@19.0.0)(typescript@5.8.2)(utf-8-validate@5.0.10)
       ai: 4.1.61(react@19.0.0)(zod@3.24.2)
-      axios: 1.8.3(debug@4.4.0)
+      axios: 1.8.3
       bn.js: 5.2.1
       bs58: 6.0.0
       chai: 5.2.0
